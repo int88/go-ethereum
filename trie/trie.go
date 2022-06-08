@@ -58,6 +58,7 @@ type LeafCallback func(paths [][]byte, hexpath []byte, leaf []byte, parent commo
 // Trie is a Merkle Patricia Trie.
 // The zero value is an empty trie with no database.
 // Use New to create a trie that sits on top of a database.
+// 使用New来创建一个trie，在一个database之上
 //
 // Trie is not safe for concurrent use.
 type Trie struct {

@@ -61,6 +61,8 @@ func (n *proofList) Delete(key []byte) error {
 // nested states. It's the general query interface to retrieve:
 // * Contracts
 // * Accounts
+// StateDB用来存储merkle trie中的任何东西，StateDBs负责缓存以及存储内嵌的states
+// 它是通用的查询接口用于获取：Contracts以及Accounts
 type StateDB struct {
 	db           Database
 	prefetcher   *triePrefetcher

@@ -27,9 +27,9 @@ type LegacyTx struct {
 	Nonce    uint64          // nonce of sender account
 	GasPrice *big.Int        // wei per gas
 	Gas      uint64          // gas limit
-	To       *common.Address `rlp:"nil"` // nil means contract creation
+	To       *common.Address `rlp:"nil"` // nil means contract creation，nil意味着是创建contract
 	Value    *big.Int        // wei amount
-	Data     []byte          // contract invocation input data
+	Data     []byte          // contract invocation input data，contract调用的input data
 	V, R, S  *big.Int        // signature values
 }
 

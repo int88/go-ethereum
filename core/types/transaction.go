@@ -49,8 +49,8 @@ const (
 
 // Transaction is an Ethereum transaction.
 type Transaction struct {
-	inner TxData    // Consensus contents of a transaction
-	time  time.Time // Time first seen locally (spam avoidance)
+	inner TxData    // Consensus contents of a transaction，一个transaction的共识内容
+	time  time.Time // Time first seen locally (spam avoidance)，第一次本地看到这个transaction的时间
 
 	// caches
 	hash atomic.Value
@@ -66,8 +66,10 @@ func NewTx(inner TxData) *Transaction {
 }
 
 // TxData is the underlying data of a transaction.
+// TxData是一个transaction的底层数据
 //
 // This is implemented by DynamicFeeTx, LegacyTx and AccessListTx.
+// 它由DynamicFeeTx，LegacyTx以及AccessListTx实现
 type TxData interface {
 	txType() byte // returns the type ID
 	copy() TxData // creates a deep copy and initializes all fields

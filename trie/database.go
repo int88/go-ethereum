@@ -61,6 +61,8 @@ var (
 // Database is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
+// Database是一个中间的write layer，在trie数据结构和disk database之间，目的是为了
+// trie的写入操作，在内存中，并且阶段性的刷一系列的tries到磁盘中，对其余的进行gc
 //
 // Note, the trie Database is **not** thread safe in its mutations, but it **is**
 // thread safe in providing individual, independent node access. The rationale
