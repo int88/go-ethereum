@@ -84,10 +84,11 @@ var (
 
 // environment is the worker's current environment and holds all
 // information of the sealing block generation.
+// environment是worker当前的执行环境并且拥有所有的信息关于当前正在封装的block
 type environment struct {
 	signer types.Signer
 
-	state     *state.StateDB // apply state changes here
+	state     *state.StateDB // apply state changes here //在这里应用state changes
 	ancestors mapset.Set     // ancestor set (used for checking uncle parent validity)
 	family    mapset.Set     // family set (used for checking uncle invalidity)
 	tcount    int            // tx count in cycle
@@ -182,6 +183,7 @@ type intervalAdjust struct {
 
 // worker is the main object which takes care of submitting new work to consensus engine
 // and gathering the sealing result.
+// worker是主要的对象，负责提交新的work到共识引擎并且收集sealing result
 type worker struct {
 	config      *Config
 	chainConfig *params.ChainConfig
@@ -213,7 +215,7 @@ type worker struct {
 
 	wg sync.WaitGroup
 
-	current      *environment                 // An environment for current running cycle.
+	current      *environment                 // An environment for current running cycle. // 当前运行周期的执行环境
 	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
@@ -514,6 +516,8 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 // mainLoop is responsible for generating and submitting sealing work based on
 // the received event. It can support two modes: automatically generate task and
 // submit it or return task according to given parameters for various proposes.
+// mainLoop负责生成并且提交sealing work基于接收到的事件，它可以支持两种模式：自动生成task
+// 并且提交它，或者返回task更具给定的参数用于各种提议
 func (w *worker) mainLoop() {
 	defer w.wg.Done()
 	defer w.txsSub.Unsubscribe()
@@ -581,12 +585,16 @@ func (w *worker) mainLoop() {
 
 		case ev := <-w.txsCh:
 			// Apply transactions to the pending state if we're not sealing
+			// 添加transactions到pending state，如果我们不在sealing
 			//
 			// Note all transactions received may not be continuous with transactions
 			// already included in the current sealing block. These transactions will
 			// be automatically eliminated.
+			// 注意所有收到的transactions可能和已经包含在当前sealing block的transactions是不连续的
+			// 这些transactions会被自动淘汰
 			if !w.isRunning() && w.current != nil {
 				// If block is already full, abort
+				// 如果block已经满了，退出
 				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
 					continue
 				}
@@ -601,6 +609,7 @@ func (w *worker) mainLoop() {
 
 				// Only update the snapshot if any new transactions were added
 				// to the pending block
+				// 只有任何新的transactions被加入到pending block的时候才更新snapshot
 				if tcount != w.current.tcount {
 					w.updateSnapshot(w.current)
 				}
@@ -833,6 +842,7 @@ func (w *worker) updateSnapshot(env *environment) {
 }
 
 func (w *worker) commitTransaction(env *environment, tx *types.Transaction) ([]*types.Log, error) {
+	// 每次commitTransaction执行前都要记录当前StateDB的snapshot，一旦transaction执行失败，基于这个snapshot进行回滚
 	snap := env.state.Snapshot()
 
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, *w.chain.GetVMConfig())
@@ -881,6 +891,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			break
 		}
 		// Retrieve the next transaction and abort if all done
+		// 获取下一个transaction并且退出如果所有都结束的话
 		tx := txs.Peek()
 		if tx == nil {
 			break
@@ -899,6 +910,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			continue
 		}
 		// Start executing the transaction
+		// 开始执行transaction
 		env.state.Prepare(tx.Hash(), env.tcount)
 
 		logs, err := w.commitTransaction(env, tx)

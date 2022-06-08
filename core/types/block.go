@@ -67,6 +67,7 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 //go:generate go run ../../rlp/rlpgen -type Header -out gen_header_rlp.go
 
 // Header represents a block header in the Ethereum blockchain.
+// 在Ethereum blockchain中的一个block header
 type Header struct {
 	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
 	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
@@ -163,6 +164,7 @@ type Body struct {
 }
 
 // Block represents an entire block in the Ethereum blockchain.
+// Block代表Ethereum blockchain中一个完整的block
 type Block struct {
 	header       *Header
 	uncles       []*Header
@@ -174,6 +176,7 @@ type Block struct {
 
 	// Td is used by package core to store the total difficulty
 	// of the chain up to and including the block.
+	// Td由package core用于存储total difficulty，当前链到达这里并且包含这个block时
 	td *big.Int
 
 	// These fields are used by package eth to track

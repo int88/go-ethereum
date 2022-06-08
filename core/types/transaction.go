@@ -399,6 +399,7 @@ func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, e
 }
 
 // Transactions implements DerivableList for transactions.
+// Transactions实现了transactions的可派生列表
 type Transactions []*Transaction
 
 // Len returns the length of s.
@@ -503,6 +504,7 @@ type TransactionsByPriceAndNonce struct {
 
 // NewTransactionsByPriceAndNonce creates a transaction set that can retrieve
 // price sorted transactions in a nonce-honouring way.
+// NewTransactionsByPriceAndNonce创建一个transaction set，可用用来获取基于price排序的transactions，以一种nonce-honouring的方式
 //
 // Note, the input map is reowned so the caller should not interact any more with
 // if after providing it to the constructor.
@@ -560,6 +562,7 @@ func (t *TransactionsByPriceAndNonce) Pop() {
 }
 
 // Message is a fully derived transaction and implements core.Message
+// Message是一个完全派生的transaction并且实现了core.Message
 //
 // NOTE: In a future PR this will be removed.
 type Message struct {
@@ -593,6 +596,7 @@ func NewMessage(from common.Address, to *common.Address, nonce uint64, amount *b
 }
 
 // AsMessage returns the transaction as a core.Message.
+// AsMessage返回transaction，作为一个core.Message
 func (tx *Transaction) AsMessage(s Signer, baseFee *big.Int) (Message, error) {
 	msg := Message{
 		nonce:      tx.Nonce(),

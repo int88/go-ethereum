@@ -29,6 +29,7 @@ import (
 
 // ChainHeaderReader defines a small collection of methods needed to access the local
 // blockchain during header verification.
+// ChainHeaderReader定义了一系列方法的集合用于访问本地的blockchain，在header verification的时候
 type ChainHeaderReader interface {
 	// Config retrieves the blockchain's chain configuration.
 	Config() *params.ChainConfig
@@ -46,6 +47,7 @@ type ChainHeaderReader interface {
 	GetHeaderByHash(hash common.Hash) *types.Header
 
 	// GetTd retrieves the total difficulty from the database by hash and number.
+	// 通过hash以及number从database中获取total difficulty
 	GetTd(hash common.Hash, number uint64) *big.Int
 }
 
@@ -59,6 +61,7 @@ type ChainReader interface {
 }
 
 // Engine is an algorithm agnostic consensus engine.
+// Engine是一个算法独立的共识引擎
 type Engine interface {
 	// Author retrieves the Ethereum address of the account that minted the given
 	// block, which may be different from the header's coinbase if a consensus
@@ -78,22 +81,27 @@ type Engine interface {
 
 	// VerifyUncles verifies that the given block's uncles conform to the consensus
 	// rules of a given engine.
+	// VerifyUncles确认给定block的uncles符合一个给定引擎的共识规则
 	VerifyUncles(chain ChainReader, block *types.Block) error
 
 	// Prepare initializes the consensus fields of a block header according to the
 	// rules of a particular engine. The changes are executed inline.
+	// Prepare初始化一个block header的共识字段，根据一个特定引擎的规则，变更都是在线运行的
 	Prepare(chain ChainHeaderReader, header *types.Header) error
 
 	// Finalize runs any post-transaction state modifications (e.g. block rewards)
 	// but does not assemble the block.
+	// Finalize运行任何的post-transaction的状态变更（例如，block rewards）但是不组装block
 	//
 	// Note: The block header and state database might be updated to reflect any
 	// consensus rules that happen at finalization (e.g. block rewards).
+	// 注意：block header以及state database可能在finalization的时候发生变更，来反映任何的consensus rules
 	Finalize(chain ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 		uncles []*types.Header)
 
 	// FinalizeAndAssemble runs any post-transaction state modifications (e.g. block
 	// rewards) and assembles the final block.
+	// 与Finalize不同的是，最后会assemble final block
 	//
 	// Note: The block header and state database might be updated to reflect any
 	// consensus rules that happen at finalization (e.g. block rewards).
@@ -102,6 +110,7 @@ type Engine interface {
 
 	// Seal generates a new sealing request for the given input block and pushes
 	// the result into the given channel.
+	// Seal生成一个新的sealing requests，对于给定的input block，并且推送结果到给定的channel中
 	//
 	// Note, the method returns immediately and will send the result async. More
 	// than one result may also be returned depending on the consensus algorithm.

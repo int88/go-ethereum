@@ -883,6 +883,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 
 // Prepare sets the current transaction hash and index which are
 // used when the EVM emits new state logs.
+// Prepare设置当前的transaction hash以及index，它用于当前EVM发射新的state logs时
 func (s *StateDB) Prepare(thash common.Hash, ti int) {
 	s.thash = thash
 	s.txIndex = ti

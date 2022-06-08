@@ -27,15 +27,19 @@ import (
 
 // ChainContext supports retrieving headers and consensus parameters from the
 // current blockchain to be used during transaction processing.
+// ChainContext支持获取headers以及共识参数，从当前的blockchain中，用于transaction处理
 type ChainContext interface {
 	// Engine retrieves the chain's consensus engine.
+	// Engine获取链的共识引擎
 	Engine() consensus.Engine
 
 	// GetHeader returns the hash corresponding to their hash.
+	// GetHeader返回哈希值header，根据它们的哈希值
 	GetHeader(common.Hash, uint64) *types.Header
 }
 
 // NewEVMBlockContext creates a new context for use in the EVM.
+// NewEVMBlockContext创建一个新的context用于EVM
 func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address) vm.BlockContext {
 	var (
 		beneficiary common.Address

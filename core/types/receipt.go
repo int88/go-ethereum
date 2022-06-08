@@ -49,6 +49,7 @@ const (
 )
 
 // Receipt represents the results of a transaction.
+// Receipt代表一个transaction的结果
 type Receipt struct {
 	// Consensus fields: These fields are defined by the Yellow Paper
 	Type              uint8  `json:"type,omitempty"`
@@ -60,6 +61,7 @@ type Receipt struct {
 
 	// Implementation fields: These fields are added by geth when processing a transaction.
 	// They are stored in the chain database.
+	// 这些字段都是通过geth添加的，当处理一个transaction的时候，他们都被存储在chain database中
 	TxHash          common.Hash    `json:"transactionHash" gencodec:"required"`
 	ContractAddress common.Address `json:"contractAddress"`
 	GasUsed         uint64         `json:"gasUsed" gencodec:"required"`
