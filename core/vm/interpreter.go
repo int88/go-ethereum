@@ -53,6 +53,7 @@ type keccakState interface {
 }
 
 // EVMInterpreter represents an EVM interpreter
+// EVMInterpreter代表一个EVM解释器
 type EVMInterpreter struct {
 	evm *EVM
 	cfg Config

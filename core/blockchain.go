@@ -146,12 +146,16 @@ var defaultCacheConfig = &CacheConfig{
 
 // BlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
+// BlockChain代表canonical chain，给定一个database以及一个genesis block，Blockchain负责
+// chain imports, reverts以及chain reorganisations
 //
 // Importing blocks in to the block chain happens according to the set of rules
 // defined by the two stage Validator. Processing of blocks is done using the
 // Processor which processes the included transaction. The validation of the state
 // is done in the second part of the Validator. Failing results in aborting of
 // the import.
+// 将blocks纳入block chain根据两个阶段的Validator定义的一系列规则，处理blocks使用Processor
+// 处理包含的transaction，validation of the state由第二部分的Validator完成
 //
 // The BlockChain also helps in returning blocks from **any** chain included
 // in the database as well as blocks that represents the canonical chain. It's
@@ -206,9 +210,9 @@ type BlockChain struct {
 	procInterrupt int32          // interrupt signaler for block processing
 
 	engine     consensus.Engine
-	validator  Validator // Block and state validator interface
+	validator  Validator // Block and state validator interface  // Block以及state的validator接口
 	prefetcher Prefetcher
-	processor  Processor // Block transaction processor interface
+	processor  Processor // Block transaction processor interface // Block transaction的处理接口
 	forker     *ForkChoice
 	vmConfig   vm.Config
 }
@@ -216,6 +220,8 @@ type BlockChain struct {
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator
 // and Processor.
+// NewBlockChain返回一个完整的初始化的block chain，使用数据库中可用的信息，它初始化
+// 默认的Ethereum Validator和Processor
 func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *params.ChainConfig, engine consensus.Engine, vmConfig vm.Config, shouldPreserve func(header *types.Header) bool, txLookupLimit *uint64) (*BlockChain, error) {
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig

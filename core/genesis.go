@@ -46,6 +46,8 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block. It also defines hard
 // fork switch-over blocks through the chain configuration.
+// Genesis指定了header字段，一个genesis block的状态，它同时定义了hard fork switch-over blocks
+// 通过chain configuration
 type Genesis struct {
 	Config     *params.ChainConfig `json:"config"`
 	Nonce      uint64              `json:"nonce"`

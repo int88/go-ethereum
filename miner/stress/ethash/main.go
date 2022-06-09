@@ -165,6 +165,7 @@ func makeMiner(genesis *core.Genesis) (*node.Node, *eth.Ethereum, error) {
 		UseLightweightKDF: true,
 	}
 	// Create the node and configure a full Ethereum node on it
+	// 创建node并且配置一个full Ethereum node
 	stack, err := node.New(config)
 	if err != nil {
 		return nil, nil, err

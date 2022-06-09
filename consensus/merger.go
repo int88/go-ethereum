@@ -36,6 +36,7 @@ type transitionStatus struct {
 
 // Merger is an internal help structure used to track the eth1/2 transition status.
 // It's a common structure can be used in both full node and light client.
+// Merge是一个内部的helper用于追踪eth1/2的过渡状态，它是一个通用结构可用用于full node以及light client
 type Merger struct {
 	db     ethdb.KeyValueStore
 	status transitionStatus

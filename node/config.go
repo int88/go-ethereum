@@ -45,6 +45,7 @@ const (
 // Config represents a small collection of configuration values to fine tune the
 // P2P network layer of a protocol stack. These values can be further extended by
 // all registered services.
+// Config代表一小部分配置值用于微调P2P网络层，这些值可以通过所有注册的services进一步扩展
 type Config struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
 	// used in the devp2p node identifier. The instance name of geth is "geth". If no

@@ -59,11 +59,14 @@ func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
 
 // BlockContext provides the EVM with auxiliary information. Once provided
 // it shouldn't be modified.
+// BlockContext提供辅助信息给EVM，一旦提供就不应该被修改
 type BlockContext struct {
 	// CanTransfer returns whether the account contains
 	// sufficient ether to transfer the value
+	// CanTransfer返回account是否包含足够的ether来传递value
 	CanTransfer CanTransferFunc
 	// Transfer transfers ether from one account to the other
+	// Transfer将ehter从一个account转移到另一个
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
@@ -93,8 +96,11 @@ type TxContext struct {
 // revert-state-and-consume-all-gas operation, no checks on
 // specific errors should ever be performed. The interpreter makes
 // sure that any errors generated are to be considered faulty code.
+// EVM是Ethereum Virtual Machine的基对象并且提供必要的工具用于运行contract
+// 基于给定的context的给定state
 //
 // The EVM should never be reused and is not thread safe.
+// EVM不应该被重用并且不是thread safe
 type EVM struct {
 	// Context provides auxiliary blockchain related information
 	Context BlockContext
@@ -113,6 +119,7 @@ type EVM struct {
 	Config Config
 	// global (to this context) ethereum virtual machine
 	// used throughout the execution of the tx.
+	// 全局的evm，用于在tx的执行过程中
 	interpreter *EVMInterpreter
 	// abort is used to abort the EVM calling operations
 	// NOTE: must be set atomically
@@ -165,6 +172,8 @@ func (evm *EVM) Interpreter() *EVMInterpreter {
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
+// Call执行和addr相关的contract，用给定的input作为参数，它同时处理任何需要的value transfer
+// 并且执行必要的步骤来创建accounts并且reverses the state，万一执行错误或者value transfer失败
 func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -180,6 +189,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !evm.StateDB.Exist(addr) {
 		if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
+			// 调用一个不存在的account，不要做任何事，只是ping the tracer
 			if evm.Config.Debug {
 				if evm.depth == 0 {
 					evm.Config.Tracer.CaptureStart(evm, caller.Address(), addr, false, input, gas, value)
@@ -191,8 +201,10 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			}
 			return nil, gas, nil
 		}
+		// 创建一个新的account
 		evm.StateDB.CreateAccount(addr)
 	}
+	// 对value进行transfer
 	evm.Context.Transfer(evm.StateDB, caller.Address(), addr, value)
 
 	// Capture the tracer start/end events in debug mode
@@ -216,6 +228,8 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	} else {
 		// Initialise a new contract and set the code that is to be used by the EVM.
 		// The contract is a scoped environment for this execution context only.
+		// 初始化一个新的contract并且设置在EVM中使用的code，这个contract是一个受限的环境
+		// 只用于这个执行的上下文
 		code := evm.StateDB.GetCode(addr)
 		if len(code) == 0 {
 			ret, err = nil, nil // gas is unchanged
@@ -225,6 +239,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			// The depth-check is already done, and precompiles handled above
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
+			// evm的interpereter运行
 			ret, err = evm.interpreter.Run(contract, input, false)
 			gas = contract.Gas
 		}
@@ -232,6 +247,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
+	// 当EVM返回一个error时，或者设置creation code，我们返回到snapshot并且消费任何的gas remaining
 	if err != nil {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {

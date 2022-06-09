@@ -36,6 +36,8 @@ The State Transitioning Model
 
 A state transition is a change made when a transaction is applied to the current world state
 The state transitioning model does all the necessary work to work out a valid new state root.
+一个state transition是当一个transaction应用到当前的world state的时候发生的变更，state transitioning model
+做所有必要的工作用于生成一个新的state root
 
 1) Nonce handling
 2) Pre pay gas
@@ -81,6 +83,7 @@ type Message interface {
 
 // ExecutionResult includes all output after executing given evm
 // message no matter the execution itself is successful or not.
+// ExecutionResult包含了执行给定evm message的所有output，不管执行本身是成功还是失败
 type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
 	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
@@ -172,6 +175,7 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 
 // ApplyMessage computes the new state by applying the given message
 // against the old state within the environment.
+// ApplyMessage计算新的state，通过应用给定的message，基于环境中的old state
 //
 // ApplyMessage returns the bytes returned by any EVM execution (if it took place),
 // the gas used (which includes gas refunds) and an error if it failed. An error always
@@ -261,6 +265,7 @@ func (st *StateTransition) preCheck() error {
 
 // TransitionDb will transition the state by applying the current message and
 // returning the evm execution result with following fields.
+// TransitionDb会转移状态，通过应用当前的message并且返回evm的执行结果
 //
 // - used gas:
 //      total gas used (including gas being refunded)
@@ -275,6 +280,13 @@ func (st *StateTransition) preCheck() error {
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
+	// 首先检查这个message满足所有的共识规则，在应用message之前，规则包含如下条款
+	// 1. 这个message调用者的nonce是正确的
+	// 2. 调用者有足够的balance来覆盖transaction fee（gaslimit * gasprice）
+	// 3. block中有足够的gas可用
+	// 4. purchased gas足够覆盖intrinsic usage
+	// 5. 没有overflow在计算intrinsic gas
+	// 6. 调用者有足够的balance来覆盖asset transfer的"topmost*调用
 	//
 	// 1. the nonce of the message caller is correct
 	// 2. caller has enough balance to cover transaction fee(gaslimit * gasprice)
@@ -326,10 +338,12 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		vmerr error // vm errors do not effect consensus and are therefore not assigned to err
 	)
 	if contractCreation {
+		// 创建contract
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		// 调用evm执行
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
@@ -344,6 +358,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	if rules.IsLondon {
 		effectiveTip = cmath.BigMin(st.gasTipCap, new(big.Int).Sub(st.gasFeeCap, st.evm.Context.BaseFee))
 	}
+	// 添加到balance中
 	st.state.AddBalance(st.evm.Context.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), effectiveTip))
 
 	return &ExecutionResult{

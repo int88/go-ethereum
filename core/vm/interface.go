@@ -24,6 +24,7 @@ import (
 )
 
 // StateDB is an EVM database for full state querying.
+// StateDB是一个EVM数据库用于完整的状态查询
 type StateDB interface {
 	CreateAccount(common.Address)
 

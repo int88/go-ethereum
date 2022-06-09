@@ -119,6 +119,7 @@ func init() {
 //go:generate go run github.com/fjl/gencodec -type Config -formats toml -out gen_config.go
 
 // Config contains configuration options for of the ETH and LES protocols.
+// Config包含了ETH和LES协议的配置选项
 type Config struct {
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Ethereum main net block is used.
@@ -213,6 +214,7 @@ type Config struct {
 }
 
 // CreateConsensusEngine creates a consensus engine for the given chain configuration.
+// CreateConsensusEngine用给定的chain configuration创建一个共识引擎
 func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
 	var engine consensus.Engine
@@ -239,6 +241,7 @@ func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, co
 			DatasetsLockMmap: config.DatasetsLockMmap,
 			NotifyFull:       config.NotifyFull,
 		}, notify, noverify)
+		// 禁止CPU mining
 		engine.(*ethash.Ethash).SetThreads(-1) // Disable CPU mining
 	}
 	return beacon.New(engine)

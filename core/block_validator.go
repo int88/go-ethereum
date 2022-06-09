@@ -28,8 +28,10 @@ import (
 
 // BlockValidator is responsible for validating block headers, uncles and
 // processed state.
+// BlockValidator负责验证block headers, uncles以及processed state
 //
 // BlockValidator implements Validator.
+// BlockValidator实现了Validator接口
 type BlockValidator struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain

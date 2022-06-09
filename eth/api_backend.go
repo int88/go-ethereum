@@ -42,6 +42,7 @@ import (
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
+// EthAPIBackend实现了full nodes的ethapi.Backend接口
 type EthAPIBackend struct {
 	extRPCEnabled       bool
 	allowUnprotectedTxs bool

@@ -43,9 +43,12 @@ type Prefetcher interface {
 }
 
 // Processor is an interface for processing blocks using a given initial state.
+// Processor是一个接口用于处理blocks，使用一个给定的初始状态
 type Processor interface {
 	// Process processes the state changes according to the Ethereum rules by running
 	// the transaction messages using the statedb and applying any rewards to both
 	// the processor (coinbase) and any included uncles.
+	// Process处理state changes，根据Ethereum rules，通过运行transaction messages
+	// 使用statedb并且应用所有的rewards到processor(coinbase)以及包含的任何uncles
 	Process(block *types.Block, statedb *state.StateDB, cfg vm.Config) (types.Receipts, []*types.Log, uint64, error)
 }

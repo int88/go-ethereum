@@ -29,6 +29,8 @@ import (
 // statePrefetcher is a basic Prefetcher, which blindly executes a block on top
 // of an arbitrary state with the goal of prefetching potentially useful state
 // data from disk before the main block processor start executing.
+// statePrefetcher是一个基础的Prefetcher，它盲目地在一个任意的状态之上执行一个block
+// 目标在于从磁盘中提前预取有用的state data，在main block processor开始运行之前
 type statePrefetcher struct {
 	config *params.ChainConfig // Chain configuration options
 	bc     *BlockChain         // Canonical block chain

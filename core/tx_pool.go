@@ -226,10 +226,14 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 // TxPool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
 // locally. They exit the pool when they are included in the blockchain.
+// TxPool包含了所有已经知道的transactions，transactions当它们从网络接收到或者由本地提交时
+// 进入pool，当它们被包含在blockchain之后离开pool
 //
 // The pool separates processable transactions (which can be applied to the
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
+// pool将transactions区分为processable transactions（它们可以应用到current state）
+// 以及future transactions，随着transaction被接收以及处理，Transactions在这两个状态之间移动
 type TxPool struct {
 	config      TxPoolConfig
 	chainconfig *params.ChainConfig
@@ -276,11 +280,13 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
+// NewTxPool创建一个新的transaction pool用来收集，排序以及过滤来自network的inbound transaction
 func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
+	// 用初始配置创建transaction pool
 	pool := &TxPool{
 		config:          config,
 		chainconfig:     chainconfig,
@@ -334,6 +340,8 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 // loop is the transaction pool's main event loop, waiting for and reacting to
 // outside blockchain events as well as for various reporting and transaction
 // eviction events.
+// loop是transaction pool的主事件循环，等待并且对outside blockchain event做出反应
+// 以及各种reporting以及transaction eviction events
 func (pool *TxPool) loop() {
 	defer pool.wg.Done()
 

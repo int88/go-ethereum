@@ -159,6 +159,7 @@ type Config struct {
 }
 
 // Server manages all peer connections.
+// Server管理所有的peer connections
 type Server struct {
 	// Config fields may not be modified while the server is running.
 	Config

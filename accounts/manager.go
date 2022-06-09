@@ -46,6 +46,7 @@ type newBackendEvent struct {
 
 // Manager is an overarching account manager that can communicate with various
 // backends for signing transactions.
+// Manager是一个总体的account manager，负责和各种backend交互来签署transactions
 type Manager struct {
 	config      *Config                    // Global account manager configurations
 	backends    map[reflect.Type][]Backend // Index of backends currently registered

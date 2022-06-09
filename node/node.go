@@ -40,6 +40,7 @@ import (
 )
 
 // Node is a container on which services can be registered.
+// Node是一个容器，里面可以注册services
 type Node struct {
 	eventmux      *event.TypeMux
 	config        *Config
@@ -73,6 +74,7 @@ const (
 )
 
 // New creates a new P2P node, ready for protocol registration.
+// New创建一个新的P2P节点，准备好进行协议注册
 func New(conf *Config) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
 	// working directory don't affect the node.
@@ -107,7 +109,7 @@ func New(conf *Config) (*Node, error) {
 		eventmux:      new(event.TypeMux),
 		log:           conf.Logger,
 		stop:          make(chan struct{}),
-		server:        &p2p.Server{Config: conf.P2P},
+		server:        &p2p.Server{Config: conf.P2P}, // 构建p2p server
 		databases:     make(map[*closeTrackingDB]struct{}),
 	}
 
@@ -702,6 +704,9 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string, r
 // also attaching a chain freezer to it that moves ancient chain data from the
 // database to immutable append-only files. If the node is an ephemeral one, a
 // memory database is returned.
+// OpenDatabaseWithFreezer打开一个已经存在的数据库，用给定的名字 （或者创建一个新的，如果之前的不存在了的话）
+// 从node data目录中，同时关联一个chain freezer，它从数据库中移动ancient chain data
+// 到一个不可变更的append-only files，如果这是一个临时节点，返回一个memory database
 func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, freezer, namespace string, readonly bool) (ethdb.Database, error) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

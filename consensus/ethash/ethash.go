@@ -433,6 +433,7 @@ type Config struct {
 
 // Ethash is a consensus engine based on proof-of-work implementing the ethash
 // algorithm.
+// Ethash是一个基于pow的共识引擎，实现了ethash算法
 type Ethash struct {
 	config Config
 
@@ -458,6 +459,8 @@ type Ethash struct {
 // New creates a full sized ethash PoW scheme and starts a background thread for
 // remote mining, also optionally notifying a batch of remote services of new work
 // packages.
+// New创建一个完整的ethash PoW scheme并且启动一个background thread用于remote mining
+// 同时可选地用一系列network packages通知一系列的remote services
 func New(config Config, notify []string, noverify bool) *Ethash {
 	if config.Log == nil {
 		config.Log = log.Root()
