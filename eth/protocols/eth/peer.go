@@ -65,6 +65,7 @@ func max(a, b int) int {
 }
 
 // Peer is a collection of relevant information we have about a `eth` peer.
+// Peer是一系列我们知道的关于一个`eth` peer的信息
 type Peer struct {
 	id string // Unique ID for the peer, cached
 
@@ -79,7 +80,7 @@ type Peer struct {
 	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer
 	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer
 
-	txpool      TxPool             // Transaction pool used by the broadcasters for liveness checks
+	txpool      TxPool             // Transaction pool used by the broadcasters for liveness checks // 供broadcasters使用的用于liveness checks的Transaction pool
 	knownTxs    *knownCache        // Set of transaction hashes known to be known by this peer
 	txBroadcast chan []common.Hash // Channel used to queue transaction propagation requests
 	txAnnounce  chan []common.Hash // Channel used to queue transaction announcement requests

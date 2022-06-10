@@ -47,6 +47,7 @@ var (
 
 // peerSet represents the collection of active peers currently participating in
 // the `eth` protocol, with or without the `snap` extension.
+// peerSet代表一系列的active peers，当前正参与到`eth`协议中，有或者没有`snap`扩展
 type peerSet struct {
 	peers     map[string]*ethPeer // Peers connected on the `eth` protocol
 	snapPeers int                 // Number of `snap` compatible peers for connection prioritization

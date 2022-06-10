@@ -126,6 +126,7 @@ type handler struct {
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
+// newHandler返回一个handler用于所有的Ethereum chain的管理协议
 func newHandler(config *handlerConfig) (*handler, error) {
 	// Create the protocol manager with the base fields
 	if config.EventMux == nil {
@@ -194,6 +195,8 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	// Construct the downloader (long sync) and its backing state bloom if snap
 	// sync is requested. The downloader is responsible for deallocating the state
 	// bloom when it's done.
+	// 构建downloader以及背后的state bloom，如果请求了snap sync，downloader负责 释放state bloom
+	// 当它完成任务的时候
 	h.downloader = downloader.New(h.checkpointNumber, config.Database, h.eventMux, h.chain, nil, h.removePeer, success)
 
 	// Construct the fetcher (short sync)

@@ -126,6 +126,7 @@ type txDrop struct {
 }
 
 // TxFetcher is responsible for retrieving new transaction based on announcements.
+// TxFetcher负责获取新的transaction，基于announcements
 //
 // The fetcher operates in 3 stages:
 //   - Transactions that are newly discovered are moved into a wait list.
@@ -134,6 +135,11 @@ type txDrop struct {
 //   - When a connected peer doesn't have in-flight retrieval requests, any
 //     transaction queued up (and announced by the peer) are allocated to the
 //     peer and moved into a fetching status until it's fulfilled or fails.
+// fetcher的操作分为三个阶段：
+//   - 新发现的transactions被移动到一个wait list
+//   - 在大约500ms过后，那么在wai list但是没广播给我们的就移动到queueing area
+//   - 当一个连接的peer没有in-flight retrieval requests，任何在排队的transaction都分配给peer
+//     并且移动到fetching状态，直到完整或者失败
 //
 // The invariants of the fetcher are:
 //   - Each tracked transaction (hash) must only be present in one of the
