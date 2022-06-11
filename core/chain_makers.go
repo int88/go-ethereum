@@ -31,6 +31,7 @@ import (
 )
 
 // BlockGen creates blocks for testing.
+// BlockGen创建blocks用于测试
 // See GenerateChain for a detailed explanation.
 type BlockGen struct {
 	i       int
@@ -208,15 +209,22 @@ func (b *BlockGen) OffsetTime(seconds int64) {
 // GenerateChain creates a chain of n blocks. The first block's
 // parent will be the provided parent. db is used to store
 // intermediate states and should contain the parent's state trie.
+// GenerateChain创建一个由n个blocks组成的chain，第一个block的parent是参数中提供的parent
+// db用于存储中间状态并且应该包含parent的state trie
 //
 // The generator function is called with a new block generator for
 // every block. Any transactions and uncles added to the generator
 // become part of the block. If gen is nil, the blocks will be empty
 // and their coinbase will be the zero address.
+// generator函数会为每个block调用，用一个新的block generator，任何添加到
+// generator的transactions以及uncles会变为block的一部分，如果gen为nil，则blocks
+// 为空并且他们的coinbase会为zero address
 //
 // Blocks created by GenerateChain do not contain valid proof of work
 // values. Inserting them into BlockChain requires use of FakePow or
 // a similar non-validating proof of work implementation.
+// 由GenerateChain创建的Blocks不包含合法的pow value，将他们插入BlockChain，需要FakePoW
+// 或者类似的non-validating proof of work实现
 func GenerateChain(config *params.ChainConfig, parent *types.Block, engine consensus.Engine, db ethdb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
 	if config == nil {
 		config = params.TestChainConfig
@@ -225,6 +233,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	chainreader := &fakeChainReader{config: config}
 	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
+		// 构建header
 		b.header = makeHeader(chainreader, parent, statedb, b.engine)
 
 		// Set the difficulty for clique block. The chain maker doesn't have access
@@ -240,6 +249,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			}
 		}
 		// Mutate the state and block according to any hard-fork specs
+		// 修改state以及block，根据所有hard-fork specs
 		if daoBlock := config.DAOForkBlock; daoBlock != nil {
 			limit := new(big.Int).Add(daoBlock, params.DAOForkExtraRange)
 			if b.header.Number.Cmp(daoBlock) >= 0 && b.header.Number.Cmp(limit) < 0 {
@@ -252,14 +262,17 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			misc.ApplyDAOHardFork(statedb)
 		}
 		// Execute any user modifications to the block
+		// 执行所有用户对于block的修改
 		if gen != nil {
 			gen(i, b)
 		}
 		if b.engine != nil {
 			// Finalize and seal the block
+			// 完成并且密封block
 			block, _ := b.engine.FinalizeAndAssemble(chainreader, b.header, statedb, b.txs, b.uncles, b.receipts)
 
 			// Write state changes to db
+			// 将状态的变更写入db
 			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
 			if err != nil {
 				panic(fmt.Sprintf("state write error: %v", err))
@@ -276,9 +289,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if err != nil {
 			panic(err)
 		}
+		// 创建block，返回receipt
 		block, receipt := genblock(i, parent, statedb)
 		blocks[i] = block
 		receipts[i] = receipt
+		// 重新设置parent
 		parent = block
 	}
 	return blocks, receipts
@@ -295,6 +310,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 		Root:       state.IntermediateRoot(chain.Config().IsEIP158(parent.Number())),
 		ParentHash: parent.Hash(),
 		Coinbase:   parent.Coinbase(),
+		// Difficulty根据genine进行计算
 		Difficulty: engine.CalcDifficulty(chain, time, &types.Header{
 			Number:     parent.Number(),
 			Time:       time - 10,
@@ -328,6 +344,7 @@ func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db et
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
 func makeBlockChain(parent *types.Block, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.Block {
 	blocks, _ := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
+		// 设置coinbase
 		b.SetCoinbase(common.Address{0: byte(seed), 19: byte(i)})
 	})
 	return blocks

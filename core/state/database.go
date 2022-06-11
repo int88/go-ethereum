@@ -38,23 +38,28 @@ const (
 )
 
 // Database wraps access to tries and contract code.
+// Databawse封装了对于tries以及contract code的访问
 type Database interface {
 	// OpenTrie opens the main account trie.
+	// OpenTrie打开main account trie
 	OpenTrie(root common.Hash) (Trie, error)
 
 	// OpenStorageTrie opens the storage trie of an account.
+	// OpenStorageTrie打开一个account的storage trie
 	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
 
 	// CopyTrie returns an independent copy of the given trie.
 	CopyTrie(Trie) Trie
 
 	// ContractCode retrieves a particular contract's code.
+	// ContractCode获取一个特定的contract的代码
 	ContractCode(addrHash, codeHash common.Hash) ([]byte, error)
 
 	// ContractCodeSize retrieves a particular contracts code's size.
 	ContractCodeSize(addrHash, codeHash common.Hash) (int, error)
 
 	// TrieDB retrieves the low level trie database used for data storage.
+	// TrieDB获取底层的trie database，用于data storage
 	TrieDB() *trie.Database
 }
 
@@ -86,6 +91,7 @@ type Trie interface {
 
 	// Hash returns the root hash of the trie. It does not write to the database and
 	// can be used even if the trie doesn't have one.
+	// Hash返回trie的root hash，它不写入database并且可以在即使trie没有的root hash的时候使用
 	Hash() common.Hash
 
 	// Commit writes all nodes to the trie's memory database, tracking the internal
@@ -109,6 +115,8 @@ type Trie interface {
 // NewDatabase creates a backing store for state. The returned database is safe for
 // concurrent use, but does not retain any recent trie nodes in memory. To keep some
 // historical state in memory, use the NewDatabaseWithConfig constructor.
+// NewDatabase为state创建一个backing store，返回的database能安全地用于并发访问，但是不会在
+// 内存中保留任何的recent trie nodes，为了在内存中保存historical state，使用NewDatabaseWithConfig constructor
 func NewDatabase(db ethdb.Database) Database {
 	return NewDatabaseWithConfig(db, nil)
 }

@@ -69,21 +69,22 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 // Header represents a block header in the Ethereum blockchain.
 // 在Ethereum blockchain中的一个block header
 type Header struct {
-	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
-	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address `json:"miner"`
-	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
-	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int       `json:"number"           gencodec:"required"`
-	GasLimit    uint64         `json:"gasLimit"         gencodec:"required"`
-	GasUsed     uint64         `json:"gasUsed"          gencodec:"required"`
-	Time        uint64         `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash    `json:"mixHash"`
-	Nonce       BlockNonce     `json:"nonce"`
+	ParentHash common.Hash    `json:"parentHash"       gencodec:"required"`
+	UncleHash  common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	Coinbase   common.Address `json:"miner"`
+	// StateRoot函数
+	Root        common.Hash `json:"stateRoot"        gencodec:"required"`
+	TxHash      common.Hash `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash common.Hash `json:"receiptsRoot"     gencodec:"required"`
+	Bloom       Bloom       `json:"logsBloom"        gencodec:"required"`
+	Difficulty  *big.Int    `json:"difficulty"       gencodec:"required"`
+	Number      *big.Int    `json:"number"           gencodec:"required"`
+	GasLimit    uint64      `json:"gasLimit"         gencodec:"required"`
+	GasUsed     uint64      `json:"gasUsed"          gencodec:"required"`
+	Time        uint64      `json:"timestamp"        gencodec:"required"`
+	Extra       []byte      `json:"extraData"        gencodec:"required"`
+	MixDigest   common.Hash `json:"mixHash"`
+	Nonce       BlockNonce  `json:"nonce"`
 
 	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
 	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
@@ -166,8 +167,10 @@ type Body struct {
 // Block represents an entire block in the Ethereum blockchain.
 // Block代表Ethereum blockchain中一个完整的block
 type Block struct {
-	header       *Header
-	uncles       []*Header
+	// Block中包含的header
+	header *Header
+	uncles []*Header
+	// Block中包含的transactions
 	transactions Transactions
 
 	// caches
@@ -195,10 +198,14 @@ type extblock struct {
 // NewBlock creates a new block. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
+// NewBlock创建一个新的block，输入的data被拷贝，对于header以及字段值的改变
+// 不会影响block
 //
 // The values of TxHash, UncleHash, ReceiptHash and Bloom in header
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
+// header中的TxHash，UncleHash，ReceiptHash以及Bloom的值都会被忽略
+// 并且这些值从txs，uncles以及receipts中得出
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt, hasher TrieHasher) *Block {
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
@@ -206,6 +213,7 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
 	} else {
+		// 构建transaction hash
 		b.header.TxHash = DeriveSha(Transactions(txs), hasher)
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
@@ -219,6 +227,7 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 	}
 
 	if len(uncles) == 0 {
+		// uncle其实也是一系列的headers
 		b.header.UncleHash = EmptyUncleHash
 	} else {
 		b.header.UncleHash = CalcUncleHash(uncles)

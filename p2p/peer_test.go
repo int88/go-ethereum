@@ -58,6 +58,7 @@ func uintID(i uint16) enode.ID {
 }
 
 // newNode creates a node record with the given address.
+// newNode用给定的地址创建一个node record
 func newNode(id enode.ID, addr string) *enode.Node {
 	var r enr.Record
 	if addr != "" {
@@ -96,6 +97,7 @@ func testPeer(protos []Protocol) (func(), *conn, *Peer, <-chan error) {
 	c1 := &conn{fd: fd1, node: newNode(uintID(1), ""), transport: t1}
 	c2 := &conn{fd: fd2, node: newNode(uintID(2), ""), transport: t2}
 	for _, p := range protos {
+		// 将protos作为c1和c2的caps
 		c1.caps = append(c1.caps, p.cap())
 		c2.caps = append(c2.caps, p.cap())
 	}
@@ -103,6 +105,7 @@ func testPeer(protos []Protocol) (func(), *conn, *Peer, <-chan error) {
 	peer := newPeer(log.Root(), c1, protos)
 	errc := make(chan error, 1)
 	go func() {
+		// 运行peer
 		_, err := peer.run()
 		errc <- err
 	}()
@@ -115,7 +118,9 @@ func TestPeerProtoReadMsg(t *testing.T) {
 	proto := Protocol{
 		Name:   "a",
 		Length: 5,
+		// 协议的运行方法
 		Run: func(peer *Peer, rw MsgReadWriter) error {
+			// 期望获取到message
 			if err := ExpectMsg(rw, 2, []uint{1}); err != nil {
 				t.Error(err)
 			}
@@ -132,6 +137,7 @@ func TestPeerProtoReadMsg(t *testing.T) {
 	closer, rw, _, errc := testPeer([]Protocol{proto})
 	defer closer()
 
+	// 发送message
 	Send(rw, baseProtocolLength+2, []uint{1})
 	Send(rw, baseProtocolLength+3, []uint{2})
 	Send(rw, baseProtocolLength+4, []uint{3})

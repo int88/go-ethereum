@@ -30,6 +30,7 @@ import (
 )
 
 // Msg defines the structure of a p2p message.
+// Msg定义了一个p2p message的结构
 //
 // Note that a Msg can only be sent once since the Payload reader is
 // consumed during sending. It is not possible to create a Msg and
@@ -96,15 +97,18 @@ type MsgReadWriter interface {
 
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
+// Send写入一个RLP-encoded message用给定的code，数据应该被编码为一个RLP list
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
 		return err
 	}
+	// 写入message
 	return w.WriteMsg(Msg{Code: msgcode, Size: uint32(size), Payload: r})
 }
 
 // SendItems writes an RLP with the given code and data elements.
+// SendItems写入一个RLP，用给定的code以及data elements
 // For a call such as:
 //
 //    SendItems(w, code, e1, e2, e3)
@@ -225,6 +229,8 @@ func (p *MsgPipeRW) Close() error {
 
 // ExpectMsg reads a message from r and verifies that its
 // code and encoded RLP content match the provided values.
+// ExpectaMsg从r读取一个message并且确认它的code和encoded RLP的内容和提供
+// 的value匹配，如果content为nil，payload会被丢弃并且不确认
 // If content is nil, the payload is discarded and not verified.
 func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 	msg, err := r.ReadMsg()

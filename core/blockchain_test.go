@@ -51,13 +51,18 @@ var (
 // newCanonical creates a chain database, and injects a deterministic canonical
 // chain. Depending on the full flag, if creates either a full block chain or a
 // header only chain.
+// newCanonical创建一个chain database，并且注入一个确定性的canonical chain
+// 基于full flag，它要么创建一个full block chain，或者是一个header only chain
 func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *BlockChain, error) {
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		// 构建一个db
+		db = rawdb.NewMemoryDatabase()
+		// 构建genesis
 		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
 	)
 
 	// Initialize a fresh chain with only a genesis block
+	// 初始化一个只有genesis block的fresh chain
 	blockchain, _ := NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	// Create and inject the requested chain
 	if n == 0 {
@@ -65,11 +70,14 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *B
 	}
 	if full {
 		// Full block-chain requested
+		// 请求的是full block-chain
 		blocks := makeBlockChain(genesis, n, engine, db, canonicalSeed)
+		// 将blocks插入blockchain
 		_, err := blockchain.InsertChain(blocks)
 		return db, blockchain, err
 	}
 	// Header-only chain requested
+	// 请求的是一个Header-only chain
 	headers := makeHeaderChain(genesis.Header(), n, engine, db, canonicalSeed)
 	_, err := blockchain.InsertHeaderChain(headers, 1)
 	return db, blockchain, err
@@ -80,6 +88,7 @@ func newGwei(n int64) *big.Int {
 }
 
 // Test fork of length N starting from block i
+// 测试长度为N的fork，从block i开始
 func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, comparator func(td1, td2 *big.Int)) {
 	// Copy old chain up to #i into a new db
 	db, blockchain2, err := newCanonical(ethash.NewFaker(), i, full)
@@ -263,6 +272,7 @@ func testInsertAfterMerge(t *testing.T, blockchain *BlockChain, i, n int, full b
 
 // Tests that given a starting canonical chain of a given size, it can be extended
 // with various length chains.
+// 测试一个开始给定大小的canonical chain，它可以用各种长度的链进行扩展
 func TestExtendCanonicalHeaders(t *testing.T) { testExtendCanonical(t, false) }
 func TestExtendCanonicalBlocks(t *testing.T)  { testExtendCanonical(t, true) }
 
@@ -270,6 +280,7 @@ func testExtendCanonical(t *testing.T, full bool) {
 	length := 5
 
 	// Make first chain starting from genesis
+	// 构建从genesis开始的chain
 	_, processor, err := newCanonical(ethash.NewFaker(), length, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)

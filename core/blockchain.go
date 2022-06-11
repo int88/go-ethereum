@@ -1215,6 +1215,7 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 
 // writeBlockWithState writes block, metadata and corresponding state data to the
 // database.
+// writeBlockWithState写入block, metadata以及相应的state数据到数据库中
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB) error {
 	// Calculate the total difficulty of the block
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
@@ -1237,6 +1238,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 		log.Crit("Failed to write block into disk", "err", err)
 	}
 	// Commit all cached state changes into underlying memory database.
+	// 提交所有缓存的state changes到底层的memory database
 	root, err := state.Commit(bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
 		return err
@@ -1309,6 +1311,7 @@ func (bc *BlockChain) WriteBlockAndSetHead(block *types.Block, receipts []*types
 
 // writeBlockAndSetHead is the internal implementation of WriteBlockAndSetHead.
 // This function expects the chain mutex to be held.
+// writeBlockAndSetHead是WriteBlockAndSetHead的内部实现，这个函数期望持有chain mutex
 func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
 	if err := bc.writeBlockWithState(block, receipts, logs, state); err != nil {
 		return NonStatTy, err
@@ -1377,6 +1380,9 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 // chain or, otherwise, create a fork. If an error is returned it will return
 // the index number of the failing block as well an error describing what went
 // wrong. After insertion is done, all accumulated events will be fired.
+// InsertChain试着将给定批次的blocks插入到canonical chain，或者创建一个fork，如果碰到错误
+// 则返回failing block的index number，以及一个error描述哪里发生了错误，在插入完成之后
+// 所有累计的事件都会触发
 func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	// Sanity check that we have something meaningful to import
 	if len(chain) == 0 {
@@ -1386,6 +1392,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	defer bc.blockProcFeed.Send(false)
 
 	// Do a sanity check that the provided chain is actually ordered and linked.
+	// 做语义检查，确保提供的chain是有序的
 	for i := 1; i < len(chain); i++ {
 		block, prev := chain[i], chain[i-1]
 		if block.NumberU64() != prev.NumberU64()+1 || block.ParentHash() != prev.Hash() {
@@ -1410,6 +1417,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 
 // insertChain is the internal implementation of InsertChain, which assumes that
 // 1) chains are contiguous, and 2) The chain mutex is held.
+// insertChain是InsertChain的内部实现，它假设1）chains是连续的，2）持有了chain mutex
 //
 // This method is split out so that import batches that require re-injecting
 // historical blocks can do so without releasing the lock, which could lead to
@@ -1436,6 +1444,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 	}()
 	// Start the parallel header verifier
+	// 启动并行的header verifier
 	headers := make([]*types.Header, len(chain))
 	seals := make([]bool, len(chain))
 
@@ -1634,6 +1643,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 
 		// Process block using the parent state as reference point
+		// 处理block，使用parent state作为reference point
 		substart := time.Now()
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
@@ -1676,6 +1686,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			// Don't set the head, only insert the block
 			err = bc.writeBlockWithState(block, receipts, logs, statedb)
 		} else {
+			// 写入blcok并且设置head
 			status, err = bc.writeBlockAndSetHead(block, receipts, logs, statedb, false)
 		}
 		atomic.StoreUint32(&followupInterrupt, 1)
@@ -1729,6 +1740,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 	}
 
 	// Any blocks remaining here? The only ones we care about are the future ones
+	// 是否还有遗留的blocks，我们只关心future block
 	if block != nil && errors.Is(err, consensus.ErrFutureBlock) {
 		if err := bc.addFutureBlock(block); err != nil {
 			return it.index, err

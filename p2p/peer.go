@@ -57,6 +57,7 @@ const (
 )
 
 // protoHandshake is the RLP structure of the protocol handshake.
+// protoHandshake是protocol handshake的RPL结构
 type protoHandshake struct {
 	Version    uint64
 	Name       string
@@ -91,6 +92,8 @@ const (
 
 // PeerEvent is an event emitted when peers are either added or dropped from
 // a p2p.Server or when a message is sent or received on a peer connection
+// PeerEvent是当peers添加到或者从一个p2p.Server移除的时候，或者一个message从一个peer connection发出
+// 或者接收到的时候发射出的事件
 type PeerEvent struct {
 	Type          PeerEventType `json:"type"`
 	Peer          enode.ID      `json:"peer"`
@@ -103,6 +106,7 @@ type PeerEvent struct {
 }
 
 // Peer represents a connected remote node.
+// Peer代表一个连接的remote node
 type Peer struct {
 	rw      *conn
 	running map[string]*protoRW
@@ -313,6 +317,7 @@ func (p *Peer) pingLoop() {
 func (p *Peer) readLoop(errc chan<- error) {
 	defer p.wg.Done()
 	for {
+		// 获取message
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			errc <- err
@@ -328,6 +333,7 @@ func (p *Peer) readLoop(errc chan<- error) {
 
 func (p *Peer) handle(msg Msg) error {
 	switch {
+	// 判断message的类型
 	case msg.Code == pingMsg:
 		msg.Discard()
 		go SendItems(p.rw, pongMsg)
@@ -342,6 +348,7 @@ func (p *Peer) handle(msg Msg) error {
 		return msg.Discard()
 	default:
 		// it's a subprotocol message
+		// 这是一个自协议的message
 		proto, err := p.getProto(msg.Code)
 		if err != nil {
 			return fmt.Errorf("msg code out of range: %v", msg.Code)
@@ -426,6 +433,7 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 
 // getProto finds the protocol responsible for handling
 // the given message code.
+// getProto找到负责处理给定的message的protocol
 func (p *Peer) getProto(code uint64) (*protoRW, error) {
 	for _, proto := range p.running {
 		if code >= proto.offset && code < proto.offset+proto.Length {
@@ -437,7 +445,7 @@ func (p *Peer) getProto(code uint64) (*protoRW, error) {
 
 type protoRW struct {
 	Protocol
-	in     chan Msg        // receives read messages
+	in     chan Msg        // receives read messages // 接收read message
 	closed <-chan struct{} // receives when peer is shutting down
 	wstart <-chan struct{} // receives when write may start
 	werr   chan<- error    // for write results

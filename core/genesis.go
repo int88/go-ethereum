@@ -68,6 +68,7 @@ type Genesis struct {
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
+// GenesisAlloc指定了初始的state，它是genesis block的一部分
 type GenesisAlloc map[common.Address]GenesisAccount
 
 func (ga *GenesisAlloc) UnmarshalJSON(data []byte) error {
@@ -386,7 +387,9 @@ func (g *Genesis) ToBlock(db ethdb.Database) *types.Block {
 }
 
 // Commit writes the block and state of a genesis specification to the database.
+// Commit写入block以及一个genesis state specification到数据库
 // The block is committed as the canonical head block.
+// block作为canonical head block被提交
 func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	block := g.ToBlock(db)
 	if block.Number().Sign() != 0 {
@@ -405,6 +408,7 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	if err := g.Alloc.write(db, block.Hash()); err != nil {
 		return nil, err
 	}
+	// 写入TD, BLock,Receipts等等
 	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), block.Difficulty())
 	rawdb.WriteBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
@@ -418,6 +422,7 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 
 // MustCommit writes the genesis block and state to db, panicking on error.
 // The block is committed as the canonical head block.
+// MustCommit将genesis block以及state写入到db中，有错误时panic，block作为canonical head block被提交
 func (g *Genesis) MustCommit(db ethdb.Database) *types.Block {
 	block, err := g.Commit(db)
 	if err != nil {

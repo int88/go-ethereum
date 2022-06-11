@@ -24,6 +24,7 @@ import (
 )
 
 // Protocol represents a P2P subprotocol implementation.
+// Protocol代表一个P2P子协议的实现
 type Protocol struct {
 	// Name should contain the official protocol name,
 	// often a three-letter word.
@@ -39,10 +40,14 @@ type Protocol struct {
 	// Run is called in a new goroutine when the protocol has been
 	// negotiated with a peer. It should read and write messages from
 	// rw. The Payload for each message must be fully consumed.
+	// Run在一个新的goroutine之中被调用，当protocol已经和一个peer协商好之后
+	// 它应该从rw中读写messages，每个message的Payload必须被完全消费
 	//
 	// The peer connection is closed when Start returns. It should return
 	// any protocol-level error (such as an I/O error) that is
 	// encountered.
+	// 当Start返回的时候，peer connection被关闭，它应该返回所有遇到的协议级别的错误
+	// （例如一个I/O错误）
 	Run func(peer *Peer, rw MsgReadWriter) error
 
 	// NodeInfo is an optional helper method to retrieve protocol specific metadata
@@ -68,6 +73,7 @@ func (p Protocol) cap() Cap {
 }
 
 // Cap is the structure of a peer capability.
+// Cap是一个关于peer capability的结构
 type Cap struct {
 	Name    string
 	Version uint

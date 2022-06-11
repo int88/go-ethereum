@@ -256,6 +256,8 @@ var (
 
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
 	// and accepted by the Ethereum core developers into the Ethash consensus.
+	// AllEthashProtocolChanges包含了每个protocol change（EIPs）由Ethereum core developers
+	// 接收并且引入Ethash consensus
 	//
 	// This configuration is intentionally not using keyed fields to force anyone
 	// adding flags to the config to also have to set these fields.
@@ -321,10 +323,13 @@ type CheckpointOracleConfig struct {
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
+// ChainConfig是决定blockchain设置的核心配置
 //
 // ChainConfig is stored in the database on a per block basis. This means
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
+// ChainConfig按块存储在数据库中，这意味着任何的network，通过它的genesis block识别，可以有它自己的
+// 一系列配置选项
 type ChainConfig struct {
 	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
 
@@ -469,6 +474,7 @@ func (c *ChainConfig) IsBerlin(num *big.Int) bool {
 }
 
 // IsLondon returns whether num is either equal to the London fork block or greater.
+// IsLondon返回num是否大于等于London fork block
 func (c *ChainConfig) IsLondon(num *big.Int) bool {
 	return isForked(c.LondonBlock, num)
 }

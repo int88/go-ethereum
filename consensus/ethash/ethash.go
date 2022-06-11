@@ -402,6 +402,7 @@ func MakeDataset(block uint64, dir string) {
 }
 
 // Mode defines the type and amount of PoW verification an ethash engine makes.
+// Mode定义了一个ethash engine创建的类型以及PoW verification的工作量
 type Mode uint
 
 const (
@@ -498,6 +499,8 @@ func NewTester(notify []string, noverify bool) *Ethash {
 // NewFaker creates a ethash consensus engine with a fake PoW scheme that accepts
 // all blocks' seal as valid, though they still have to conform to the Ethereum
 // consensus rules.
+// NewFaker创建一个ethash共识引擎，有着一个fake PoW scheme，接收所有的blocks，虽然他们还是
+// 需要符合Ethereum的共识规则
 func NewFaker() *Ethash {
 	return &Ethash{
 		config: Config{

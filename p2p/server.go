@@ -219,6 +219,7 @@ const (
 
 // conn wraps a network connection with information gathered
 // during the two handshakes.
+// conn封装了在两次握手中收集到的一个network connection的信息
 type conn struct {
 	fd net.Conn
 	transport
@@ -231,11 +232,14 @@ type conn struct {
 
 type transport interface {
 	// The two handshakes.
+	// 两次握手
 	doEncHandshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error)
 	doProtoHandshake(our *protoHandshake) (*protoHandshake, error)
 	// The MsgReadWriter can only be used after the encryption
 	// handshake has completed. The code uses conn.id to track this
 	// by setting it to a non-nil value after the encryption handshake.
+	// MsgReadWriter可以只在encrption handshake完成之后被使用，代码使用conn.id
+	// 来追踪，通过设置一个非nil的值，在encryption handshake之后
 	MsgReadWriter
 	// transports must provide Close because we use MsgPipe in some of
 	// the tests. Closing the actual network connection doesn't do

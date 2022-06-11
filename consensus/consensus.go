@@ -66,11 +66,15 @@ type Engine interface {
 	// Author retrieves the Ethereum address of the account that minted the given
 	// block, which may be different from the header's coinbase if a consensus
 	// engine is based on signatures.
+	// Author获取挖出给定block的账号的Ethereum地址，它可能和header的coinbase不一样
+	// 如果共识引擎是基于signatures的
 	Author(header *types.Header) (common.Address, error)
 
 	// VerifyHeader checks whether a header conforms to the consensus rules of a
 	// given engine. Verifying the seal may be done optionally here, or explicitly
 	// via the VerifySeal method.
+	// VerifyHeader检查一个header是否符合一个给定引擎的共识规则，可以可选地在这里检查
+	// seal，或者显式地通过VerifySeal方法
 	VerifyHeader(chain ChainHeaderReader, header *types.Header, seal bool) error
 
 	// VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -114,6 +118,7 @@ type Engine interface {
 	//
 	// Note, the method returns immediately and will send the result async. More
 	// than one result may also be returned depending on the consensus algorithm.
+	// 注意，这个方法立即返回并且会异步发送结果，可能会超过返回一个结果，基于共识算法
 	Seal(chain ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error
 
 	// SealHash returns the hash of a block prior to it being sealed.

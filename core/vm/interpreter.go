@@ -25,6 +25,7 @@ import (
 )
 
 // Config are the configuration options for the Interpreter
+// Config是Interpreter的配置选项
 type Config struct {
 	Debug                   bool      // Enables debugging
 	Tracer                  EVMLogger // Opcode logger

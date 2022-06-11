@@ -178,6 +178,8 @@ type AncientStore interface {
 
 // Database contains all the methods required by the high level database to not
 // only access the key-value data store but also the chain freezer.
+// Database包含了high level database所需的所有方法，不只是访问key-value data store
+// 同时也能访问chain freezer
 type Database interface {
 	Reader
 	Writer

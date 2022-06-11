@@ -45,6 +45,7 @@ type operation struct {
 }
 
 var (
+	// 各个fork的指令集版本
 	frontierInstructionSet         = newFrontierInstructionSet()
 	homesteadInstructionSet        = newHomesteadInstructionSet()
 	tangerineWhistleInstructionSet = newTangerineWhistleInstructionSet()
@@ -58,6 +59,7 @@ var (
 )
 
 // JumpTable contains the EVM opcodes supported at a given fork.
+// JumpTable包含了在一个给定的fork中支持的EVM opcodes
 type JumpTable [256]*operation
 
 func validate(jt JumpTable) JumpTable {
