@@ -209,6 +209,8 @@ func (t *Tracker) Update(kind uint64, elapsed time.Duration, items int) {
 // Trackers is a set of message rate trackers across a number of peers with the
 // goal of aggregating certain measurements across the entire set for outlier
 // filtering and newly joining initialization.
+// Trackers是一系列的message ratetracker，跨越一系列的peers，目标是对于整个集合
+// 的聚合测量，对于outlier filtering以及新加入的initialization
 type Trackers struct {
 	trackers map[string]*Tracker
 

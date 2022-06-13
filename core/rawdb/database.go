@@ -165,8 +165,11 @@ func NewDatabase(db ethdb.KeyValueStore) ethdb.Database {
 // NewDatabaseWithFreezer creates a high level database on top of a given key-
 // value data store with a freezer moving immutable chain segments into cold
 // storage.
+// NewDatabaseWithFreezer创建一个high level的database，在给定的key-value data store之上
+//并且有一个freezer用于将immutable chain segments移动到cold storage
 func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace string, readonly bool) (ethdb.Database, error) {
 	// Create the idle freezer instance
+	// 创建一个闲置的freezer实例
 	frdb, err := newChainFreezer(freezer, namespace, readonly, freezerTableSize, FreezerNoSnappy)
 	if err != nil {
 		return nil, err
@@ -236,6 +239,7 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace st
 		}
 	}
 	// Freezer is consistent with the key-value database, permit combining the two
+	// Freezer和key-value database一致，允许合并二者
 	if !frdb.readonly {
 		frdb.wg.Add(1)
 		go func() {

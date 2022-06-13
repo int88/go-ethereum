@@ -44,6 +44,7 @@ import (
 )
 
 // downloadTester is a test simulator for mocking out local block chain.
+// downloadTester是一个test simulator用于模拟block chain
 type downloadTester struct {
 	freezer    string
 	chain      *core.BlockChain
@@ -54,6 +55,7 @@ type downloadTester struct {
 }
 
 // newTester creates a new downloader test mocker.
+// newTester创建一个新的downloader test mocker
 func newTester(t *testing.T) *downloadTester {
 	return newTesterWithNotification(t, nil)
 }
@@ -61,6 +63,7 @@ func newTester(t *testing.T) *downloadTester {
 // newTester creates a new downloader test mocker.
 func newTesterWithNotification(t *testing.T, success func()) *downloadTester {
 	freezer := t.TempDir()
+	// 创建一个有着freezer的database
 	db, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), freezer, "", false)
 	if err != nil {
 		panic(err)
@@ -70,10 +73,12 @@ func newTesterWithNotification(t *testing.T, success func()) *downloadTester {
 	})
 	core.GenesisBlockForTesting(db, testAddress, big.NewInt(1000000000000000))
 
+	// 构建新的blockchain
 	chain, err := core.NewBlockChain(db, nil, params.TestChainConfig, ethash.NewFaker(), vm.Config{}, nil, nil)
 	if err != nil {
 		panic(err)
 	}
+	// 构建downloadTester
 	tester := &downloadTester{
 		freezer: freezer,
 		chain:   chain,
@@ -93,13 +98,16 @@ func (dl *downloadTester) terminate() {
 }
 
 // sync starts synchronizing with a remote peer, blocking until it completes.
+// sync开始从一个远端的peer进行同步，阻塞直到它完成
 func (dl *downloadTester) sync(id string, td *big.Int, mode SyncMode) error {
 	head := dl.peers[id].chain.CurrentBlock()
 	if td == nil {
 		// If no particular TD was requested, load from the peer's blockchain
+		// 如果没有提供特定的TD，加载peer的blockchain
 		td = dl.peers[id].chain.GetTd(head.Hash(), head.NumberU64())
 	}
 	// Synchronise with the chosen peer and ensure proper cleanup afterwards
+	// 从选定的peer进行同步并且在之后确保合适的cleanup
 	err := dl.downloader.synchronise(id, head.Hash(), td, nil, mode, false, nil)
 	select {
 	case <-dl.downloader.cancelCh:
@@ -112,6 +120,7 @@ func (dl *downloadTester) sync(id string, td *big.Int, mode SyncMode) error {
 }
 
 // newPeer registers a new block download source into the downloader.
+// newPeer注册一个新的block download source到downloader中
 func (dl *downloadTester) newPeer(id string, version uint, blocks []*types.Block) *downloadTesterPeer {
 	dl.lock.Lock()
 	defer dl.lock.Unlock()
@@ -124,6 +133,7 @@ func (dl *downloadTester) newPeer(id string, version uint, blocks []*types.Block
 	}
 	dl.peers[id] = peer
 
+	// 在downloader中注册一个peer
 	if err := dl.downloader.RegisterPeer(id, version, peer); err != nil {
 		panic(err)
 	}
@@ -173,8 +183,11 @@ func unmarshalRlpHeaders(rlpdata []rlp.RawValue) []*types.Header {
 // RequestHeadersByHash constructs a GetBlockHeaders function based on a hashed
 // origin; associated with a particular peer in the download tester. The returned
 // function can be used to retrieve batches of headers from the particular peer.
+// RequestHeadersByHash构造一个GetBlockHeaders函数，基于一个hashed origin，和download tester
+// 中一个特定的peer相关联，返回的函数可以用于获取批量的headers，从特定的peer
 func (dlp *downloadTesterPeer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool, sink chan *eth.Response) (*eth.Request, error) {
 	// Service the header query via the live handler code
+	// 通过live handler code服务header query
 	rlpHeaders := eth.ServiceGetBlockHeadersQuery(dlp.chain, &eth.GetBlockHeadersPacket{
 		Origin: eth.HashOrNumber{
 			Hash: origin,
@@ -229,6 +242,7 @@ func (dlp *downloadTesterPeer) RequestHeadersByNumber(origin uint64, amount int,
 	}, nil)
 	headers := unmarshalRlpHeaders(rlpHeaders)
 	// If a malicious peer is simulated withholding headers, delete them
+	// 如果有一个恶意的peer，有着simulated withholding headers，删除它
 	for hash := range dlp.withholdHeaders {
 		for i, header := range headers {
 			if header.Hash() == hash {
@@ -242,6 +256,7 @@ func (dlp *downloadTesterPeer) RequestHeadersByNumber(origin uint64, amount int,
 		hashes[i] = header.Hash()
 	}
 	// Deliver the headers to the downloader
+	// 传输headers到downloader
 	req := &eth.Request{
 		Peer: dlp.id,
 	}
@@ -443,10 +458,13 @@ func testCanonSync(t *testing.T, protocol uint, mode SyncMode) {
 	defer tester.terminate()
 
 	// Create a small enough block chain to download
+	// 创建一个足够小的blockchain用于download
 	chain := testChainBase.shorten(blockCacheMaxItems - 15)
+	// 创建新的peer
 	tester.newPeer("peer", protocol, chain.blocks[1:])
 
 	// Synchronise with the peer and make sure all relevant data was retrieved
+	// 和peer进行同步并且确保所有相关的数据都获取到
 	if err := tester.sync("peer", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}

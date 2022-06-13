@@ -56,7 +56,7 @@ var (
 	fsHeaderSafetyNet      = 2048            // Number of headers to discard in case a chain violation is detected
 	fsHeaderForceVerify    = 24              // Number of headers to verify before and after the pivot to accept it
 	fsHeaderContCheck      = 3 * time.Second // Time interval to check for header continuations during state download
-	fsMinFullBlocks        = 64              // Number of blocks to retrieve fully even in snap sync
+	fsMinFullBlocks        = 64              // Number of blocks to retrieve fully even in snap sync // 用于完全获取的blocks的数目，即使在snap sync中
 )
 
 var (
@@ -93,19 +93,19 @@ type headerTask struct {
 }
 
 type Downloader struct {
-	mode uint32         // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode
+	mode uint32         // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode // strategy定义的Synchronisation mode，使用d.getMode()来获取SyncMode
 	mux  *event.TypeMux // Event multiplexer to announce sync operation events
 
 	checkpoint uint64   // Checkpoint block number to enforce head against (e.g. snap sync)
 	genesis    uint64   // Genesis block number to limit sync to (e.g. light client CHT)
-	queue      *queue   // Scheduler for selecting the hashes to download
-	peers      *peerSet // Set of active peers from which download can proceed
+	queue      *queue   // Scheduler for selecting the hashes to download // 调度器用于选择下载的hash
+	peers      *peerSet // Set of active peers from which download can proceed // 一系列的active peers，可以继续download
 
-	stateDB ethdb.Database // Database to state sync into (and deduplicate via)
+	stateDB ethdb.Database // Database to state sync into (and deduplicate via) // 用于同步state的数据库
 
 	// Statistics
-	syncStatsChainOrigin uint64       // Origin block number where syncing started at
-	syncStatsChainHeight uint64       // Highest block number known when syncing started
+	syncStatsChainOrigin uint64       // Origin block number where syncing started at // syncing开始的Origin block number
+	syncStatsChainHeight uint64       // Highest block number known when syncing started // 当同步开始时最高的block number
 	syncStatsLock        sync.RWMutex // Lock protecting the sync stats fields
 
 	lightchain LightChain
@@ -173,6 +173,7 @@ type LightChain interface {
 }
 
 // BlockChain encapsulates functions required to sync a (full or snap) blockchain.
+// BlockChain封装了同步一个（full或者snap）的blockchain的函数
 type BlockChain interface {
 	LightChain
 
@@ -189,6 +190,7 @@ type BlockChain interface {
 	CurrentBlock() *types.Block
 
 	// CurrentFastBlock retrieves the head snap block from the local chain.
+	// CurrentFastBlock从local chain获取head snap block
 	CurrentFastBlock() *types.Block
 
 	// SnapSyncCommitHead directly commits the head block to a certain entity.
@@ -205,21 +207,24 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
+// New创建一个新的downloader用于从remote peers拉取hashes以及blocks
 func New(checkpoint uint64, stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, success func()) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
 	}
 	dl := &Downloader{
-		stateDB:        stateDb,
-		mux:            mux,
-		checkpoint:     checkpoint,
-		queue:          newQueue(blockCacheMaxItems, blockCacheInitialItems),
-		peers:          newPeerSet(),
-		blockchain:     chain,
-		lightchain:     lightchain,
-		dropPeer:       dropPeer,
-		headerProcCh:   make(chan *headerTask, 1),
-		quitCh:         make(chan struct{}),
+		stateDB:    stateDb,
+		mux:        mux,
+		checkpoint: checkpoint,
+		queue:      newQueue(blockCacheMaxItems, blockCacheInitialItems),
+		// 构建peer set
+		peers:        newPeerSet(),
+		blockchain:   chain,
+		lightchain:   lightchain,
+		dropPeer:     dropPeer,
+		headerProcCh: make(chan *headerTask, 1),
+		quitCh:       make(chan struct{}),
+		// 构建snap syncer
 		SnapSyncer:     snap.NewSyncer(stateDb),
 		stateSyncStart: make(chan *stateSync),
 	}
@@ -281,6 +286,7 @@ func (d *Downloader) Synchronising() bool {
 
 // RegisterPeer injects a new download peer into the set of block source to be
 // used for fetching hashes and blocks from.
+// RegisterPeer注入一个新的download peer到一系列的block source用于获取hashes以及blocks
 func (d *Downloader) RegisterPeer(id string, version uint, peer Peer) error {
 	var logger log.Logger
 	if len(id) < 16 {
@@ -356,6 +362,8 @@ func (d *Downloader) LegacySync(id string, head common.Hash, td, ttd *big.Int, m
 // synchronise will select the peer and use it for synchronising. If an empty string is given
 // it will use the best peer possible and synchronize if its TD is higher than our own. If any of the
 // checks fail an error will be returned. This method is synchronous
+// synchronise会选择peer并且使用它用于同步，如果给定一个空的字符串，它会使用最好的peer并且同步，如果它的TD比我们的高
+// 如果任何的检查失败，则会返回一个error，这个方法的同步的
 func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, mode SyncMode, beaconMode bool, beaconPing chan struct{}) error {
 	// The beacon header syncer is async. It will start this synchronization and
 	// will continue doing other tasks. However, if synchronization needs to be
@@ -394,6 +402,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		}
 	}
 	// Reset the queue, peer set and wake channels to clean any internal leftover state
+	// 重置queue，peer set并且wake channels来清理任何内部的leftover state
 	d.queue.Reset(blockCacheMaxItems, blockCacheInitialItems)
 	d.peers.Reset()
 
@@ -411,6 +420,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		}
 	}
 	// Create cancel channel for aborting mid-flight and mark the master peer
+	// 创建cancel channel用于中止mid-flight并且标记master peer
 	d.cancelLock.Lock()
 	d.cancelCh = make(chan struct{})
 	d.cancelPeer = id
@@ -422,8 +432,9 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 	atomic.StoreUint32(&d.mode, uint32(mode))
 
 	// Retrieve the origin peer and initiate the downloading process
+	// 获取original peer并且初始化downloading process
 	var p *peerConnection
-	if !beaconMode { // Beacon mode doesn't need a peer to sync from
+	if !beaconMode { // Beacon mode doesn't need a peer to sync from // Beacon mode不需要一个peer来同步
 		p = d.peers.Peer(id)
 		if p == nil {
 			return errUnknownPeer
@@ -441,6 +452,7 @@ func (d *Downloader) getMode() SyncMode {
 
 // syncWithPeer starts a block synchronization based on the hash chain from the
 // specified peer and head hash.
+// syncWithPeer启动一个block的同步，基于指定的peer以及head hash的hash chain
 func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *big.Int, beaconMode bool) (err error) {
 	d.mux.Post(StartEvent{})
 	defer func() {
@@ -467,6 +479,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	var latest, pivot *types.Header
 	if !beaconMode {
 		// In legacy mode, use the master peer to retrieve the headers from
+		// 对于legacy mode，使用master peer来获取headers
 		latest, pivot, err = d.fetchHead(p)
 		if err != nil {
 			return err
@@ -514,6 +527,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	var origin uint64
 	if !beaconMode {
 		// In legacy mode, reach out to the network and find the ancestor
+		// 对于legacy mode，获取ancestor
 		origin, err = d.findAncestor(p, latest)
 		if err != nil {
 			return err
@@ -590,6 +604,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		}
 	}
 	// Initiate the sync using a concurrent header and content retrieval algorithm
+	// 初始化sync，使用一个并发的header以及content获取函数
 	d.queue.Prepare(origin+1, mode)
 	if d.syncInitHook != nil {
 		d.syncInitHook(origin, height)
@@ -622,6 +637,8 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 
 // spawnSync runs d.process and all given fetcher functions to completion in
 // separate goroutines, returning the first error that appears.
+// spawnSync运行d.process并且所有给定的fetcher函数在不同的goroutines中完成
+// 返回遇到的第一个错误
 func (d *Downloader) spawnSync(fetchers []func() error) error {
 	errc := make(chan error, len(fetchers))
 	d.cancelWg.Add(len(fetchers))
@@ -693,11 +710,13 @@ func (d *Downloader) Terminate() {
 
 // fetchHead retrieves the head header and prior pivot block (if available) from
 // a remote peer.
+// fetchHead从一个remote peer获取head header以及prior pivot block（如果可以获取的话）
 func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *types.Header, err error) {
 	p.log.Debug("Retrieving remote chain head")
 	mode := d.getMode()
 
 	// Request the advertised remote head block and wait for the response
+	// 请求建议的remote head block并且等待response
 	latest, _ := p.peer.Head()
 	fetch := 1
 	if mode == SnapSync {
@@ -708,6 +727,7 @@ func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *ty
 		return nil, nil, err
 	}
 	// Make sure the peer gave us at least one and at most the requested headers
+	// 确保peer给我们至少一个以及最多请求数的headers
 	if len(headers) == 0 || len(headers) > fetch {
 		return nil, nil, fmt.Errorf("%w: returned headers %d != requested %d", errBadPeer, len(headers), fetch)
 	}
@@ -791,8 +811,10 @@ func calculateRequestSpan(remoteHeight, localHeight uint64) (int64, int, int, ui
 // on the correct chain, checking the top N links should already get us a match.
 // In the rare scenario when we ended up on a long reorganisation (i.e. none of
 // the head links match), we do a binary search to find the common ancestor.
+// findAncestor试着定位local chain和一个remote peers blockchain的common ancestor link
 func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header) (uint64, error) {
 	// Figure out the valid ancestor range to prevent rewrite attacks
+	// 找到合法的ancestor range，来防止rewrite attacks
 	var (
 		floor        = int64(-1)
 		localHeight  uint64

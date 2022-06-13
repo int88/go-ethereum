@@ -26,6 +26,7 @@ import (
 
 // hasher is a type used for the trie Hash operation. A hasher has some
 // internal preallocated temp space
+// hasher是一个类型用于trie的hash操作，一个hasher有一些内部预分配的临时空间
 type hasher struct {
 	sha      crypto.KeccakState
 	tmp      []byte
@@ -34,6 +35,7 @@ type hasher struct {
 }
 
 // hasherPool holds pureHashers
+// hasherPool维护pureHashers
 var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{
@@ -56,12 +58,16 @@ func returnHasherToPool(h *hasher) {
 
 // hash collapses a node down into a hash node, also returning a copy of the
 // original node initialized with the computed hash to replace the original one.
+// hash将一个node折叠到为一个hash node，同时返回original node的拷贝值，用计算的hash替换
+// 已经存在的
 func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
 	// Return the cached hash if it's available
+	// 返回缓存的cache，如果可用的话
 	if hash, _ := n.cache(); hash != nil {
 		return hash, n
 	}
 	// Trie not processed yet, walk the children
+	// Trie还没有被处理，走到子节点
 	switch n := n.(type) {
 	case *shortNode:
 		collapsed, cached := h.hashShortNodeChildren(n)

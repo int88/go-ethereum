@@ -359,10 +359,12 @@ func (p *Peer) RequestOneHeader(hash common.Hash, sink chan *Response) (*Request
 
 // RequestHeadersByHash fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the hash of an origin block.
+// ReqeuestHeadersByHash获取特定的header query对应的一系列blocks header，基于一个origin block的哈希值
 func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, reverse bool, sink chan *Response) (*Request, error) {
 	p.Log().Debug("Fetching batch of headers", "count", amount, "fromhash", origin, "skip", skip, "reverse", reverse)
 	id := rand.Uint64()
 
+	// 构建Request
 	req := &Request{
 		id:   id,
 		sink: sink,

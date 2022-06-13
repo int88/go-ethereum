@@ -33,6 +33,7 @@ import (
 
 var (
 	// emptyRoot is the known root hash of an empty trie.
+	// emptyRoot是一个empty trie的root hash
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyState is the known hash of an empty state trie entry.
@@ -68,10 +69,13 @@ type Trie struct {
 	// Keep track of the number leaves which have been inserted since the last
 	// hashing operation. This number will not directly map to the number of
 	// actually unhashed nodes
+	// 追踪上次hash操作以来插入的leaves的数目，这个数字不会直接映射到真正没有hash的节点的数目
 	unhashed int
 
 	// tracer is the state diff tracer can be used to track newly added/deleted
 	// trie node. It will be reset after each commit operation.
+	// tracer是state diff tracer，可以用于追踪新添加/移除的trie node，它会被重置在每次
+	// commit操作之后
 	tracer *tracer
 }
 
@@ -91,11 +95,14 @@ func (t *Trie) Copy() *Trie {
 }
 
 // New creates a trie with an existing root node from db.
+// New创建一个trie，用db中一个已经存在的root node
 //
 // If root is the zero hash or the sha3 hash of an empty string, the
 // trie is initially empty and does not require a database. Otherwise,
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
+// 如果root是zero hash或者sha3 hash是一个空的字符串，trie的初始值为空并且不需要一个database
+// 佛足额New会panic，如果db为nil并且返回一个MissingNodeError，如果root不在数据库中
 func New(root common.Hash, db *Database) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
@@ -560,6 +567,7 @@ func (t *Trie) resolve(n node, prefix []byte) (node, error) {
 
 func (t *Trie) resolveHash(n hashNode, prefix []byte) (node, error) {
 	hash := common.BytesToHash(n)
+	// 从db中找到node
 	if node := t.db.node(hash); node != nil {
 		return node, nil
 	}
@@ -577,6 +585,7 @@ func (t *Trie) resolveBlob(n hashNode, prefix []byte) ([]byte, error) {
 
 // Hash returns the root hash of the trie. It does not write to the
 // database and can be used even if the trie doesn't have one.
+// Hash返回trie的root hash，它没有写入到database并且可以使用，即使trie里没有
 func (t *Trie) Hash() common.Hash {
 	hash, cached, _ := t.hashRoot()
 	t.root = cached
@@ -633,11 +642,14 @@ func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
 }
 
 // hashRoot calculates the root hash of the given trie
+// hashRoot计算给定trie的root hash
 func (t *Trie) hashRoot() (node, node, error) {
 	if t.root == nil {
+		// 没有root，则返回emptyRoot
 		return hashNode(emptyRoot.Bytes()), nil, nil
 	}
 	// If the number of changes is below 100, we let one thread handle it
+	// 如果变更的数目小于100，我们使用一个thread处理它
 	h := newHasher(t.unhashed >= 100)
 	defer returnHasherToPool(h)
 	hashed, cached := h.hash(t.root, true)

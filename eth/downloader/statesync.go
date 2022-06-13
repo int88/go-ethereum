@@ -42,6 +42,7 @@ func (d *Downloader) syncState(root common.Hash) *stateSync {
 
 // stateFetcher manages the active state sync and accepts requests
 // on its behalf.
+// stateFetcher管理对于active state的同步，代表它自己接受请求
 func (d *Downloader) stateFetcher() {
 	for {
 		select {
@@ -57,6 +58,7 @@ func (d *Downloader) stateFetcher() {
 
 // runStateSync runs a state synchronisation until it completes or another root
 // hash is requested to be switched over to.
+// runStateSync运行一个state synchronisation，直到它完成或者请求另一个root hash进行切换
 func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 	log.Trace("State sync starting", "root", s.root)
 
@@ -76,6 +78,7 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 
 // stateSync schedules requests for downloading a particular state trie defined
 // by a given state root.
+// stateSync调度由一个给定的state root定义的state trie
 type stateSync struct {
 	d    *Downloader // Downloader instance to access and manage current peerset
 	root common.Hash // State root currently being synced

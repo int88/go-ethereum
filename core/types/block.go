@@ -243,6 +243,8 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
+// sealTask创建一个block，用给定的header data，header data被拷贝
+// 对于header以及field values的变更不会影响block
 func NewBlockWithHeader(header *Header) *Block {
 	return &Block{header: CopyHeader(header)}
 }
@@ -366,6 +368,7 @@ func CalcUncleHash(uncles []*Header) common.Hash {
 
 // WithSeal returns a new block with the data from b but the header replaced with
 // the sealed one.
+// WithSeal返回一个新的block，data来自b，而header用来自sealed的代替
 func (b *Block) WithSeal(header *Header) *Block {
 	cpy := *header
 

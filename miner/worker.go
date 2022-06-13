@@ -59,10 +59,12 @@ const (
 
 	// minRecommitInterval is the minimal time interval to recreate the sealing block with
 	// any newly arrived transactions.
+	// minRecommitInterval是最小的时间间隔用来重新创建sealing block，随着任何新到达的transactions
 	minRecommitInterval = 1 * time.Second
 
 	// maxRecommitInterval is the maximum time interval to recreate the sealing block with
 	// any newly arrived transactions.
+	// maxRecommitInterval是对于新达到的transactions重建sealing block的最大时间
 	maxRecommitInterval = 15 * time.Second
 
 	// intervalAdjustRatio is the impact a single interval adjustment has on sealing work
@@ -162,6 +164,7 @@ const (
 )
 
 // newWorkReq represents a request for new sealing work submitting with relative interrupt notifier.
+// newWorkReq代表一个request用于新的sealing work的提交，伴随着相关的interrupt notifier
 type newWorkReq struct {
 	interrupt *int32
 	noempty   bool
@@ -279,8 +282,10 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 		resubmitAdjustCh:   make(chan *intervalAdjust, resubmitAdjustChanSize),
 	}
 	// Subscribe NewTxsEvent for tx pool
+	// 从tx pool订阅NewTxsEvent
 	worker.txsSub = eth.TxPool().SubscribeNewTxsEvent(worker.txsCh)
 	// Subscribe events for blockchain
+	// 订阅blockchain的events
 	worker.chainHeadSub = eth.BlockChain().SubscribeChainHeadEvent(worker.chainHeadCh)
 	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 
@@ -292,6 +297,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	}
 
 	worker.wg.Add(4)
+	// 创建多个goroutine运行
 	go worker.mainLoop()
 	go worker.newWorkLoop(recommit)
 	go worker.resultLoop()
@@ -416,6 +422,7 @@ func recalcRecommit(minRecommit, prev time.Duration, target float64, inc bool) t
 }
 
 // newWorkLoop is a standalone goroutine to submit new sealing work upon received events.
+// newWorkLoop是一个独立的goroutine，用于在接收到events之后提交新的sealing work
 func (w *worker) newWorkLoop(recommit time.Duration) {
 	defer w.wg.Done()
 	var (
@@ -429,12 +436,14 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	<-timer.C // discard the initial tick
 
 	// commit aborts in-flight transaction execution with given signal and resubmits a new one.
+	// commit终止in-flight transaction的执行，用给定的signal并且提交一个新的
 	commit := func(noempty bool, s int32) {
 		if interrupt != nil {
 			atomic.StoreInt32(interrupt, s)
 		}
 		interrupt = new(int32)
 		select {
+		// 构建新的worker request
 		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}:
 		case <-w.exitCh:
 			return
@@ -443,6 +452,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		atomic.StoreInt32(&w.newTxs, 0)
 	}
 	// clearPending cleans the stale pending tasks.
+	// clearPending清理过去的pending tasks
 	clearPending := func(number uint64) {
 		w.pendingMu.Lock()
 		for h, t := range w.pendingTasks {
@@ -456,6 +466,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 	for {
 		select {
 		case <-w.startCh:
+			// worker开始运行
 			clearPending(w.chain.CurrentBlock().NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
@@ -689,6 +700,8 @@ func (w *worker) taskLoop() {
 
 // resultLoop is a standalone goroutine to handle sealing result submitting
 // and flush relative data to the database.
+// resultLoop是一个独立的goroutine用于处理sealing result的提交并且flush相关的数据
+// 到数据库中
 func (w *worker) resultLoop() {
 	defer w.wg.Done()
 	for {
@@ -699,6 +712,7 @@ func (w *worker) resultLoop() {
 				continue
 			}
 			// Short circuit when receiving duplicate result caused by resubmitting.
+			// 由重复提交导致收到了重复的结果
 			if w.chain.HasBlock(block.Hash(), block.NumberU64()) {
 				continue
 			}

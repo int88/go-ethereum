@@ -40,6 +40,7 @@ var (
 
 // Request is a pending request to allow tracking it and delivering a response
 // back to the requester on their chosen channel.
+// Request是一个pending request，允许追踪它并且发送response回到requester，在它们选定的channel中
 type Request struct {
 	peer *Peer  // Peer to which this request belogs for untracking
 	id   uint64 // Request ID to match up replies to
@@ -80,6 +81,8 @@ func (r *Request) Close() error {
 
 // request is a wrapper around a client Request that has an error channel to
 // signal on if sending the request already failed on a network level.
+// request是一个对于client Request的封装，有一个error channel来表示是否发送的请求已经在
+// 一个network level失败了
 type request struct {
 	req  *Request
 	fail chan error
@@ -95,6 +98,8 @@ type cancel struct {
 // Response is a reply packet to a previously created request. It is delivered
 // on the channel assigned by the requester subsystem and contains the original
 // request embedded to allow uniquely matching it caller side.
+// Response是对于之前创建的request的一个reply packet，它在由requester subsystem赋值的channel
+// 中传输，并且包含original request从而允许对于caller side的唯一匹配
 type Response struct {
 	id   uint64    // Request ID to match up this reply to
 	recv time.Time // Timestamp when the request was received
@@ -116,6 +121,7 @@ type response struct {
 
 // dispatchRequest schedules the request to the dispatcher for tracking and
 // network serialization, blocking until it's successfully sent.
+// dispatchRequest调度request到dispatcher用于追踪以及network serialization，阻塞直到它完全发送
 //
 // The returned Request must either be closed before discarding it, or the reply
 // must be waited for and the Response's Done channel signalled.
@@ -138,6 +144,7 @@ func (p *Peer) dispatchRequest(req *Request) error {
 
 // dispatchRequest fulfils a pending request and delivers it to the requested
 // sink.
+// dispatchRequest填充一个pending request并且推送它到request sink
 func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) error {
 	resOp := &response{
 		res:  res,
@@ -185,6 +192,8 @@ func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) erro
 // dispatcher is a loop that accepts requests from higher layer packages, pushes
 // it to the network and tracks and dispatches the responses back to the original
 // requester.
+// dispatcher是一个loop，从高层的packages中接收requests，将它们推送到network并且追踪
+// 以及分发response到original requester
 func (p *Peer) dispatcher() {
 	pending := make(map[uint64]*Request)
 
@@ -195,10 +204,12 @@ func (p *Peer) dispatcher() {
 			req.Sent = time.Now()
 
 			requestTracker.Track(p.id, p.version, req.code, req.want, req.id)
+			// 发送前request
 			err := p2p.Send(p.rw, req.code, req.data)
 			reqOp.fail <- err
 
 			if err == nil {
+				// 放入到pending中
 				pending[req.id] = req
 			}
 
@@ -215,6 +226,7 @@ func (p *Peer) dispatcher() {
 			cancelOp.fail <- nil
 
 		case resOp := <-p.resDispatch:
+			// 收到response
 			res := resOp.res
 			res.Req = pending[res.id]
 
@@ -239,10 +251,13 @@ func (p *Peer) dispatcher() {
 				// All dispatcher checks passed and the response was initialized
 				// with the matching request. Signal to the delivery routine that
 				// it can wait for a handler response and dispatch the data.
+				// 所有的dispatcher checks已经通过，response用matching request初始化
+				//通知delivery routine，它可以等待一个handler response并且分发数据
 				res.Time = res.recv.Sub(res.Req.Sent)
 				resOp.fail <- nil
 
 				// Stop tracking the request, the response dispatcher will deliver
+				// 停止追踪request，response dispatcher会进行发送
 				delete(pending, res.id)
 			}
 

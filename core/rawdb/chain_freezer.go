@@ -42,6 +42,9 @@ const (
 // chainFreezer is a wrapper of freezer with additional chain freezing feature.
 // The background thread will keep moving ancient chain segments from key-value
 // database to flat files for saving space on live database.
+// chainFreezer是一个对于有着额外的chain freezing特性的freezer的封装
+// background thread会持续移动ancient chain segments，从key-value database到flat files
+// 用于节省live database的空间
 type chainFreezer struct {
 	// WARNING: The `threshold` field is accessed atomically. On 32 bit platforms, only
 	// 64-bit aligned fields can be atomic. The struct is guaranteed to be so aligned,
@@ -55,6 +58,7 @@ type chainFreezer struct {
 }
 
 // newChainFreezer initializes the freezer for ancient chain data.
+// newChainFreezer用ancient chain data初始化freezer
 func newChainFreezer(datadir string, namespace string, readonly bool, maxTableSize uint32, tables map[string]bool) (*chainFreezer, error) {
 	freezer, err := NewFreezer(datadir, namespace, readonly, maxTableSize, tables)
 	if err != nil {

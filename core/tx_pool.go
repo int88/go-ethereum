@@ -150,9 +150,10 @@ type blockChain interface {
 }
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
+// TxPoolConfig是transaction pool的配置参数
 type TxPoolConfig struct {
-	Locals    []common.Address // Addresses that should be treated by default as local
-	NoLocals  bool             // Whether local transaction handling should be disabled
+	Locals    []common.Address // Addresses that should be treated by default as local // 那些应该被作为local的地址
+	NoLocals  bool             // Whether local transaction handling should be disabled // 是否应该禁止local transactrion handling
 	Journal   string           // Journal of local transactions to survive node restarts
 	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
 
@@ -239,7 +240,7 @@ type TxPool struct {
 	chainconfig *params.ChainConfig
 	chain       blockChain
 	gasPrice    *big.Int
-	txFeed      event.Feed
+	txFeed      event.Feed // 对于tx事件的订阅
 	scope       event.SubscriptionScope
 	signer      types.Signer
 	mu          sync.RWMutex
@@ -435,6 +436,7 @@ func (pool *TxPool) Stop() {
 
 // SubscribeNewTxsEvent registers a subscription of NewTxsEvent and
 // starts sending event to the given channel.
+// SubscribeNewTxsEvent注册对于NewTxsEvent的订阅并且开始发送事件到给定的channel
 func (pool *TxPool) SubscribeNewTxsEvent(ch chan<- NewTxsEvent) event.Subscription {
 	return pool.scope.Track(pool.txFeed.Subscribe(ch))
 }
@@ -866,9 +868,12 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 
 // AddRemotes enqueues a batch of transactions into the pool if they are valid. If the
 // senders are not among the locally tracked ones, full pricing constraints will apply.
+// AddRemotes将一批transactions加入到pool，如果它们是合法的话，如果sender不是locally tracked ones
+// 会应用full priciing constraints
 //
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and internal event propagation.
+// 这个方法用于从p2p network加入transactions，不等待pool reorganization以及内部的event propagation
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, false, false)
 }
@@ -886,6 +891,7 @@ func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
 
 // AddRemote enqueues a single transaction into the pool if it is valid. This is a convenience
 // wrapper around AddRemotes.
+// AddRemote将单个的transaction加入到pool，如果它是合法的，这是对于AddRemotes方便的封装
 //
 // Deprecated: use AddRemotes
 func (pool *TxPool) AddRemote(tx *types.Transaction) error {

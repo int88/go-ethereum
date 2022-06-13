@@ -116,6 +116,8 @@ func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subs
 // testHandler is a live implementation of the Ethereum protocol handler, just
 // preinitialized with some sane testing defaults and the transaction pool mocked
 // out.
+// testHandler是Ethereum protocol handler的live implementation，用testing defaults和mocked transaction
+// pool预安装完成
 type testHandler struct {
 	db      ethdb.Database
 	chain   *core.BlockChain

@@ -48,8 +48,10 @@ var (
 
 // Seal implements consensus.Engine, attempting to find a nonce that satisfies
 // the block's difficulty requirements.
+// Seal实现了consensus.Engine，试着找到一个nonce能够满足block的difficulty requirement
 func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block, results chan<- *types.Block, stop <-chan struct{}) error {
 	// If we're running a fake PoW, simply return a 0 nonce immediately
+	// 如果我们正在运行一个fake PoW，立即简单地返回0 nonce
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
 		header := block.Header()
 		header.Nonce, header.MixDigest = types.BlockNonce{}, common.Hash{}
@@ -61,10 +63,12 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 		return nil
 	}
 	// If we're running a shared PoW, delegate sealing to it
+	// 如果我们运行一个shared PoW，委托sealing给它
 	if ethash.shared != nil {
 		return ethash.shared.Seal(chain, block, results, stop)
 	}
 	// Create a runner and the multiple search threads it directs
+	// 创建一个runner以及多个search threads
 	abort := make(chan struct{})
 
 	ethash.lock.Lock()
@@ -79,12 +83,14 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	}
 	ethash.lock.Unlock()
 	if threads == 0 {
+		// 匹配CPU数目
 		threads = runtime.NumCPU()
 	}
 	if threads < 0 {
 		threads = 0 // Allows disabling local mining without extra logic around local/remote
 	}
 	// Push new work to remote sealer
+	// 推送new work到remote sealer
 	if ethash.remote != nil {
 		ethash.remote.workCh <- &sealTask{block: block, results: results}
 	}
@@ -94,6 +100,7 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	)
 	for i := 0; i < threads; i++ {
 		pend.Add(1)
+		// 创建threads个thread进行mine
 		go func(id int, nonce uint64) {
 			defer pend.Done()
 			ethash.mine(block, id, nonce, abort, locals)
@@ -108,6 +115,7 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 			close(abort)
 		case result = <-locals:
 			// One of the threads found a block, abort all others
+			// 其中一个thread找到了一个block，停止所有其他的
 			select {
 			case results <- result:
 			default:
@@ -129,6 +137,7 @@ func (ethash *Ethash) Seal(chain consensus.ChainHeaderReader, block *types.Block
 
 // mine is the actual proof-of-work miner that searches for a nonce starting from
 // seed that results in correct final block difficulty.
+// mine是真正的pow miner，用于寻找一个nonce，从seed开始，找到正确的final block difficulty
 func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan struct{}, found chan *types.Block) {
 	// Extract some data from the header
 	var (
@@ -163,9 +172,11 @@ search:
 				attempts = 0
 			}
 			// Compute the PoW value of this nonce
+			// 找到这个nonce的PoW值
 			digest, result := hashimotoFull(dataset.dataset, hash, nonce)
 			if powBuffer.SetBytes(result).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
+				// 找到了正确的nonce，创建一个新的header
 				header = types.CopyHeader(header)
 				header.Nonce = types.EncodeNonce(nonce)
 				header.MixDigest = common.BytesToHash(digest)
@@ -204,8 +215,8 @@ type remoteSealer struct {
 	notifyURLs   []string
 	results      chan<- *types.Block
 	workCh       chan *sealTask   // Notification channel to push new work and relative result channel to remote sealer
-	fetchWorkCh  chan *sealWork   // Channel used for remote sealer to fetch mining work
-	submitWorkCh chan *mineResult // Channel used for remote sealer to submit their mining result
+	fetchWorkCh  chan *sealWork   // Channel used for remote sealer to fetch mining work  // 由remote sealer使用用于获取mining work的channel
+	submitWorkCh chan *mineResult // Channel used for remote sealer to submit their mining result  // 由remote sealer使用用于提交mining result的channel
 	fetchRateCh  chan chan uint64 // Channel used to gather submitted hash rate for local or remote sealer.
 	submitRateCh chan *hashrate   // Channel used for remote sealer to submit their mining hashrate
 	requestExit  chan struct{}
@@ -213,6 +224,7 @@ type remoteSealer struct {
 }
 
 // sealTask wraps a seal block with relative result channel for remote sealer thread.
+// sealTask封装了一个seal block以及相关的result channel，用于remote sealer thread
 type sealTask struct {
 	block   *types.Block
 	results chan<- *types.Block

@@ -99,6 +99,7 @@ type MsgReadWriter interface {
 // data should encode as an RLP list.
 // Send写入一个RLP-encoded message用给定的code，数据应该被编码为一个RLP list
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
+	// 对数据进行rlp编码
 	size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
 		return err

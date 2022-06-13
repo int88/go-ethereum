@@ -89,9 +89,11 @@ func TestMiner(t *testing.T) {
 	miner.Start(common.HexToAddress("0x12345"))
 	waitForMiningState(t, miner, true)
 	// Start the downloader
+	// 启动downloader
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, false)
 	// Stop the downloader and wait for the update loop to run
+	// 停止downloader并且等待update loop运行
 	mux.Post(downloader.DoneEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -100,6 +102,7 @@ func TestMiner(t *testing.T) {
 	// that would allow entities to present fake high blocks that would
 	// stop mining operations by causing a downloader sync
 	// until it was discovered they were invalid, whereon mining would resume.
+	// 在一个成功的DoneEvent之后的downloader events不应该导致minter开始或停止
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -226,6 +229,9 @@ func TestMinerSetEtherbase(t *testing.T) {
 }
 
 // waitForMiningState waits until either
+// waitForMiningState等待直到：
+// * 达到期望的mining state
+// * 超时之后则测试失败
 // * the desired mining state was reached
 // * a timeout was reached which fails the test
 func waitForMiningState(t *testing.T, m *Miner, mining bool) {
@@ -247,16 +253,20 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 		Etherbase: common.HexToAddress("123456789"),
 	}
 	// Create chainConfig
+	// 创建chainConfig
 	memdb := memorydb.New()
 	chainDB := rawdb.NewDatabase(memdb)
+	// 构建genesis
 	genesis := core.DeveloperGenesisBlock(15, 11_500_000, common.HexToAddress("12345"))
 	chainConfig, _, err := core.SetupGenesisBlock(chainDB, genesis)
 	if err != nil {
 		t.Fatalf("can't create new chain config: %v", err)
 	}
 	// Create consensus engine
+	// 创建共识引擎
 	engine := clique.New(chainConfig.Clique, chainDB)
 	// Create Ethereum backend
+	// 创建Ethereum后端
 	bc, err := core.NewBlockChain(chainDB, nil, chainConfig, engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("can't create new chain %v", err)
@@ -267,8 +277,10 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 	pool := core.NewTxPool(testTxPoolConfig, chainConfig, blockchain)
 	backend := NewMockBackend(bc, pool)
 	// Create event Mux
+	// 创建event Mux
 	mux := new(event.TypeMux)
 	// Create Miner
+	// 创建Miner
 	miner := New(backend, &config, chainConfig, mux, engine, nil)
 	cleanup := func(skipMiner bool) {
 		bc.Stop()

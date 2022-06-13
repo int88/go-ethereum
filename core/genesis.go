@@ -159,6 +159,7 @@ func CommitGenesisState(db ethdb.Database, hash common.Hash) error {
 }
 
 // GenesisAccount is an account in the state of the genesis block.
+// GenesisAccount是一个位于genesis block的state中的一个account
 type GenesisAccount struct {
 	Code       []byte                      `json:"code,omitempty"`
 	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
@@ -220,6 +221,7 @@ func (e *GenesisMismatchError) Error() string {
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
+// SetupGenesisBlock写入或者更新db中的genesis block
 // The block that will be used is:
 //
 //                          genesis == nil       genesis != nil
@@ -241,6 +243,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		return params.AllEthashProtocolChanges, common.Hash{}, errGenesisNoConfig
 	}
 	// Just commit the new block if there is no stored genesis block.
+	// 如果没有存储的genesis block，就提交new block
 	stored := rawdb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
@@ -249,6 +252,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		} else {
 			log.Info("Writing custom genesis block")
 		}
+		// 提交genesis block
 		block, err := genesis.Commit(db)
 		if err != nil {
 			return genesis.Config, common.Hash{}, err
@@ -257,6 +261,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 	}
 	// We have the genesis block in database(perhaps in ancient database)
 	// but the corresponding state is missing.
+	// 在数据库中我们有genesis block（可能在一个ancient database中）
+	// 但是雀实了相应的状态
 	header := rawdb.ReadHeader(db, stored, 0)
 	if _, err := state.New(header.Root, state.NewDatabaseWithConfig(db, nil), nil); err != nil {
 		if genesis == nil {
@@ -274,6 +280,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		return genesis.Config, block.Hash(), nil
 	}
 	// Check whether the genesis block is already written.
+	// 检查genesis block是否已经被写入
 	if genesis != nil {
 		hash := genesis.ToBlock(nil).Hash()
 		if hash != stored {
@@ -432,6 +439,7 @@ func (g *Genesis) MustCommit(db ethdb.Database) *types.Block {
 }
 
 // GenesisBlockForTesting creates and writes a block in which addr has the given wei balance.
+// GenesisBlockForTesting创建并且写入一个block，其中addr有着给定的wei balance
 func GenesisBlockForTesting(db ethdb.Database, addr common.Address, balance *big.Int) *types.Block {
 	g := Genesis{
 		Alloc:   GenesisAlloc{addr: {Balance: balance}},
@@ -520,6 +528,7 @@ func DeveloperGenesisBlock(period uint64, gasLimit uint64, faucet common.Address
 	}
 
 	// Assemble and return the genesis with the precompiles and faucet pre-funded
+	// 构建并且返回genesis，伴随着提前编译并且预发现的faucet
 	return &Genesis{
 		Config:     &config,
 		ExtraData:  append(append(make([]byte, 32), faucet[:]...), make([]byte, crypto.SignatureLength)...),

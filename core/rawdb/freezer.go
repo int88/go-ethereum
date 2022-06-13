@@ -56,8 +56,10 @@ const freezerTableSize = 2 * 1000 * 1000 * 1000
 
 // Freezer is a memory mapped append-only database to store immutable ordered
 // data into flat files:
+// Freezer是一个memory mapped，append-only的数据库，用于将不可变的，有序的数据存入flat files中
 //
 // - The append-only nature ensures that disk writes are minimized.
+// - append-only的特性确保最小化磁盘写
 // - The memory mapping ensures we can max out system memory for caching without
 //   reserving it for go-ethereum. This would also reduce the memory requirements
 //   of Geth, and thus also GC overhead.
@@ -83,9 +85,11 @@ type Freezer struct {
 
 // NewFreezer creates a freezer instance for maintaining immutable ordered
 // data according to the given parameters.
+// NewFreezer创建一个freezer实例，用于维护immutable ordered data，根据给定的参数
 //
 // The 'tables' argument defines the data tables. If the value of a map
 // entry is true, snappy compression is disabled for the table.
+// 'tables'参数定义了data tables，如果一个map entry的值为false，snappy compression会对这个table禁止
 func NewFreezer(datadir string, namespace string, readonly bool, maxTableSize uint32, tables map[string]bool) (*Freezer, error) {
 	// Create the initial freezer object
 	var (

@@ -57,6 +57,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 
 	case res := <-resCh:
 		// Headers successfully retrieved, update the metrics
+		// 成功获取了headers，更新metric
 		headerReqTimer.Update(time.Since(start))
 		headerInMeter.Mark(int64(len(*res.Res.(*eth.BlockHeadersPacket))))
 

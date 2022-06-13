@@ -71,7 +71,7 @@ var (
 type Database struct {
 	diskdb ethdb.KeyValueStore // Persistent storage for matured trie nodes
 
-	cleans  *fastcache.Cache            // GC friendly memory cache of clean node RLPs
+	cleans  *fastcache.Cache            // GC friendly memory cache of clean node RLPs // GC友好的memeory cache，针对node RLPs
 	dirties map[common.Hash]*cachedNode // Data and references relationships of dirty trie nodes
 	oldest  common.Hash                 // Oldest tracked node, flush-list head
 	newest  common.Hash                 // Newest tracked node, flush-list tail
@@ -273,6 +273,8 @@ type Config struct {
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected. No read cache is created, so all
 // data retrievals will hit the underlying disk database.
+// NewDatabase创建一个新的trie database用来存储短暂的trie的内容，在它写入到磁盘或者被gc之前
+// 不会创建read cache，这样所有的data retrievals会命中底层的disk database
 func NewDatabase(diskdb ethdb.KeyValueStore) *Database {
 	return NewDatabaseWithConfig(diskdb, nil)
 }
@@ -280,6 +282,7 @@ func NewDatabase(diskdb ethdb.KeyValueStore) *Database {
 // NewDatabaseWithConfig creates a new trie database to store ephemeral trie content
 // before its written out to disk or garbage collected. It also acts as a read cache
 // for nodes loaded from disk.
+// 它同时也作为一个read cache，用来缓存从磁盘读到的nodes
 func NewDatabaseWithConfig(diskdb ethdb.KeyValueStore, config *Config) *Database {
 	var cleans *fastcache.Cache
 	if config != nil && config.Cache > 0 {

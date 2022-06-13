@@ -42,6 +42,7 @@ var (
 )
 
 // peerConnection represents an active peer from which hashes and blocks are retrieved.
+// peerConnection代表了一个active peer，用于获取hashes以及blocks
 type peerConnection struct {
 	id string // Unique identifier of the peer
 
@@ -56,6 +57,7 @@ type peerConnection struct {
 }
 
 // LightPeer encapsulates the methods required to synchronise with a remote light peer.
+// LightPeer封装了用于从一个remote light peer进行同步的方法
 type LightPeer interface {
 	Head() (common.Hash, *big.Int)
 	RequestHeadersByHash(common.Hash, int, int, bool, chan *eth.Response) (*eth.Request, error)
@@ -63,9 +65,12 @@ type LightPeer interface {
 }
 
 // Peer encapsulates the methods required to synchronise with a remote full peer.
+// Peer封装了从一个remote full peer同步所需的方法
 type Peer interface {
 	LightPeer
+	// 请求bodies
 	RequestBodies([]common.Hash, chan *eth.Response) (*eth.Request, error)
+	// 请求receipts
 	RequestReceipts([]common.Hash, chan *eth.Response) (*eth.Request, error)
 }
 
@@ -89,6 +94,7 @@ func (w *lightPeerWrapper) RequestReceipts([]common.Hash, chan *eth.Response) (*
 }
 
 // newPeerConnection creates a new downloader peer.
+// newPeerConnection创建一个新的downloader peer
 func newPeerConnection(id string, version uint, peer Peer, logger log.Logger) *peerConnection {
 	return &peerConnection{
 		id:      id,
@@ -183,6 +189,7 @@ func (p *peerConnection) Lacks(hash common.Hash) bool {
 
 // peeringEvent is sent on the peer event feed when a remote peer connects or
 // disconnects.
+// peeringEvent会被发送到peer event feed，当一个remote peer连接或者断开连接
 type peeringEvent struct {
 	peer *peerConnection
 	join bool
@@ -190,6 +197,7 @@ type peeringEvent struct {
 
 // peerSet represents the collection of active peer participating in the chain
 // download procedure.
+// peerSet代表了一系列active peer，参与到chain download precedure中
 type peerSet struct {
 	peers  map[string]*peerConnection
 	rates  *msgrate.Trackers // Set of rate trackers to give the sync a common beat
@@ -199,6 +207,7 @@ type peerSet struct {
 }
 
 // newPeerSet creates a new peer set top track the active download sources.
+// newPeerSet创建一个新的peer set，用于追踪active download sources
 func newPeerSet() *peerSet {
 	return &peerSet{
 		peers: make(map[string]*peerConnection),
@@ -224,10 +233,13 @@ func (ps *peerSet) Reset() {
 
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known.
+// Register注入一个新的peer到working set，或者返回一个error，如果peer已经知道了的话
 //
 // The method also sets the starting throughput values of the new peer to the
 // average of all existing peers, to give it a realistic chance of being used
 // for data retrievals.
+// 这个方法同时设置new peer的starting throughput值为已经存在的peers的平均值
+// 来给它一个现实的机会用于获取data
 func (ps *peerSet) Register(p *peerConnection) error {
 	// Register the new peer with some meaningful defaults
 	ps.lock.Lock()

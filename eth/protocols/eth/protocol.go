@@ -117,10 +117,11 @@ func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64) {
 type TransactionsPacket []*types.Transaction
 
 // GetBlockHeadersPacket represents a block header query.
+// GetBlockHeadersPacket代表了一个block header query
 type GetBlockHeadersPacket struct {
-	Origin  HashOrNumber // Block from which to retrieve headers
-	Amount  uint64       // Maximum number of headers to retrieve
-	Skip    uint64       // Blocks to skip between consecutive headers
+	Origin  HashOrNumber // Block from which to retrieve headers // 获取headers的Block
+	Amount  uint64       // Maximum number of headers to retrieve // 获取的headers的最大数目
+	Skip    uint64       // Blocks to skip between consecutive headers // 连续的headers之间跳过的Blocks
 	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
 }
 

@@ -44,8 +44,9 @@ type Backend interface {
 }
 
 // Config is the configuration parameters of mining.
+// Config是mining的配置参数
 type Config struct {
-	Etherbase  common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
+	Etherbase  common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account) // block mining rewards的公开地址
 	Notify     []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages (only useful in ethash).
 	NotifyFull bool           `toml:",omitempty"` // Notify with pending block headers instead of work packages
 	ExtraData  hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
@@ -79,7 +80,8 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		exitCh:  make(chan struct{}),
 		startCh: make(chan common.Address),
 		stopCh:  make(chan struct{}),
-		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
+		// 构建新的worker
+		worker: newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
 	}
 	miner.wg.Add(1)
 	go miner.update()
@@ -90,9 +92,12 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 // It's entered once and as soon as `Done` or `Failed` has been broadcasted the events are unregistered and
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
+// update追踪downloader events，请注意这是update loop的一次性更新循环，它只进入一次，一旦`Done`或者`Failed`被广播
+// events会被unregistered并且loop退出
 func (miner *Miner) update() {
 	defer miner.wg.Done()
 
+	// 对downloader的各种事件进行订阅
 	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
 	defer func() {
 		if !events.Closed() {
@@ -113,17 +118,20 @@ func (miner *Miner) update() {
 			}
 			switch ev.Data.(type) {
 			case downloader.StartEvent:
+				// 判断miner是否在mining
 				wasMining := miner.Mining()
 				miner.worker.stop()
 				canStart = false
 				if wasMining {
 					// Resume mining after sync was finished
+					// 在sync完成之后继续mining
 					shouldStart = true
 					log.Info("Mining aborted due to sync")
 				}
 			case downloader.FailedEvent:
 				canStart = true
 				if shouldStart {
+					// 设置etherbase
 					miner.SetEtherbase(miner.coinbase)
 					miner.worker.start()
 				}
@@ -134,11 +142,14 @@ func (miner *Miner) update() {
 					miner.worker.start()
 				}
 				// Stop reacting to downloader events
+				// 停止对于downloader时间的订阅
 				events.Unsubscribe()
 			}
 		case addr := <-miner.startCh:
+			// 设置Etherbase
 			miner.SetEtherbase(addr)
 			if canStart {
+				// worker开始运行
 				miner.worker.start()
 			}
 			shouldStart = true
@@ -166,6 +177,7 @@ func (miner *Miner) Close() {
 }
 
 func (miner *Miner) Mining() bool {
+	// 判断worker是否running
 	return miner.worker.isRunning()
 }
 

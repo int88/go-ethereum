@@ -34,6 +34,8 @@ type TypeMuxEvent struct {
 // A TypeMux dispatches events to registered receivers. Receivers can be
 // registered to handle events of certain type. Any operation
 // called after mux is stopped will return ErrMuxClosed.
+// 一个TypeMux分发事件到注册的receivers，Receivers可以注册来处理特定类型的
+// 事件，在mux停止之后的任何调用都会返回ErrMuxClosed
 //
 // The zero value is ready to use.
 //
@@ -79,7 +81,9 @@ func (mux *TypeMux) Subscribe(types ...interface{}) *TypeMuxSubscription {
 }
 
 // Post sends an event to all receivers registered for the given type.
+// Post发送一个event到所有注册给定类型的receivers
 // It returns ErrMuxClosed if the mux has been stopped.
+// 它返回ErrMuxClosed，如果mux已经被停止了
 func (mux *TypeMux) Post(ev interface{}) error {
 	event := &TypeMuxEvent{
 		Time: time.Now(),

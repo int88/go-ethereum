@@ -53,9 +53,12 @@ var (
 
 // txPool defines the methods needed from a transaction pool implementation to
 // support all the operations needed by the Ethereum chain protocols.
+// txPool定义了一个transaction pool实现所需的方法，来支持Ethereum chain protocols
+// 所有的操作
 type txPool interface {
 	// Has returns an indicator whether txpool has a transaction
 	// cached with the given hash.
+	// Has返回一个indicator，表明txpool缓存了一个给定hass的transaction
 	Has(hash common.Hash) bool
 
 	// Get retrieves the transaction from local txpool with given
@@ -63,14 +66,18 @@ type txPool interface {
 	Get(hash common.Hash) *types.Transaction
 
 	// AddRemotes should add the given transactions to the pool.
+	// AddRemotes添加给定的transactions到pool中
 	AddRemotes([]*types.Transaction) []error
 
 	// Pending should return pending transactions.
 	// The slice should be modifiable by the caller.
+	// Pending应该返回pending transactions
 	Pending(enforceTips bool) map[common.Address]types.Transactions
 
 	// SubscribeNewTxsEvent should return an event subscription of
 	// NewTxsEvent and send events to the given channel.
+	// SubscribeNewTxsEvent应该返回一个对于NewTxsEvent的事件订阅并且发送
+	// events到给定的channel中
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 }
 

@@ -39,8 +39,8 @@ const (
 )
 
 var (
-	blockCacheMaxItems     = 8192              // Maximum number of blocks to cache before throttling the download
-	blockCacheInitialItems = 2048              // Initial number of blocks to start fetching, before we know the sizes of the blocks
+	blockCacheMaxItems     = 8192              // Maximum number of blocks to cache before throttling the download //对下载进行限流之前，最大的blocks的缓存数目
+	blockCacheInitialItems = 2048              // Initial number of blocks to start fetching, before we know the sizes of the blocks // 在我们知道blocks的数目之前，初始拉取的blocks的数目
 	blockCacheMemory       = 256 * 1024 * 1024 // Maximum amount of memory to use for block caching
 	blockCacheSizeWeight   = 0.1               // Multiplier to approximate the average block size based on past ones
 )
@@ -108,10 +108,12 @@ func (f *fetchResult) Done(kind uint) bool {
 }
 
 // queue represents hashes that are either need fetching or are being fetched
+// queue代表需要fetching或者正在被fetched的hash
 type queue struct {
 	mode SyncMode // Synchronisation mode to decide on the block parts to schedule for fetching
 
 	// Headers are "special", they download in batches, supported by a skeleton chain
+	// Headers是特殊的，它们批量下载，支持一个skeleton chain
 	headerHead      common.Hash                    // Hash of the last queued header to verify order
 	headerTaskPool  map[uint64]*types.Header       // Pending header retrieval tasks, mapping starting indexes to skeleton headers
 	headerTaskQueue *prque.Prque                   // Priority queue of the skeleton indexes to fetch the filling headers for
@@ -124,6 +126,7 @@ type queue struct {
 	headerContCh    chan bool                      // Channel to notify when header download finishes
 
 	// All data retrievals below are based on an already assembles header chain
+	// 所有下面获取的data，都是基于已经组装的header chain
 	blockTaskPool  map[common.Hash]*types.Header // Pending block (body) retrieval tasks, mapping hashes to headers
 	blockTaskQueue *prque.Prque                  // Priority queue of the headers to fetch the blocks (bodies) for
 	blockPendPool  map[string]*fetchRequest      // Currently pending block (body) retrieval operations
@@ -145,6 +148,7 @@ type queue struct {
 }
 
 // newQueue creates a new download queue for scheduling block retrieval.
+// newQueue创建一个新的download queue用于调度block retrieval
 func newQueue(blockCacheLimit int, thresholdInitialSize int) *queue {
 	lock := new(sync.RWMutex)
 	q := &queue{

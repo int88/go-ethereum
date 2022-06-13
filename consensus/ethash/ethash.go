@@ -414,6 +414,7 @@ const (
 )
 
 // Config are the configuration parameters of the ethash.
+// Config是ethash的配置参数
 type Config struct {
 	CacheDir         string
 	CachesInMem      int
@@ -442,9 +443,10 @@ type Ethash struct {
 	datasets *lru // In memory datasets to avoid regenerating too often
 
 	// Mining related fields
+	// Mining相关的字段
 	rand     *rand.Rand    // Properly seeded random source for nonces
 	threads  int           // Number of threads to mine on if mining
-	update   chan struct{} // Notification channel to update mining parameters
+	update   chan struct{} // Notification channel to update mining parameters // NOtification channel用于更新mining参数
 	hashrate metrics.Meter // Meter tracking the average hashrate
 	remote   *remoteSealer
 
@@ -486,12 +488,14 @@ func New(config Config, notify []string, noverify bool) *Ethash {
 	if config.PowMode == ModeShared {
 		ethash.shared = sharedEthash
 	}
+	// 启动remote sealer
 	ethash.remote = startRemoteSealer(ethash, notify, noverify)
 	return ethash
 }
 
 // NewTester creates a small sized ethash PoW scheme useful only for testing
 // purposes.
+// NewTester创建一个小的ethahs PoW scheme，只用于测试
 func NewTester(notify []string, noverify bool) *Ethash {
 	return New(Config{PowMode: ModeTest}, notify, noverify)
 }

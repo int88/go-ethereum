@@ -32,6 +32,7 @@ import (
 )
 
 // serverBackend defines the backend functions needed for serving LES requests
+// serverBackend定义了backend所需的函数用于服务LES请求
 type serverBackend interface {
 	ArchiveMode() bool
 	AddTxsSync() bool
@@ -502,6 +503,7 @@ func handleGetHelperTrieProofs(msg Decoder) (serveRequestFn, uint64, uint64, err
 }
 
 // handleSendTx handles a transaction propagation request
+// handleSendTx处理一个transaction propagation请求
 func handleSendTx(msg Decoder) (serveRequestFn, uint64, uint64, error) {
 	var r SendTxPacket
 	if err := msg.Decode(&r); err != nil {
