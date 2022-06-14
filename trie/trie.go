@@ -102,7 +102,7 @@ func (t *Trie) Copy() *Trie {
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
 // 如果root是zero hash或者sha3 hash是一个空的字符串，trie的初始值为空并且不需要一个database
-// 佛足额New会panic，如果db为nil并且返回一个MissingNodeError，如果root不在数据库中
+// 否则New会panic，如果db为nil并且返回一个MissingNodeError，如果root不在数据库中
 func New(root common.Hash, db *Database) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
@@ -138,6 +138,7 @@ func (t *Trie) NodeIterator(start []byte) NodeIterator {
 }
 
 // Get returns the value for key stored in the trie.
+// Get返回存储在trie中的key对应的value
 // The value bytes must not be modified by the caller.
 func (t *Trie) Get(key []byte) []byte {
 	res, err := t.TryGet(key)
@@ -274,6 +275,8 @@ func (t *Trie) tryGetNode(origNode node, path []byte, pos int) (item []byte, new
 // Update associates key with value in the trie. Subsequent calls to
 // Get will return value. If value has length zero, any existing value
 // is deleted from the trie and calls to Get will return nil.
+// 更新trie中key相关的value，后续对于Get的调用会返回value，如果value的长度为0
+// 任何已经存在的值都会从trie中删除并且后续对Get的调用会返回nil
 //
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
@@ -594,6 +597,7 @@ func (t *Trie) Hash() common.Hash {
 
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
+// Commit写入所有的nodes到trie的memory  database，追踪内部以及外部（对于account tries）的引用
 func (t *Trie) Commit(onleaf LeafCallback) (common.Hash, int, error) {
 	if t.db == nil {
 		panic("commit called on trie with nil database")

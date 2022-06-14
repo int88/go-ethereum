@@ -72,7 +72,7 @@ type Database struct {
 	diskdb ethdb.KeyValueStore // Persistent storage for matured trie nodes
 
 	cleans  *fastcache.Cache            // GC friendly memory cache of clean node RLPs // GC友好的memeory cache，针对node RLPs
-	dirties map[common.Hash]*cachedNode // Data and references relationships of dirty trie nodes
+	dirties map[common.Hash]*cachedNode // Data and references relationships of dirty trie nodes  // Data以及dirty trie nodes的引用关系
 	oldest  common.Hash                 // Oldest tracked node, flush-list head
 	newest  common.Hash                 // Newest tracked node, flush-list tail
 
@@ -363,6 +363,7 @@ func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
+// node从内存中获取一个缓存的trie node，或者返回nil，如果在memory cache中找不到
 func (db *Database) node(hash common.Hash) node {
 	// Retrieve the node from the clean cache if available
 	if db.cleans != nil {

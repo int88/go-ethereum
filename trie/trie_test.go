@@ -184,11 +184,13 @@ func TestInsert(t *testing.T) {
 
 func TestGet(t *testing.T) {
 	trie := newEmpty()
+	// 更新string
 	updateString(trie, "doe", "reindeer")
 	updateString(trie, "dog", "puppy")
 	updateString(trie, "dogglesworth", "cat")
 
 	for i := 0; i < 2; i++ {
+		// 获取string
 		res := getString(trie, "dog")
 		if !bytes.Equal(res, []byte("puppy")) {
 			t.Errorf("expected puppy got %x", res)
@@ -1124,10 +1126,12 @@ func tempDB(tb testing.TB) *Database {
 }
 
 func getString(trie *Trie, k string) []byte {
+	// 从trie中获取value
 	return trie.Get([]byte(k))
 }
 
 func updateString(trie *Trie, k, v string) {
+	// 更新trie
 	trie.Update([]byte(k), []byte(v))
 }
 

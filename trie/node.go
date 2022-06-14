@@ -35,7 +35,7 @@ type node interface {
 
 type (
 	fullNode struct {
-		Children [17]node // Actual trie node data to encode/decode (needs custom encoder)
+		Children [17]node // Actual trie node data to encode/decode (needs custom encoder) // 真实的trie node用于encode/decode（需要custom encoder）
 		flags    nodeFlag
 	}
 	shortNode struct {
@@ -62,6 +62,7 @@ func (n *fullNode) copy() *fullNode   { copy := *n; return &copy }
 func (n *shortNode) copy() *shortNode { copy := *n; return &copy }
 
 // nodeFlag contains caching-related metadata about a node.
+// nodeFlag包含了一个node的缓存相关的字段
 type nodeFlag struct {
 	hash  hashNode // cached hash of the node (may be nil)
 	dirty bool     // whether the node has changes that must be written to the database

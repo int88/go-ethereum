@@ -41,6 +41,9 @@ type leaf struct {
 // some level of parallelism.
 // By 'some level' of parallelism, it's still the case that all leaves will be
 // processed sequentially - onleaf will never be called in parallel or out of order.
+// committer是一个用于trie Commit操作的类型，一个committer有一些内部预分配的临时空间
+// 以及一个callback用于调用，当leaves被commit的时候，leafs通过`leafCh`被传输
+// 允许一定级别的并行
 type committer struct {
 	onleaf LeafCallback
 	leafCh chan *leaf
@@ -65,6 +68,7 @@ func returnCommitterToPool(h *committer) {
 }
 
 // Commit collapses a node down into a hash node and inserts it into the database
+// Commit将一个node变为一个hash node并且插入到database中
 func (c *committer) Commit(n node, db *Database) (hashNode, int, error) {
 	if db == nil {
 		return nil, 0, errors.New("no db provided")
