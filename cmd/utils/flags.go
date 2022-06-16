@@ -477,7 +477,8 @@ var (
 		Value: ethconfig.Defaults.Miner.GasPrice,
 	}
 	MinerEtherbaseFlag = cli.StringFlag{
-		Name:  "miner.etherbase",
+		Name: "miner.etherbase",
+		// 默认是第一个account
 		Usage: "Public address for block mining rewards (default = first account)",
 		Value: "0",
 	}
@@ -1173,6 +1174,7 @@ func MakeDatabaseHandles(max int) int {
 // a key index in the key store to an internal account representation.
 func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error) {
 	// If the specified account is a valid address, return it
+	// 如果指定的account是一个合法的地址，返回之
 	if common.IsHexAddress(account) {
 		return accounts.Account{Address: common.HexToAddress(account)}, nil
 	}
@@ -1196,13 +1198,16 @@ func MakeAddress(ks *keystore.KeyStore, account string) (accounts.Account, error
 
 // setEtherbase retrieves the etherbase either from the directly specified
 // command line flags or from the keystore if CLI indexed.
+// setEtherbase从直接指定的命令行flags或者keystore中抽取出etherbase
 func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *ethconfig.Config) {
 	// Extract the current etherbase
+	// 抽出去当前的etherbase
 	var etherbase string
 	if ctx.GlobalIsSet(MinerEtherbaseFlag.Name) {
 		etherbase = ctx.GlobalString(MinerEtherbaseFlag.Name)
 	}
 	// Convert the etherbase into an address and configure it
+	// 将etherbase转换为一个address并且配置它
 	if etherbase != "" {
 		if ks != nil {
 			account, err := MakeAddress(ks, etherbase)
@@ -1308,6 +1313,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
+// SetNodeConfig施加node相应的命令行参数到config
 func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	SetP2PConfig(ctx, &cfg.P2P)
 	setIPC(ctx, cfg)
@@ -1541,6 +1547,7 @@ func setRequiredBlocks(ctx *cli.Context, cfg *ethconfig.Config) {
 // CheckExclusive verifies that only a single instance of the provided flags was
 // set by the user. Each flag might optionally be followed by a string type to
 // specialize it further.
+// CheckExclusive确认提供的flags中只有一个实例被用户设置
 func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 	set := make([]string, 0, 1)
 	for i := 0; i < len(args); i++ {
@@ -1580,8 +1587,10 @@ func CheckExclusive(ctx *cli.Context, args ...interface{}) {
 }
 
 // SetEthConfig applies eth-related command line flags to the config.
+// SetEthConfig应用eth相关的命令行参数到config
 func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// Avoid conflicting network flags
+	// 避免冲突的network flag
 	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RopstenFlag, RinkebyFlag, GoerliFlag, SepoliaFlag, KilnFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
@@ -1628,6 +1637,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
 	}
 	if ctx.GlobalIsSet(NetworkIdFlag.Name) {
+		// 设置network id
 		cfg.NetworkId = ctx.GlobalUint64(NetworkIdFlag.Name)
 	}
 	if ctx.GlobalIsSet(CacheFlag.Name) || ctx.GlobalIsSet(CacheDatabaseFlag.Name) {
@@ -1713,11 +1723,14 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		}
 	}
 	// Override any default configs for hard coded networks.
+	// 覆盖任何默认的配置，对于hard coded networks
 	switch {
 	case ctx.GlobalBool(MainnetFlag.Name):
 		if !ctx.GlobalIsSet(NetworkIdFlag.Name) {
+			// 如果没有设置NetworkId
 			cfg.NetworkId = 1
 		}
+		// 默认的Genesis
 		cfg.Genesis = core.DefaultGenesisBlock()
 		SetDNSDiscoveryDefaults(cfg, params.MainnetGenesisHash)
 	case ctx.GlobalBool(RopstenFlag.Name):
@@ -1778,6 +1791,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 			passphrase = list[0]
 		}
 		// setEtherbase has been called above, configuring the miner address from command line flags.
+		// setEtherbase已经在上面被调用，从命令行参数配置miner address
 		if cfg.Miner.Etherbase != (common.Address{}) {
 			developer = accounts.Account{Address: cfg.Miner.Etherbase}
 		} else if accs := ks.Accounts(); len(accs) > 0 {
@@ -1837,8 +1851,10 @@ func SetDNSDiscoveryDefaults(cfg *ethconfig.Config, genesis common.Hash) {
 }
 
 // RegisterEthService adds an Ethereum client to the stack.
+// RegisterEthService添加一个Ethereum client到stack中
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
+// 第二个返回值是full node instance，可能为nil，如果node是作为一个light client运行
 func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
 	if cfg.SyncMode == downloader.LightSync {
 		backend, err := les.New(stack, cfg)
@@ -1853,11 +1869,13 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		}
 		return backend.ApiBackend, nil
 	}
+	// 构建一个ethereum实例
 	backend, err := eth.New(stack, cfg)
 	if err != nil {
 		Fatalf("Failed to register the Ethereum service: %v", err)
 	}
 	if cfg.LightServ > 0 {
+		// 构建les server
 		_, err := les.NewLesServer(stack, backend, cfg)
 		if err != nil {
 			Fatalf("Failed to create the LES server: %v", err)

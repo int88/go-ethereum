@@ -90,8 +90,9 @@ type Ethereum struct {
 
 	APIBackend *EthAPIBackend
 
-	miner     *miner.Miner
-	gasPrice  *big.Int
+	miner    *miner.Miner
+	gasPrice *big.Int
+	// 设置etherbase
 	etherbase common.Address
 
 	networkID     uint64
@@ -367,10 +368,12 @@ func (s *Ethereum) Etherbase() (eb common.Address, err error) {
 	s.lock.RUnlock()
 
 	if etherbase != (common.Address{}) {
+		// 如果etherbase不为空，则直接返回
 		return etherbase, nil
 	}
 	if wallets := s.AccountManager().Wallets(); len(wallets) > 0 {
 		if accounts := wallets[0].Accounts(); len(accounts) > 0 {
+			// 选择第一个wallet的第一个account的地址作为etherbase
 			etherbase := accounts[0].Address
 
 			s.lock.Lock()
@@ -450,8 +453,11 @@ func (s *Ethereum) SetEtherbase(etherbase common.Address) {
 // StartMining starts the miner with the given number of CPU threads. If mining
 // is already running, this method adjust the number of threads allowed to use
 // and updates the minimum price required by the transaction pool.
+// StartMining用给定的CPU线程数启动miner，如果mining已经开始运行了，这个方法调整线程数
+// 来允许使用和更新transaction pool所需的minimum price
 func (s *Ethereum) StartMining(threads int) error {
 	// Update the thread count within the consensus engine
+	// 更新conesensus engine的thread count
 	type threaded interface {
 		SetThreads(threads int)
 	}
@@ -463,6 +469,7 @@ func (s *Ethereum) StartMining(threads int) error {
 		th.SetThreads(threads)
 	}
 	// If the miner was not running, initialize it
+	// 如果miner还没有运行，初始化它
 	if !s.IsMining() {
 		// Propagate the initial price point to the transaction pool
 		s.lock.RLock()
@@ -471,6 +478,7 @@ func (s *Ethereum) StartMining(threads int) error {
 		s.txPool.SetGasPrice(price)
 
 		// Configure the local mining address
+		// 配置local mining address
 		eb, err := s.Etherbase()
 		if err != nil {
 			log.Error("Cannot start mining without etherbase", "err", err)

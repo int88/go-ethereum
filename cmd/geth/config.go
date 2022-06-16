@@ -118,8 +118,10 @@ func defaultNodeConfig() node.Config {
 }
 
 // makeConfigNode loads geth configuration and creates a blank node instance.
+// makeConfigNode加载geth配置并且创建一个blank node实例
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	// Load defaults.
+	// 加载默认配置
 	cfg := gethConfig{
 		Eth:     ethconfig.Defaults,
 		Node:    defaultNodeConfig(),
@@ -134,16 +136,19 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	}
 
 	// Apply flags.
+	// 应用flags
 	utils.SetNodeConfig(ctx, &cfg.Node)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	// Node doesn't by default populate account manager backends
+	// Node不是默认填充account manager backends
 	if err := setAccountManagerBackends(stack); err != nil {
 		utils.Fatalf("Failed to set account manager backends: %v", err)
 	}
 
+	// 设置Eth配置
 	utils.SetEthConfig(ctx, stack, &cfg.Eth)
 	if ctx.GlobalIsSet(utils.EthStatsURLFlag.Name) {
 		cfg.Ethstats.URL = ctx.GlobalString(utils.EthStatsURLFlag.Name)
@@ -154,6 +159,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 }
 
 // makeFullNode loads geth configuration and creates the Ethereum backend.
+// makeFullNode加载geth配置并且创建Ethereum backend
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 	if ctx.GlobalIsSet(utils.OverrideArrowGlacierFlag.Name) {
@@ -162,8 +168,10 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	if ctx.GlobalIsSet(utils.OverrideTerminalTotalDifficulty.Name) {
 		cfg.Eth.OverrideTerminalTotalDifficulty = utils.GlobalBig(ctx, utils.OverrideTerminalTotalDifficulty.Name)
 	}
+	// 注册eth service
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 	// Warn users to migrate if they have a legacy freezer format.
+	// 警告用户迁移，如果他们又legacy freezer format
 	if eth != nil && !ctx.GlobalIsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
 		firstIdx := uint64(0)
 		// Hack to speed up check for mainnet because we know
@@ -182,10 +190,12 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	// Configure GraphQL if requested
+	// 配置GraphQL，如果请求的话
 	if ctx.GlobalIsSet(utils.GraphQLEnabledFlag.Name) {
 		utils.RegisterGraphQLService(stack, backend, cfg.Node)
 	}
 	// Add the Ethereum Stats daemon if requested.
+	// 添加Ethereum Stats daemon，如果需要的话
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
 	}

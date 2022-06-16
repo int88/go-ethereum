@@ -451,11 +451,14 @@ func (pool *TxPool) GasPrice() *big.Int {
 
 // SetGasPrice updates the minimum price required by the transaction pool for a
 // new transaction, and drops all transactions below this threshold.
+// SetGasPrice更新transaction pool所需的最小的price，对于一个新的transaction，并且丢弃所有
+// 小于这个threshold的transactions
 func (pool *TxPool) SetGasPrice(price *big.Int) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	old := pool.gasPrice
+	// 设置gasPrice
 	pool.gasPrice = price
 	// if the min miner fee increased, remove transactions below the new threshold
 	if price.Cmp(old) > 0 {

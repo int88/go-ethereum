@@ -561,6 +561,7 @@ func (n *Node) RegisterProtocols(protocols []p2p.Protocol) {
 }
 
 // RegisterAPIs registers the APIs a service provides on the node.
+// RegisterAPIs注册一个APIs作为service在node上提供
 func (n *Node) RegisterAPIs(apis []rpc.API) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

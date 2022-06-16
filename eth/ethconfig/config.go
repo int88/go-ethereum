@@ -61,6 +61,7 @@ var LightClientGPO = gasprice.Config{
 }
 
 // Defaults contains default settings for use on the Ethereum main net.
+// Defaults包含默认配置，用于Ethereum main net
 var Defaults = Config{
 	SyncMode: downloader.SnapSync,
 	Ethash: ethash.Config{
@@ -72,6 +73,7 @@ var Defaults = Config{
 		DatasetsOnDisk:   2,
 		DatasetsLockMmap: false,
 	},
+	// NetworkId为1
 	NetworkId:               1,
 	TxLookupLimit:           2350000,
 	LightPeers:              100,
@@ -126,7 +128,7 @@ type Config struct {
 	Genesis *core.Genesis `toml:",omitempty"`
 
 	// Protocol options
-	NetworkId uint64 // Network ID to use for selecting peers to connect to
+	NetworkId uint64 // Network ID to use for selecting peers to connect to // 用于选择peers进行连接的Network ID
 	SyncMode  downloader.SyncMode
 
 	// This can be set to list of enrtree:// URLs which will be queried for
@@ -173,6 +175,7 @@ type Config struct {
 	Preimages               bool
 
 	// Mining options
+	// Mining选项
 	Miner miner.Config
 
 	// Ethash options

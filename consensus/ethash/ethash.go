@@ -642,6 +642,9 @@ func (ethash *Ethash) Threads() int {
 // specified, the miner will use all cores of the machine. Setting a thread
 // count below zero is allowed and will cause the miner to idle, without any
 // work being done.
+// SetThreads更新当前使能的mining threads的数目，调用这个方法不会开始mining，只会设置thread count
+// 如果指定了0，miner会使用机器的所有cores，设置一个小于零的thread数目会导致miner处于闲置状态，而不会
+// 做任何的work
 func (ethash *Ethash) SetThreads(threads int) {
 	ethash.lock.Lock()
 	defer ethash.lock.Unlock()
