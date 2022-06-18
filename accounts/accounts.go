@@ -155,8 +155,10 @@ type Wallet interface {
 
 // Backend is a "wallet provider" that may contain a batch of accounts they can
 // sign transactions with and upon request, do so.
+// Backend是一个"wallet provider"，可以包含一系列的accounts，他们可以签署transactions
 type Backend interface {
 	// Wallets retrieves the list of wallets the backend is currently aware of.
+	// Wallets获取一系列这个backend意识到的wallets
 	//
 	// The returned wallets are not opened by default. For software HD wallets this
 	// means that no base seeds are decrypted, and for hardware wallets that no actual

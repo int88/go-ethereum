@@ -299,10 +299,12 @@ func setAccountManagerBackends(stack *node.Node) error {
 	}
 
 	// Assemble the supported backends
+	// 组合支持的backends
 	if len(conf.ExternalSigner) > 0 {
 		log.Info("Using external signer", "url", conf.ExternalSigner)
 		if extapi, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
 			am.AddBackend(extapi)
+			// 连接到external signer
 			return nil
 		} else {
 			return fmt.Errorf("error connecting to external signer: %v", err)
@@ -310,9 +312,12 @@ func setAccountManagerBackends(stack *node.Node) error {
 	}
 
 	// For now, we're using EITHER external signer OR local signers.
+	// 现在，我们只能使用external signer或者local signers
 	// If/when we implement some form of lockfile for USB and keystore wallets,
 	// we can have both, but it's very confusing for the user to see the same
 	// accounts in both externally and locally, plus very racey.
+	// 如果我们实现了某种形式的对于USB的lockfile以及keystore wallets，我们可以同时使用
+	// 但是用户会非常疑惑，如果可以同时在内部和外部看到同一个账号
 	am.AddBackend(keystore.NewKeyStore(keydir, scryptN, scryptP))
 	if conf.USB {
 		// Start a USB hub for Ledger hardware wallets

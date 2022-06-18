@@ -58,6 +58,7 @@ var (
 	// The app that holds all commands and flags.
 	app = flags.NewApp(gitCommit, gitDate, "the go-ethereum command line interface")
 	// flags that configure the node
+	// 用于配置node的flags
 	nodeFlags = utils.GroupFlags([]cli.Flag{
 		utils.IdentityFlag,
 		utils.UnlockedAccountFlag,

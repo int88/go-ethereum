@@ -110,7 +110,9 @@ func (am *Manager) Config() *Config {
 }
 
 // AddBackend starts the tracking of an additional backend for wallet updates.
+// AddBackend开始追踪wallet updates的一个额外的backend
 // cmd/geth assumes once this func returns the backends have been already integrated.
+// cmd/geth假设一旦这个函数返回，backends已经被集成了
 func (am *Manager) AddBackend(backend Backend) {
 	done := make(chan struct{})
 	am.newBackends <- newBackendEvent{backend, done}

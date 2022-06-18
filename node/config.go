@@ -79,6 +79,7 @@ type Config struct {
 	KeyStoreDir string `toml:",omitempty"`
 
 	// ExternalSigner specifies an external URI for a clef-type signer
+	// ExternalSigner指定一个外部的URI，对于一个clef类型的signer
 	ExternalSigner string `toml:",omitempty"`
 
 	// UseLightweightKDF lowers the memory and CPU requirements of the key store

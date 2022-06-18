@@ -50,6 +50,7 @@ var (
 )
 
 // KeyStoreType is the reflect type of a keystore backend.
+// KeyStoreType是一个keystore backend的反射类型
 var KeyStoreType = reflect.TypeOf(&KeyStore{})
 
 // KeyStoreScheme is the protocol scheme prefixing account and wallet URLs.
@@ -59,8 +60,9 @@ const KeyStoreScheme = "keystore"
 const walletRefreshCycle = 3 * time.Second
 
 // KeyStore manages a key storage directory on disk.
+// KeyStore管理磁盘上的一个key storage目录
 type KeyStore struct {
-	storage  keyStore                     // Storage backend, might be cleartext or encrypted
+	storage  keyStore                     // Storage backend, might be cleartext or encrypted // 存储后端，可能是明文的或者是加密的
 	cache    *accountCache                // In-memory account cache over the filesystem storage
 	changes  chan struct{}                // Channel receiving change notifications from the cache
 	unlocked map[common.Address]*unlocked // Currently unlocked account (decrypted private keys)

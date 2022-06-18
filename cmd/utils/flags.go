@@ -169,7 +169,8 @@ var (
 		Usage: "Kiln network: pre-configured proof-of-work to proof-of-stake test network",
 	}
 	DeveloperFlag = cli.BoolFlag{
-		Name:  "dev",
+		Name: "dev",
+		// 短暂的proof-of-authority network，有着一个pre-funded developer account，使能mining
 		Usage: "Ephemeral proof-of-authority network with a pre-funded developer account, mining enabled",
 	}
 	DeveloperPeriodFlag = cli.IntFlag{
@@ -1206,10 +1207,13 @@ func setEtherbase(ctx *cli.Context, ks *keystore.KeyStore, cfg *ethconfig.Config
 	if ctx.GlobalIsSet(MinerEtherbaseFlag.Name) {
 		etherbase = ctx.GlobalString(MinerEtherbaseFlag.Name)
 	}
+
+	log.Info("-- setEtherbase", "etherbase", etherbase)
 	// Convert the etherbase into an address and configure it
 	// 将etherbase转换为一个address并且配置它
 	if etherbase != "" {
 		if ks != nil {
+			log.Info("-- setEtherbase ks is not nil")
 			account, err := MakeAddress(ks, etherbase)
 			if err != nil {
 				Fatalf("Invalid miner etherbase: %v", err)
@@ -1329,6 +1333,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	}
 
 	if ctx.GlobalIsSet(ExternalSignerFlag.Name) {
+		// 设置外部的signer
 		cfg.ExternalSigner = ctx.GlobalString(ExternalSignerFlag.Name)
 	}
 
@@ -1593,7 +1598,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	// 避免冲突的network flag
 	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, RopstenFlag, RinkebyFlag, GoerliFlag, SepoliaFlag, KilnFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
-	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
+	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer // 不能同时使用ephemeral unlocked以及external signer
 	if ctx.GlobalString(GCModeFlag.Name) == "archive" && ctx.GlobalUint64(TxLookupLimitFlag.Name) != 0 {
 		ctx.GlobalSet(TxLookupLimitFlag.Name, "0")
 		log.Warn("Disable transaction unindexing for archive node")
@@ -1603,6 +1608,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	}
 	var ks *keystore.KeyStore
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
+		// 返回keystores
 		ks = keystores[0].(*keystore.KeyStore)
 	}
 	setEtherbase(ctx, ks, cfg)

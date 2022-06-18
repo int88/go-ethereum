@@ -41,6 +41,7 @@ const (
 type Key struct {
 	Id uuid.UUID // Version 4 "random" for unique id not derived from key data
 	// to simplify lookups we also store the address
+	// 为了简化查询，我们同时也存储地址
 	Address common.Address
 	// we only store privkey as pubkey/address can be derived from it
 	// privkey in this struct is always in plaintext
@@ -49,8 +50,10 @@ type Key struct {
 
 type keyStore interface {
 	// Loads and decrypts the key from disk.
+	// 从磁盘中加载并且对key进行解密
 	GetKey(addr common.Address, filename string, auth string) (*Key, error)
 	// Writes and encrypts the key.
+	// 写入并且加密key
 	StoreKey(filename string, k *Key, auth string) error
 	// Joins filename with the key directory unless it is already absolute.
 	JoinPath(filename string) string

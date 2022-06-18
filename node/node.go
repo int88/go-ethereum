@@ -647,6 +647,7 @@ func (n *Node) KeyStoreDir() string {
 }
 
 // AccountManager retrieves the account manager used by the protocol stack.
+// AccountManager返回protocol stack使用的account manager
 func (n *Node) AccountManager() *accounts.Manager {
 	return n.accman
 }
