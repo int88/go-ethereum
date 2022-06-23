@@ -24,8 +24,8 @@ type SyncMode uint32
 
 const (
 	FullSync  SyncMode = iota // Synchronise the entire blockchain history from full blocks
-	SnapSync                  // Download the chain and the state via compact snapshots
-	LightSync                 // Download only the headers and terminate afterwards
+	SnapSync                  // Download the chain and the state via compact snapshots // 通过compact snapshots下载chain以及state
+	LightSync                 // Download only the headers and terminate afterwards // 只下载headers并且之后就结束
 )
 
 func (mode SyncMode) IsValid() bool {

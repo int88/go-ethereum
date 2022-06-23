@@ -56,6 +56,7 @@ var CheckpointOracles = map[common.Hash]*CheckpointOracleConfig{
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
+	// MainnetChainConfig是在main network运行一个node所需的chain parameters
 	MainnetChainConfig = &ChainConfig{
 		ChainID:             big.NewInt(1),
 		HomesteadBlock:      big.NewInt(1_150_000),
@@ -98,6 +99,7 @@ var (
 	}
 
 	// RopstenChainConfig contains the chain parameters to run a node on the Ropsten test network.
+	// RopstenChainConfig包含了chain parameters，用于在Ropsten test network运行一个node
 	RopstenChainConfig = &ChainConfig{
 		ChainID:                 big.NewInt(3),
 		HomesteadBlock:          big.NewInt(0),
@@ -332,6 +334,7 @@ type CheckpointOracleConfig struct {
 // 一系列配置选项
 type ChainConfig struct {
 	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
+	// ChainID用于识别当前的链并且用于relay prototectijon
 
 	HomesteadBlock *big.Int `json:"homesteadBlock,omitempty"` // Homestead switch block (nil = no fork, 0 = already homestead)
 
@@ -360,11 +363,13 @@ type ChainConfig struct {
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
 
 	// Various consensus engines
+	// 各种共识引擎
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
+// EthashConfig是共识引擎配置，基于pow的sealing
 type EthashConfig struct{}
 
 // String implements the stringer interface, returning the consensus engine details.

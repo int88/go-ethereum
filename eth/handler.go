@@ -83,11 +83,12 @@ type txPool interface {
 
 // handlerConfig is the collection of initialization parameters to create a full
 // node network handler.
+// handlerConfig是一系列初始参数的集合用来创建一个完整节点的network handler
 type handlerConfig struct {
 	Database       ethdb.Database            // Database for direct sync insertions
 	Chain          *core.BlockChain          // Blockchain to serve data from
 	TxPool         txPool                    // Transaction pool to propagate from
-	Merger         *consensus.Merger         // The manager for eth1/2 transition
+	Merger         *consensus.Merger         // The manager for eth1/2 transition // 用于eth1和eth2的过渡的manager
 	Network        uint64                    // Network identifier to adfvertise
 	Sync           downloader.SyncMode       // Whether to snap or full sync
 	BloomCache     uint64                    // Megabytes to alloc for snap sync bloom
@@ -111,7 +112,8 @@ type handler struct {
 	chain    *core.BlockChain
 	maxPeers int
 
-	downloader   *downloader.Downloader
+	downloader *downloader.Downloader
+	// 用于抓取block和fetcher
 	blockFetcher *fetcher.BlockFetcher
 	txFetcher    *fetcher.TxFetcher
 	peers        *peerSet
@@ -171,6 +173,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 			log.Warn("Switch sync mode from snap sync to full sync")
 		} else {
 			// If snap sync was requested and our database is empty, grant it
+			// 如果请求了snap sync并且我们的数据库是空的，授予它？
 			h.snapSync = uint32(1)
 		}
 	}
@@ -181,6 +184,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	}
 	// If sync succeeds, pass a callback to potentially disable snap sync mode
 	// and enable transaction propagation.
+	// 如果同步成功，传递一个callback用来可能禁止snap sync mode并且使能transaction propagation
 	success := func() {
 		// If we were running snap sync and it finished, disable doing another
 		// round on next sync cycle
@@ -291,8 +295,10 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		}
 		return n, err
 	}
+	// 构建block fetcher
 	h.blockFetcher = fetcher.NewBlockFetcher(false, nil, h.chain.GetBlockByHash, validator, h.BroadcastBlock, heighter, nil, inserter, h.removePeer)
 
+	//用来获取tx
 	fetchTx := func(peer string, hashes []common.Hash) error {
 		p := h.peers.peer(peer)
 		if p == nil {

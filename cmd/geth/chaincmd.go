@@ -172,6 +172,8 @@ This command dumps out the state for a given block (or latest, if none provided)
 
 // initGenesis will initialise the given JSON format genesis file and writes it as
 // the zero'd block (i.e. genesis) or will fail hard if it can't succeed.
+// initGenesis会初始化给定的JSON格式的genesis文件并且将它写入作为第零个block（即genesis）
+// 或者fail hard，如果不能成功的话
 func initGenesis(ctx *cli.Context) error {
 	// Make sure we have a valid genesis JSON
 	genesisPath := ctx.Args().First()
@@ -189,13 +191,16 @@ func initGenesis(ctx *cli.Context) error {
 		utils.Fatalf("invalid genesis file: %v", err)
 	}
 	// Open and initialise both full and light databases
+	// 打开并且初始化同时是full以及light的数据库
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 	for _, name := range []string{"chaindata", "lightchaindata"} {
+		//打开有freezer的数据库
 		chaindb, err := stack.OpenDatabaseWithFreezer(name, 0, 0, ctx.GlobalString(utils.AncientFlag.Name), "", false)
 		if err != nil {
 			utils.Fatalf("Failed to open database: %v", err)
 		}
+		// 设置genesis block
 		_, hash, err := core.SetupGenesisBlock(chaindb, genesis)
 		if err != nil {
 			utils.Fatalf("Failed to write genesis block: %v", err)

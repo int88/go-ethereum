@@ -69,6 +69,7 @@ type KeyValueStore interface {
 }
 
 // AncientReaderOp contains the methods required to read from immutable ancient data.
+// AncientReaderOp包含了方法用于从immutable ancient data中进行读取的方法
 type AncientReaderOp interface {
 	// HasAncient returns an indicator whether the specified data exists in the
 	// ancient store.

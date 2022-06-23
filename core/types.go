@@ -25,12 +25,16 @@ import (
 // Validator is an interface which defines the standard for block validation. It
 // is only responsible for validating block contents, as the header validation is
 // done by the specific consensus engines.
+// Validator是一个接口定义了block validation的标准，它只负责对block contents进行校验
+// 因为header validation由特定的consensus engines完成
 type Validator interface {
 	// ValidateBody validates the given block's content.
+	// ValidateBody校验给定block的content
 	ValidateBody(block *types.Block) error
 
 	// ValidateState validates the given statedb and optionally the receipts and
 	// gas used.
+	// ValidateState校验给定的statedb以及可选的校验使用的receipts和gas
 	ValidateState(block *types.Block, state *state.StateDB, receipts types.Receipts, usedGas uint64) error
 }
 
@@ -39,6 +43,8 @@ type Prefetcher interface {
 	// Prefetch processes the state changes according to the Ethereum rules by running
 	// the transaction messages using the statedb, but any changes are discarded. The
 	// only goal is to pre-cache transaction signatures and state trie nodes.
+	// Prefetch处理状态变更，根据Ethereum rules，通过运行transaction messages，使用statedb
+	// 但是任何的变更都会被丢弃，唯一的目标是pre-cache transaction signatures以及state trie nodes
 	Prefetch(block *types.Block, statedb *state.StateDB, cfg vm.Config, interrupt *uint32)
 }
 

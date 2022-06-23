@@ -59,6 +59,8 @@ const (
 // Database is a persistent key-value store. Apart from basic data storage
 // functionality it also supports batch writes and iterating over the keyspace in
 // binary-alphabetical order.
+// Database是一个持久化的键值存储，除了基本的数据存储功能，它同时支持批量写入以及按照binary-alphabetical
+// order遍历keyspace
 type Database struct {
 	fn string      // filename for reporting
 	db *leveldb.DB // LevelDB instance
@@ -84,6 +86,7 @@ type Database struct {
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
+// New返回一个封装的LevelDB对象，namespace是上报的metrics的前缀
 func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
 	return NewCustom(file, namespace, func(options *opt.Options) {
 		// Ensure we have some minimal caching and file guarantees

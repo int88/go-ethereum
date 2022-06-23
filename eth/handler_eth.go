@@ -31,6 +31,8 @@ import (
 
 // ethHandler implements the eth.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
+// ethHandler实现了eth.Backend接口，用于处理各种network packets，作为replies或者broadcast
+// 被发送
 type ethHandler handler
 
 func (h *ethHandler) Chain() *core.BlockChain { return h.chain }

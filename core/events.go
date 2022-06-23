@@ -22,6 +22,7 @@ import (
 )
 
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.
+// NewTxsEvent被发布，当一系列的transactions进入transaction pool
 type NewTxsEvent struct{ Txs []*types.Transaction }
 
 // NewMinedBlockEvent is posted when a block has been imported.

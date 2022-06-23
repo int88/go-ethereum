@@ -46,6 +46,8 @@ var (
 // testTxPool is a mock transaction pool that blindly accepts all transactions.
 // Its goal is to get around setting up a valid statedb for the balance and nonce
 // checks.
+// testTxPool是一个mock transaction pool，它会盲目地接收所有的transactions
+// 它的目标是设置一个合法的statedb，用于检查balance和nonce
 type testTxPool struct {
 	pool map[common.Hash]*types.Transaction // Hash map of collected transactions
 
@@ -54,6 +56,7 @@ type testTxPool struct {
 }
 
 // newTestTxPool creates a mock transaction pool.
+// newTestTxPool创建一个mock的transaction pool
 func newTestTxPool() *testTxPool {
 	return &testTxPool{
 		pool: make(map[common.Hash]*types.Transaction),
@@ -126,6 +129,7 @@ type testHandler struct {
 }
 
 // newTestHandler creates a new handler for testing purposes with no blocks.
+// newTestHandler创建一个新的handler，用于测试，没有blocks
 func newTestHandler() *testHandler {
 	return newTestHandlerWithBlocks(0)
 }
@@ -134,6 +138,7 @@ func newTestHandler() *testHandler {
 // given number of initial blocks.
 func newTestHandlerWithBlocks(blocks int) *testHandler {
 	// Create a database pre-initialize with a genesis block
+	// 创建一个database，用一个genesis block初始化
 	db := rawdb.NewMemoryDatabase()
 	(&core.Genesis{
 		Config: params.TestChainConfig,

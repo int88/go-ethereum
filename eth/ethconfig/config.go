@@ -194,6 +194,7 @@ type Config struct {
 	DocRoot string `toml:"-"`
 
 	// RPCGasCap is the global gas cap for eth-call variants.
+	// RPCGasCap是对于eth-call variants的全局的gas cap
 	RPCGasCap uint64
 
 	// RPCEVMTimeout is the global timeout for eth-call.

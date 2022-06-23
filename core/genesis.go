@@ -61,6 +61,7 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
+	// 下面这些字段都是用于consensus tests，不要在真的 genesis blocks中使用它们
 	Number     uint64      `json:"number"`
 	GasUsed    uint64      `json:"gasUsed"`
 	ParentHash common.Hash `json:"parentHash"`
@@ -232,6 +233,8 @@ func (e *GenesisMismatchError) Error() string {
 // The stored chain configuration will be updated if it is compatible (i.e. does not
 // specify a fork block below the local head block). In case of a conflict, the
 // error is a *params.ConfigCompatError and the new, unwritten config is returned.
+// 存储的chain configuration会被更新，如果兼容的话（例如，没有指定一个fork block，在local head block之下的）
+// 当发生冲突时，error为*params.ConfigCompatErrror，并且新的，未被写入的配置返回
 //
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(db ethdb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
@@ -250,6 +253,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 			log.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
+			// 写入custom genesis block
 			log.Info("Writing custom genesis block")
 		}
 		// 提交genesis block
@@ -269,6 +273,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 			genesis = DefaultGenesisBlock()
 		}
 		// Ensure the stored genesis matches with the given one.
+		// 确保存储的genesis和给定的互相匹配
 		hash := genesis.ToBlock(nil).Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
@@ -288,6 +293,7 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 		}
 	}
 	// Get the existing chain configuration.
+	// 获取已经存在的chain configuration
 	newcfg := genesis.configOrDefault(stored)
 	if overrideArrowGlacier != nil {
 		newcfg.ArrowGlacierBlock = overrideArrowGlacier
@@ -320,6 +326,8 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, genesis *Genesis, override
 	}
 	// Check config compatibility and write the config. Compatibility errors
 	// are returned to the caller unless we're already at block zero.
+	// 检查config compatibility并且写入config，Compatibility errors返回给caller
+	// 除非我们在block zero
 	height := rawdb.ReadHeaderNumber(db, rawdb.ReadHeadHeaderHash(db))
 	if height == nil {
 		return newcfg, stored, fmt.Errorf("missing block number for head header hash")
@@ -461,6 +469,7 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // DefaultRopstenGenesisBlock returns the Ropsten network genesis block.
+// DefaultRopstenGenesisBlock返回Ropsten network genesis block
 func DefaultRopstenGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:     params.RopstenChainConfig,

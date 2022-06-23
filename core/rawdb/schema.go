@@ -185,6 +185,7 @@ func blockBodyKey(number uint64, hash common.Hash) []byte {
 }
 
 // blockReceiptsKey = blockReceiptsPrefix + num (uint64 big endian) + hash
+// blockReceiptsKey是blockReceiptsPrefix + num (uint64，大端）+ 哈希
 func blockReceiptsKey(number uint64, hash common.Hash) []byte {
 	return append(append(blockReceiptsPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }

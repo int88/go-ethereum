@@ -49,6 +49,7 @@ func TestSetupGenesis(t *testing.T) {
 		}
 		oldcustomg = customg
 	)
+	// 将HomesteadBlock修改为2
 	oldcustomg.Config = &params.ChainConfig{HomesteadBlock: big.NewInt(2)}
 	tests := []struct {
 		name       string
@@ -84,6 +85,7 @@ func TestSetupGenesis(t *testing.T) {
 		},
 		{
 			name: "custom block in DB, genesis == nil",
+			// 在DB中有custom block，并且没有设置genesis
 			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
 				customg.MustCommit(db)
 				return SetupGenesisBlock(db, nil)
@@ -114,16 +116,19 @@ func TestSetupGenesis(t *testing.T) {
 			name: "incompatible config in DB",
 			fn: func(db ethdb.Database) (*params.ChainConfig, common.Hash, error) {
 				// Commit the 'old' genesis block with Homestead transition at #2.
+				// 提交'old' genesis block，其中Homestead transition在#2
 				// Advance to block #4, past the homestead transition block of customg.
 				genesis := oldcustomg.MustCommit(db)
 
 				bc, _ := NewBlockChain(db, nil, oldcustomg.Config, ethash.NewFullFaker(), vm.Config{}, nil, nil)
 				defer bc.Stop()
 
+				// 构建blocks
 				blocks, _ := GenerateChain(oldcustomg.Config, genesis, ethash.NewFaker(), db, 4, nil)
 				bc.InsertChain(blocks)
 				bc.CurrentBlock()
 				// This should return a compatibility error.
+				// 这应该返回一个compatibility error
 				return SetupGenesisBlock(db, &customg)
 			},
 			wantHash:   customghash,

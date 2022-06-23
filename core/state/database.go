@@ -64,6 +64,7 @@ type Database interface {
 }
 
 // Trie is a Ethereum Merkle Patricia trie.
+// Trie是一个Ethereum Merkle Patricia trie
 type Trie interface {
 	// GetKey returns the sha3 preimage of a hashed key that was previously used
 	// to store a value.

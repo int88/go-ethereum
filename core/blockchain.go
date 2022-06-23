@@ -120,6 +120,7 @@ const (
 
 // CacheConfig contains the configuration values for the trie caching/pruning
 // that's resident in a blockchain.
+// CacheConfig包含了对于存储在blockchain中的trie cacheing/pruning的配置值，
 type CacheConfig struct {
 	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
 	TrieCleanJournal    string        // Disk journal for saving clean cache entries.
@@ -162,6 +163,8 @@ var defaultCacheConfig = &CacheConfig{
 // important to note that GetBlock can return any block and does not need to be
 // included in the canonical one where as GetBlockByNumber always represents the
 // canonical chain.
+// 需要注意的是，GetBlock可以返回任何的block而不需要包含在canonical中，而GetBlockByNumber
+// 总是代表canonical chain中
 type BlockChain struct {
 	chainConfig *params.ChainConfig // Chain & network configuration
 	cacheConfig *CacheConfig        // Cache configuration for pruning
@@ -190,6 +193,7 @@ type BlockChain struct {
 
 	// This mutex synchronizes chain write operations.
 	// Readers don't need to take it, they can just read the database.
+	// 这个mutext同步chain的写入操作，Reader不需要操作它，它可以直接读取database
 	chainmu *syncx.ClosableMutex
 
 	currentBlock          atomic.Value // Current head of the block chain

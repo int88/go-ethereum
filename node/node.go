@@ -114,9 +114,11 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Register built-in APIs.
+	// 注册内置的APIs
 	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
 
 	// Acquire the instance directory lock.
+	// 需要instance directory的锁
 	if err := node.openDataDir(); err != nil {
 		return nil, err
 	}
@@ -128,9 +130,11 @@ func New(conf *Config) (*Node, error) {
 	node.keyDirTemp = isEphem
 	// Creates an empty AccountManager with no backends. Callers (e.g. cmd/geth)
 	// are required to add the backends later on.
+	// 创建一个空的AccountManager，没有backends，Caller（例如，cmd/geth）需要在后续添加backends
 	node.accman = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
 	// Initialize the p2p server. This creates the node key and discovery databases.
+	// 初始化p2p server，它创建node key以及discovery databases
 	node.server.Config.PrivateKey = node.config.NodeKey()
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.Logger = node.log
@@ -145,6 +149,7 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Check HTTP/WS prefixes are valid.
+	// 检测HTTP/WS前缀是合法的
 	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
 		return nil, err
 	}
@@ -153,6 +158,7 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Configure RPC servers.
+	// 配置RPC servers
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.httpAuth = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
@@ -719,6 +725,7 @@ func (n *Node) OpenDatabaseWithFreezer(name string, cache, handles int, freezer,
 	var db ethdb.Database
 	var err error
 	if n.config.DataDir == "" {
+		// 构建一个内存中的database
 		db = rawdb.NewMemoryDatabase()
 	} else {
 		root := n.ResolvePath(name)
@@ -758,6 +765,7 @@ func (db *closeTrackingDB) Close() error {
 }
 
 // wrapDatabase ensures the database will be auto-closed when Node is closed.
+// wrapDatabase确保database会在Node关闭的时候自动关闭
 func (n *Node) wrapDatabase(db ethdb.Database) ethdb.Database {
 	wrapper := &closeTrackingDB{db, n}
 	n.databases[wrapper] = struct{}{}

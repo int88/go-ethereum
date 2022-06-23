@@ -49,10 +49,13 @@ const (
 //
 // HeaderChain is responsible for maintaining the header chain including the
 // header query and updating.
+// HeaderChain负责维护header chain，包括header query和updating
 //
 // The components maintained by headerchain includes: (1) total difficulty
 // (2) header (3) block hash -> number mapping (4) canonical number -> hash mapping
 // and (5) head header flag.
+// headerchain维护的组件包括：（1）total difficulty，（2）header，(3) block hash到number的映射
+// （4）canonical number到hash的映射，（5）head header flag
 //
 // It is not thread safe either, the encapsulating chain structures should do
 // the necessary mutex locking/unlocking.

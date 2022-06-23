@@ -73,6 +73,7 @@ type Config struct {
 
 	// MaxPeers is the maximum number of peers that can be
 	// connected. It must be greater than zero.
+	// MaxPeers是能连接的最多的peers，它必须大于0
 	MaxPeers int
 
 	// MaxPendingPeers is the maximum number of peers that can be pending in the

@@ -110,7 +110,8 @@ func printHelp(out io.Writer, templ string, data interface{}) {
 var (
 	// General settings
 	DataDirFlag = DirectoryFlag{
-		Name:  "datadir",
+		Name: "datadir",
+		// 用于database以及keystore的数据目录
 		Usage: "Data directory for the databases and keystore",
 		Value: DirectoryString(node.DefaultDataDir()),
 	}

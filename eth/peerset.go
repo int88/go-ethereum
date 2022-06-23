@@ -60,6 +60,7 @@ type peerSet struct {
 }
 
 // newPeerSet creates a new peer set to track the active participants.
+// newPeerSet创建一个新的peer set用于追踪active paricipants
 func newPeerSet() *peerSet {
 	return &peerSet{
 		peers:    make(map[string]*ethPeer),

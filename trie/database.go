@@ -684,6 +684,8 @@ func (db *Database) Cap(limit common.StorageSize) error {
 // Commit iterates over all the children of a particular node, writes them out
 // to disk, forcefully tearing down all references in both directions. As a side
 // effect, all pre-images accumulated up to this point are also written.
+// Commit遍历一个特定node的所有children，将他们写入到磁盘，强制关闭所有的引用，作为一个side effect
+// 所有累计到这个点的pre-images都会被写入
 //
 // Note, this method is a non-synchronized mutator. It is unsafe to call this
 // concurrently with other mutators.

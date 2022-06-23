@@ -300,11 +300,13 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Create a message handler and fill the pool with big transactions
+	// 创建一个message handler并且用big transactions填充pool
 	handler := newTestHandler()
 	defer handler.close()
 
 	insert := make([]*types.Transaction, 100)
 	for nonce := range insert {
+		// 构建transaction
 		tx := types.NewTransaction(uint64(nonce), common.Address{}, big.NewInt(0), 100000, big.NewInt(0), make([]byte, 10240))
 		tx, _ = types.SignTx(tx, types.HomesteadSigner{}, testKey)
 

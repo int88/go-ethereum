@@ -83,6 +83,7 @@ type LightEthereum struct {
 }
 
 // New creates an instance of the light client.
+// New创建一个light client的实例
 func New(stack *node.Node, config *ethconfig.Config) (*LightEthereum, error) {
 	chainDb, err := stack.OpenDatabase("lightchaindata", config.DatabaseCache, config.DatabaseHandles, "eth/db/chaindata/", false)
 	if err != nil {
