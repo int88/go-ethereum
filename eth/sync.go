@@ -36,6 +36,7 @@ const (
 )
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
+// syncTransactions开始发送所有当前处于pending的transactions到给定的peer
 func (h *handler) syncTransactions(p *eth.Peer) {
 	// Assemble the set of transaction to broadcast or announce to the remote
 	// peer. Fun fact, this is quite an expensive operation as it needs to sort
@@ -62,6 +63,7 @@ func (h *handler) syncTransactions(p *eth.Peer) {
 }
 
 // chainSyncer coordinates blockchain sync components.
+// chainSyncer协调blockchain的同步组件
 type chainSyncer struct {
 	handler     *handler
 	force       *time.Timer
@@ -90,6 +92,8 @@ func newChainSyncer(handler *handler) *chainSyncer {
 // handlePeerEvent notifies the syncer about a change in the peer set.
 // This is called for new peers and every time a peer announces a new
 // chain head.
+// handlePeerEvent通知syncer关于peer set中的变更，它在新的peers中被调用并且
+// 每次一个peer宣布一个新的chain head
 func (cs *chainSyncer) handlePeerEvent(peer *eth.Peer) bool {
 	select {
 	case cs.peerEventCh <- struct{}{}:
@@ -100,9 +104,11 @@ func (cs *chainSyncer) handlePeerEvent(peer *eth.Peer) bool {
 }
 
 // loop runs in its own goroutine and launches the sync when necessary.
+// loop在它自己的goroutine中运行并且启动sync，如果有必要的话
 func (cs *chainSyncer) loop() {
 	defer cs.handler.wg.Done()
 
+	// 启动block fetcher和tx fetcher
 	cs.handler.blockFetcher.Start()
 	cs.handler.txFetcher.Start()
 	defer cs.handler.blockFetcher.Stop()

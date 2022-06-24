@@ -229,6 +229,8 @@ func NewBlockFetcher(light bool, getHeader HeaderRetrievalFn, getBlock blockRetr
 
 // Start boots up the announcement based synchroniser, accepting and processing
 // hash notifications and block fetches until termination requested.
+// Start启动基于announcement的synchroniser，接收并且处理hash notifications并且进行block
+// fetches，直到请求termination
 func (f *BlockFetcher) Start() {
 	go f.loop()
 }
@@ -331,6 +333,7 @@ func (f *BlockFetcher) FilterBodies(peer string, transactions [][]*types.Transac
 
 // Loop is the main fetcher loop, checking and processing various notification
 // events.
+// Loop是主要的fetcher loop，检查并且处理各种notification events
 func (f *BlockFetcher) loop() {
 	// Iterate the block fetching until a quit is requested
 	var (

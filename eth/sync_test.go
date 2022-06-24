@@ -29,6 +29,7 @@ import (
 )
 
 // Tests that snap sync is disabled after a successful sync cycle.
+// 测试在一个成功的sync cycle之后snap sync已经被关闭了
 func TestSnapSyncDisabling66(t *testing.T) { testSnapSyncDisabling(t, eth.ETH66, snap.SNAP1) }
 
 // Tests that snap sync gets disabled as soon as a real block is successfully
@@ -37,6 +38,7 @@ func testSnapSyncDisabling(t *testing.T, ethVer uint, snapVer uint) {
 	t.Parallel()
 
 	// Create an empty handler and ensure it's in snap sync mode
+	// 创建一个空的handler并且确保它处于snap sync mode
 	empty := newTestHandler()
 	if atomic.LoadUint32(&empty.handler.snapSync) == 0 {
 		t.Fatalf("snap sync disabled on pristine blockchain")
@@ -44,6 +46,7 @@ func testSnapSyncDisabling(t *testing.T, ethVer uint, snapVer uint) {
 	defer empty.close()
 
 	// Create a full handler and ensure snap sync ends up disabled
+	// 创建一个full handler并且确保snap sync最终被关闭
 	full := newTestHandlerWithBlocks(1024)
 	if atomic.LoadUint32(&full.handler.snapSync) == 1 {
 		t.Fatalf("snap sync not disabled on non-empty blockchain")
@@ -51,6 +54,7 @@ func testSnapSyncDisabling(t *testing.T, ethVer uint, snapVer uint) {
 	defer full.close()
 
 	// Sync up the two handlers via both `eth` and `snap`
+	// 通过`eth`和`snap`来对两个handlers进行同步
 	caps := []p2p.Cap{{Name: "eth", Version: ethVer}, {Name: "snap", Version: snapVer}}
 
 	emptyPipeEth, fullPipeEth := p2p.MsgPipe()
@@ -73,6 +77,7 @@ func testSnapSyncDisabling(t *testing.T, ethVer uint, snapVer uint) {
 	defer emptyPipeSnap.Close()
 	defer fullPipeSnap.Close()
 
+	// 构建Peer Snap
 	emptyPeerSnap := snap.NewPeer(snapVer, p2p.NewPeer(enode.ID{1}, "", caps), emptyPipeSnap)
 	fullPeerSnap := snap.NewPeer(snapVer, p2p.NewPeer(enode.ID{2}, "", caps), fullPipeSnap)
 

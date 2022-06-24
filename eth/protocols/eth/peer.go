@@ -69,23 +69,23 @@ func max(a, b int) int {
 type Peer struct {
 	id string // Unique ID for the peer, cached
 
-	*p2p.Peer                   // The embedded P2P package peer
-	rw        p2p.MsgReadWriter // Input/output streams for snap
-	version   uint              // Protocol version negotiated
+	*p2p.Peer                   // The embedded P2P package peer // 内置的P2P package peer
+	rw        p2p.MsgReadWriter // Input/output streams for snap // 用于snap的Input/output streams
+	version   uint              // Protocol version negotiated // 协商获得的协议版本
 
 	head common.Hash // Latest advertised head block hash
 	td   *big.Int    // Latest advertised head block total difficulty
 
-	knownBlocks     *knownCache            // Set of block hashes known to be known by this peer
-	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer
-	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer
+	knownBlocks     *knownCache            // Set of block hashes known to be known by this peer // 这个peer已知的一系列block hashes
+	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer	// 等待广播到peer的blocks的队列
+	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer	// 等待宣布到peer的blocks的队列
 
 	txpool      TxPool             // Transaction pool used by the broadcasters for liveness checks // 供broadcasters使用的用于liveness checks的Transaction pool
 	knownTxs    *knownCache        // Set of transaction hashes known to be known by this peer
 	txBroadcast chan []common.Hash // Channel used to queue transaction propagation requests
 	txAnnounce  chan []common.Hash // Channel used to queue transaction announcement requests
 
-	reqDispatch chan *request  // Dispatch channel to send requests and track then until fulfilment
+	reqDispatch chan *request  // Dispatch channel to send requests and track then until fulfilment	// 分发channel用于发送请求并且追踪，直到fulfilment
 	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
 
@@ -163,6 +163,7 @@ func (p *Peer) KnownBlock(hash common.Hash) bool {
 }
 
 // KnownTransaction returns whether peer is known to already have a transaction.
+// KnownTransaction返回peer是否已经知道了一个transaction
 func (p *Peer) KnownTransaction(hash common.Hash) bool {
 	return p.knownTxs.Contains(hash)
 }
@@ -183,10 +184,14 @@ func (p *Peer) markTransaction(hash common.Hash) {
 
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
+// SendTransactions发送transactions到peer并且包括hashes，在它的transaction hash set
+// 用于后续的引用
 //
 // This method is a helper used by the async transaction sender. Don't call it
 // directly as the queueing (memory) and transmission (bandwidth) costs should
 // not be managed directly.
+// 这个方法作为一个helper被async transaction sender调用，不要直接调用，因为queueing
+// 和transmission const不能被直接管理
 //
 // The reasons this is public is to allow packages using this protocol to write
 // tests that directly send messages without having to do the asyn queueing.
@@ -201,10 +206,13 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 // AsyncSendTransactions queues a list of transactions (by hash) to eventually
 // propagate to a remote peer. The number of pending sends are capped (new ones
 // will force old sends to be dropped)
+// AsyncSendTransactions将一系列的transactions入队（通过hash）来最终传播到一个remote peer
+// pending sends的数目是有上线的（新的会让老的被dropped）
 func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
 	select {
 	case p.txBroadcast <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		// 将所有的transactions标记为known，但是确保它们不会超过limits
 		p.knownTxs.Add(hashes...)
 	case <-p.term:
 		p.Log().Debug("Dropping transaction propagation", "count", len(hashes))
@@ -226,10 +234,13 @@ func (p *Peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 // AsyncSendPooledTransactionHashes queues a list of transactions hashes to eventually
 // announce to a remote peer.  The number of pending sends are capped (new ones
 // will force old sends to be dropped)
+// AsyncSendPooledTransactionHashes将一系列的transactions hashes排队，最终发送到一个remote peer
+// 发送的pendings的数目是有上限的
 func (p *Peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		// 将所有transactions标记为known，但是确保我们没有超过limits
 		p.knownTxs.Add(hashes...)
 	case <-p.term:
 		p.Log().Debug("Dropping transaction announcement", "count", len(hashes))

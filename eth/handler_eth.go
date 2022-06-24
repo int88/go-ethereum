@@ -59,6 +59,8 @@ func (h *ethHandler) AcceptTxs() bool {
 
 // Handle is invoked from a peer's message handler when it receives a new remote
 // message that the handler couldn't consume and serve itself.
+// Handle是从peer的message handler被调用，当它接收到一个新的remote message，而handler不能
+// 自己消费以及处理
 func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	// Consume any broadcasts and announces, forwarding the rest to the downloader
 	switch packet := packet.(type) {

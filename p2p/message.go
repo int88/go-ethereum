@@ -158,6 +158,8 @@ func (r *eofSignal) Read(buf []byte) (int, error) {
 // MsgPipe creates a message pipe. Reads on one end are matched
 // with writes on the other. The pipe is full-duplex, both ends
 // implement MsgReadWriter.
+// MsgPipe创建一个message pipe，从一端读取，匹配另一端的写，pipe是全双工
+// 两端都实现了MsgReadWriter
 func MsgPipe() (*MsgPipeRW, *MsgPipeRW) {
 	var (
 		c1, c2  = make(chan Msg), make(chan Msg)

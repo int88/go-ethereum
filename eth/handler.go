@@ -313,9 +313,12 @@ func newHandler(config *handlerConfig) (*handler, error) {
 
 // runEthPeer registers an eth peer into the joint eth/snap peerset, adds it to
 // various subsistems and starts handling messages.
+// runEthPeer注册一个eth peer到joint eth/snap peerset，添加它到各种子系统并且启动对于message的处理
 func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	// If the peer has a `snap` extension, wait for it to connect so we can have
 	// a uniform initialization/teardown mechanism
+	// 如果peer有一个`snap` extension，等待它来连接，这样我们可以有一个一致的initialization/teardown
+	// 机制
 	snap, err := h.peers.waitSnapExtension(peer)
 	if err != nil {
 		peer.Log().Error("Snapshot extension barrier failed", "err", err)
@@ -329,6 +332,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	defer h.peerWG.Done()
 
 	// Execute the Ethereum handshake
+	// 执行Ethereum handshake
 	var (
 		genesis = h.chain.Genesis()
 		head    = h.chain.CurrentHeader()
@@ -337,6 +341,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		td      = h.chain.GetTd(hash, number)
 	)
 	forkID := forkid.NewID(h.chain.Config(), h.chain.Genesis().Hash(), h.chain.CurrentHeader().Number.Uint64())
+	// 调用peer handshake
 	if err := peer.Handshake(h.networkID, td, hash, genesis.Hash(), forkID, h.forkFilter); err != nil {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
@@ -361,6 +366,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	peer.Log().Debug("Ethereum peer connected", "name", peer.Name())
 
 	// Register the peer locally
+	// 本地注册peer
 	if err := h.peers.registerPeer(peer, snap); err != nil {
 		peer.Log().Error("Ethereum peer registration failed", "err", err)
 		return err
@@ -372,6 +378,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		return errors.New("peer dropped during handling")
 	}
 	// Register the peer in the downloader. If the downloader considers it banned, we disconnect
+	// 注册peer到downloader，如果downloader考虑它已经被banned，我们断开连接
 	if err := h.downloader.RegisterPeer(peer.ID(), peer.Version(), peer); err != nil {
 		peer.Log().Error("Failed to register peer in eth syncer", "err", err)
 		return err
@@ -382,17 +389,21 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 			return err
 		}
 	}
+	// 处理peer event
 	h.chainSync.handlePeerEvent(peer)
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
+	// 传播已经存在的transactions，在这之后出现的新的transactions会在broadcasts之后发送
 	h.syncTransactions(peer)
 
 	// Create a notification channel for pending requests if the peer goes down
+	// 创建一个notification channel，对于pending requests，如果peer goes down
 	dead := make(chan struct{})
 	defer close(dead)
 
 	// If we have a trusted CHT, reject all peers below that (avoid fast sync eclipse)
+	// 如果我们已经有一个可信的CHT，拒绝所有以下的peers
 	if h.checkpointHash != (common.Hash{}) {
 		// Request the peer's checkpoint header for chain height/weight validation
 		resCh := make(chan *eth.Response)
@@ -440,6 +451,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}()
 	}
 	// If we have any explicit peer required block hashes, request them
+	// 如果我们有任何显式的peer请求block hashes，请求它们
 	for number, hash := range h.requiredBlocks {
 		resCh := make(chan *eth.Response)
 		if _, err := peer.RequestHeadersByNumber(number, 1, 0, false, resCh); err != nil {
@@ -477,6 +489,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}(number, hash)
 	}
 	// Handle incoming messages until the connection is torn down
+	// 处理incoming messages，直到connection关闭
 	return handler(peer)
 }
 
@@ -538,17 +551,20 @@ func (h *handler) Start(maxPeers int) {
 	h.maxPeers = maxPeers
 
 	// broadcast transactions
+	// 广播transactions
 	h.wg.Add(1)
 	h.txsCh = make(chan core.NewTxsEvent, txChanSize)
 	h.txsSub = h.txpool.SubscribeNewTxsEvent(h.txsCh)
 	go h.txBroadcastLoop()
 
 	// broadcast mined blocks
+	// 广播挖到的blocks
 	h.wg.Add(1)
 	h.minedBlockSub = h.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go h.minedBroadcastLoop()
 
 	// start sync handlers
+	// 启动sync handlers
 	h.wg.Add(1)
 	go h.chainSync.loop()
 }
@@ -617,9 +633,12 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 }
 
 // BroadcastTransactions will propagate a batch of transactions
+// BroadcastTransactions会传播一系列的transactions
 // - To a square root of all peers
+// - 广播到所有peers的平方根
 // - And, separately, as announcements to all peers which are not known to
 // already have the given transaction.
+// - 另外，公告到所有的不知道给定transaction的peers
 func (h *handler) BroadcastTransactions(txs types.Transactions) {
 	var (
 		annoCount   int // Count of announcements made
@@ -632,14 +651,17 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 
 	)
 	// Broadcast transactions to a batch of peers not knowing about it
+	// 广播transactions到一系列不知道它的peers
 	for _, tx := range txs {
 		peers := h.peers.peersWithoutTransaction(tx.Hash())
 		// Send the tx unconditionally to a subset of our peers
+		// 无条件地发送tx到我们的peers的子集
 		numDirect := int(math.Sqrt(float64(len(peers))))
 		for _, peer := range peers[:numDirect] {
 			txset[peer] = append(txset[peer], tx.Hash())
 		}
 		// For the remaining peers, send announcement only
+		// 对于剩余的peers，发送announcement
 		for _, peer := range peers[numDirect:] {
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
@@ -665,18 +687,22 @@ func (h *handler) minedBroadcastLoop() {
 
 	for obj := range h.minedBlockSub.Chan() {
 		if ev, ok := obj.Data.(core.NewMinedBlockEvent); ok {
-			h.BroadcastBlock(ev.Block, true)  // First propagate block to peers
+			// 首先传播block到peers
+			h.BroadcastBlock(ev.Block, true) // First propagate block to peers
+			// 之后才向其他人宣布
 			h.BroadcastBlock(ev.Block, false) // Only then announce to the rest
 		}
 	}
 }
 
 // txBroadcastLoop announces new transactions to connected peers.
+// txBroadcastLoop宣布新的transactions到connected peers
 func (h *handler) txBroadcastLoop() {
 	defer h.wg.Done()
 	for {
 		select {
 		case event := <-h.txsCh:
+			// 广播transactions
 			h.BroadcastTransactions(event.Txs)
 		case <-h.txsSub.Err():
 			return

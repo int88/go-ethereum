@@ -135,6 +135,7 @@ func (ps *peerSet) waitSnapExtension(peer *eth.Peer) (*snap.Peer, error) {
 
 // registerPeer injects a new `eth` peer into the working set, or returns an error
 // if the peer is already known.
+// registerPeer注入一个新的`eth` peer到working set中，或者返回一个error，如果peer已经知道了
 func (ps *peerSet) registerPeer(peer *eth.Peer, ext *snap.Peer) error {
 	// Start tracking the new peer
 	ps.lock.Lock()

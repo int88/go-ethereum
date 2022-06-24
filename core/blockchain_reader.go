@@ -39,6 +39,8 @@ func (bc *BlockChain) CurrentHeader() *types.Header {
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
+// CurrentBlock获取canonical chain的current head block，block从blockchain的internal cache中
+// 获取
 func (bc *BlockChain) CurrentBlock() *types.Block {
 	return bc.currentBlock.Load().(*types.Block)
 }

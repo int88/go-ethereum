@@ -48,6 +48,7 @@ var protocolLengths = map[uint]uint64{ETH66: 17}
 // maxMessageSize is the maximum cap on the size of a protocol message.
 const maxMessageSize = 10 * 1024 * 1024
 
+// MSG的类型
 const (
 	StatusMsg                     = 0x00
 	NewBlockHashesMsg             = 0x01
@@ -84,6 +85,7 @@ type Packet interface {
 }
 
 // StatusPacket is the network packet for the status message for eth/64 and later.
+// StatusPacket是network packet用来对于eth/64以及之后的status message
 type StatusPacket struct {
 	ProtocolVersion uint32
 	NetworkID       uint64

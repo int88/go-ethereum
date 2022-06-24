@@ -113,9 +113,11 @@ func TestFeed(t *testing.T) {
 	done.Add(n)
 	subscribed.Add(n)
 	for i := 0; i < n; i++ {
+		// 构建1000个subscriber
 		go subscriber(i)
 	}
 	subscribed.Wait()
+	// 用feed发送
 	if nsent := feed.Send(1); nsent != n {
 		t.Errorf("first send delivered %d times, want %d", nsent, n)
 	}

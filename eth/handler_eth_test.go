@@ -43,6 +43,8 @@ import (
 
 // testEthHandler is a mock event handler to listen for inbound network requests
 // on the `eth` protocol and convert them into a more easily testable form.
+// testEthHandler是一个mock event handler，用于监听inbound network requests，在`eth`协议之上
+// 并且将它们转换为更加容易测试的格式
 type testEthHandler struct {
 	blockBroadcasts event.Feed
 	txAnnounces     event.Feed
@@ -56,6 +58,7 @@ func (h *testEthHandler) RunPeer(*eth.Peer, eth.Handler) error { panic("not used
 func (h *testEthHandler) PeerInfo(enode.ID) interface{}        { panic("not used in tests") }
 
 func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
+	// 直接将包发送到feed中
 	switch packet := packet.(type) {
 	case *eth.NewBlockPacket:
 		h.blockBroadcasts.Send(packet.Block)
@@ -243,16 +246,19 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Create a message handler, configure it to accept transactions and watch them
+	// 创建一个message handler，配置它来接收transactions并且监听它们
 	handler := newTestHandler()
 	defer handler.close()
 
 	handler.handler.acceptTxs = 1 // mark synced to accept transactions
 
 	txs := make(chan core.NewTxsEvent)
+	// 订阅transaction events
 	sub := handler.txpool.SubscribeNewTxsEvent(txs)
 	defer sub.Unsubscribe()
 
 	// Create a source peer to send messages through and a sink handler to receive them
+	// 创建一个source peer来发送messages以及一个sink handler来接收它们
 	p2pSrc, p2pSink := p2p.MsgPipe()
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
@@ -263,9 +269,11 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 	defer sink.Close()
 
 	go handler.handler.runEthPeer(sink, func(peer *eth.Peer) error {
+		// 处理来自peer的message
 		return eth.Handle((*ethHandler)(handler.handler), peer)
 	})
 	// Run the handshake locally to avoid spinning up a source handler
+	// 本地运行handshake避免启动一个source handler
 	var (
 		genesis = handler.chain.Genesis()
 		head    = handler.chain.CurrentBlock()
@@ -275,14 +283,17 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 		t.Fatalf("failed to run protocol handshake")
 	}
 	// Send the transaction to the sink and verify that it's added to the tx pool
+	// 发送transaction到sink并且确认它被加入到tx pool中
 	tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100000, big.NewInt(0), nil)
 	tx, _ = types.SignTx(tx, types.HomesteadSigner{}, testKey)
 
+	// src来发送transactions
 	if err := src.SendTransactions([]*types.Transaction{tx}); err != nil {
 		t.Fatalf("failed to send transaction: %v", err)
 	}
 	select {
 	case event := <-txs:
+		// 确保从txs这个channel能接收到transaction
 		if len(event.Txs) != 1 {
 			t.Errorf("wrong number of added transactions: got %d, want 1", len(event.Txs))
 		} else if event.Txs[0].Hash() != tx.Hash() {
@@ -312,10 +323,12 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 		insert[nonce] = tx
 	}
+	// 需要一个goroutine来不阻塞feed
 	go handler.txpool.AddRemotes(insert) // Need goroutine to not block on feed
 	time.Sleep(250 * time.Millisecond)   // Wait until tx events get out of the system (can't use events, tx broadcaster races with peer join)
 
 	// Create a source handler to send messages through and a sink peer to receive them
+	// 创建一个source handler来发送messages以及一个sink handler来接收它们
 	p2pSrc, p2pSink := p2p.MsgPipe()
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
@@ -339,6 +352,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	}
 	// After the handshake completes, the source handler should stream the sink
 	// the transactions, subscribe to all inbound network events
+	// 在handshake之后，source handler应该给sink发送transactions，订阅所有的inbound network events
 	backend := new(testEthHandler)
 
 	anns := make(chan []common.Hash)
@@ -349,9 +363,11 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	bcastSub := backend.txBroadcasts.Subscribe(bcasts)
 	defer bcastSub.Unsubscribe()
 
+	// 运行eth.Handle
 	go eth.Handle(backend, sink)
 
 	// Make sure we get all the transactions on the correct channels
+	// 确保我们从正确的channels获取所有的transactions
 	seen := make(map[common.Hash]struct{})
 	for len(seen) < len(insert) {
 		switch protocol {
@@ -381,6 +397,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 // Tests that transactions get propagated to all attached peers, either via direct
 // broadcasts or via announcements/retrievals.
+// 检测transactions被传播到所有连接的peers，通过broadcasts或者announcements/retrievals
 func TestTransactionPropagation66(t *testing.T) { testTransactionPropagation(t, eth.ETH66) }
 
 func testTransactionPropagation(t *testing.T, protocol uint) {
@@ -389,18 +406,23 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 	// Create a source handler to send transactions from and a number of sinks
 	// to receive them. We need multiple sinks since a one-to-one peering would
 	// broadcast all transactions without announcement.
+	// 创建一个source handler来发送transactions以及一系列的sinks来接收它们，我们需要
+	// 多个sinks，因为一个one-to-one peering会广播所有的transactions而没有announcement
 	source := newTestHandler()
+	// 禁止请求snap，不然下面有些会被丢弃
 	source.handler.snapSync = 0 // Avoid requiring snap, otherwise some will be dropped below
 	defer source.close()
 
 	sinks := make([]*testHandler, 10)
 	for i := 0; i < len(sinks); i++ {
+		// 构建一系列的sink handlers用于接收
 		sinks[i] = newTestHandler()
 		defer sinks[i].close()
 
 		sinks[i].handler.acceptTxs = 1 // mark synced to accept transactions
 	}
 	// Interconnect all the sink handlers with the source handler
+	// 将所有sink handlers和source handler相连
 	for i, sink := range sinks {
 		sink := sink // Closure for gorotuine below
 
@@ -408,6 +430,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		defer sourcePipe.Close()
 		defer sinkPipe.Close()
 
+		// 其实一个Peer对象就包含了两端，从一端写入就从另一端读出
 		sourcePeer := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{byte(i + 1)}, "", nil, sourcePipe), sourcePipe, source.txpool)
 		sinkPeer := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{0}, "", nil, sinkPipe), sinkPipe, sink.txpool)
 		defer sourcePeer.Close()
@@ -421,6 +444,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		})
 	}
 	// Subscribe to all the transaction pools
+	// 订阅所有的transaction pools
 	txChs := make([]chan core.NewTxsEvent, len(sinks))
 	for i := 0; i < len(sinks); i++ {
 		txChs[i] = make(chan core.NewTxsEvent, 1024)
@@ -429,6 +453,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		defer sub.Unsubscribe()
 	}
 	// Fill the source pool with transactions and wait for them at the sinks
+	// 用transactions填充source pool并且在sinks等待它们
 	txs := make([]*types.Transaction, 1024)
 	for nonce := range txs {
 		tx := types.NewTransaction(uint64(nonce), common.Address{}, big.NewInt(0), 100000, big.NewInt(0), nil)
@@ -436,9 +461,11 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 
 		txs[nonce] = tx
 	}
+	// 将transactions加入到txpool中
 	source.txpool.AddRemotes(txs)
 
 	// Iterate through all the sinks and ensure they all got the transactions
+	// 遍历所有的sinks并且确保它们都获得了transactions
 	for i := range sinks {
 		for arrived, timeout := 0, false; arrived < len(txs) && !timeout; {
 			select {

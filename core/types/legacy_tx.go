@@ -23,6 +23,7 @@ import (
 )
 
 // LegacyTx is the transaction data of regular Ethereum transactions.
+// LegacyTx是常规的Ethereum transactions的transaction data
 type LegacyTx struct {
 	Nonce    uint64          // nonce of sender account
 	GasPrice *big.Int        // wei per gas
@@ -30,7 +31,8 @@ type LegacyTx struct {
 	To       *common.Address `rlp:"nil"` // nil means contract creation，nil意味着是创建contract
 	Value    *big.Int        // wei amount
 	Data     []byte          // contract invocation input data，contract调用的input data
-	V, R, S  *big.Int        // signature values
+	// signature value表示发送者
+	V, R, S *big.Int // signature values
 }
 
 // NewTransaction creates an unsigned legacy transaction.

@@ -68,9 +68,12 @@ func (f *Feed) init() {
 
 // Subscribe adds a channel to the feed. Future sends will be delivered on the channel
 // until the subscription is canceled. All channels added must have the same element type.
+// Subscribe添加一个channel到feed，后面的sends会发送到channel，直到订阅取消 ，所有添加的channels必须有
+// 同样的元素类型
 //
 // The channel should have ample buffer space to avoid blocking other subscribers.
 // Slow subscribers are not dropped.
+// channel应该有充足的buffer空间来避免阻塞其他的subscribers，Slow subscribers应该被丢弃
 func (f *Feed) Subscribe(channel interface{}) Subscription {
 	f.once.Do(f.init)
 

@@ -51,8 +51,8 @@ var (
 type testTxPool struct {
 	pool map[common.Hash]*types.Transaction // Hash map of collected transactions
 
-	txFeed event.Feed   // Notification feed to allow waiting for inclusion
-	lock   sync.RWMutex // Protects the transaction pool
+	txFeed event.Feed   // Notification feed to allow waiting for inclusion // 通知流用于等待纳入
+	lock   sync.RWMutex // Protects the transaction pool // 保护transaction pool
 }
 
 // newTestTxPool creates a mock transaction pool.
@@ -83,6 +83,8 @@ func (p *testTxPool) Get(hash common.Hash) *types.Transaction {
 
 // AddRemotes appends a batch of transactions to the pool, and notifies any
 // listeners if the addition channel is non nil
+// AddRemotes扩展一系列的transactions到pool，并且通知所有的listeners，如果addition channel
+// 不为nil
 func (p *testTxPool) AddRemotes(txs []*types.Transaction) []error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -90,11 +92,13 @@ func (p *testTxPool) AddRemotes(txs []*types.Transaction) []error {
 	for _, tx := range txs {
 		p.pool[tx.Hash()] = tx
 	}
+	// 发送到txFeed
 	p.txFeed.Send(core.NewTxsEvent{Txs: txs})
 	return make([]error, len(txs))
 }
 
 // Pending returns all the transactions known to the pool
+// Pending返回所有pool已知的transactions
 func (p *testTxPool) Pending(enforceTips bool) map[common.Address]types.Transactions {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
@@ -112,6 +116,7 @@ func (p *testTxPool) Pending(enforceTips bool) map[common.Address]types.Transact
 
 // SubscribeNewTxsEvent should return an event subscription of NewTxsEvent and
 // send events to the given channel.
+// SubscribeNewTxsEvent应该返回一个NewTxsEvent的事件订阅并且发送事件到给定的channel
 func (p *testTxPool) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
 	return p.txFeed.Subscribe(ch)
 }

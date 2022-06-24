@@ -61,29 +61,39 @@ type Handler func(peer *Peer) error
 
 // Backend defines the data retrieval methods to serve remote requests and the
 // callback methods to invoke on remote deliveries.
+// Backend定义了data获取方法用来服务remote requests以及回调函数方法来在remote deliveries上调用
 type Backend interface {
 	// Chain retrieves the blockchain object to serve data.
+	// Chain获取blockchain对象来serve data
 	Chain() *core.BlockChain
 
 	// TxPool retrieves the transaction pool object to serve data.
+	// TxPool获取transaction pool对象来serve data
 	TxPool() TxPool
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node
 	// or if inbound transactions should simply be dropped.
+	// AcceptTxs用来获取，节点的transaction processing是否使能或者inbound transactions
+	// 应该被简单地丢弃
 	AcceptTxs() bool
 
 	// RunPeer is invoked when a peer joins on the `eth` protocol. The handler
 	// should do any peer maintenance work, handshakes and validations. If all
 	// is passed, control should be given back to the `handler` to process the
 	// inbound messages going forward.
+	// RunPeer被调用，当一个peer加入到`eth`协议中，handler做所有的节点维护工作，
+	// 握手以及认证，如果所有都通过了，control被交还给`handler`来处理inbound message
 	RunPeer(peer *Peer, handler Handler) error
 
 	// PeerInfo retrieves all known `eth` information about a peer.
+	// PeerInfo用来获取一个peer的所有已知的`eth`信息
 	PeerInfo(id enode.ID) interface{}
 
 	// Handle is a callback to be invoked when a data packet is received from
 	// the remote peer. Only packets not consumed by the protocol handler will
 	// be forwarded to the backend.
+	// Handle是一个被调用的回调函数，当从remote peer接收到一个data packet，只有没被
+	// protocol handler消费的packets才会转发到backend
 	Handle(peer *Peer, packet Packet) error
 }
 
@@ -149,6 +159,8 @@ func nodeInfo(chain *core.BlockChain, network uint64) *NodeInfo {
 // Handle is invoked whenever an `eth` connection is made that successfully passes
 // the protocol handshake. This method will keep processing messages until the
 // connection is torn down.
+// Handle会在一个`eth`连接通过protcol handshake建立之后被调用，这个方法会持续处理messages
+// 直到连接关闭
 func Handle(backend Backend, peer *Peer) error {
 	for {
 		if err := handleMessage(backend, peer); err != nil {
@@ -164,6 +176,7 @@ type Decoder interface {
 	Time() time.Time
 }
 
+// 一系列的message的处理方法
 var eth66 = map[uint64]msgHandler{
 	NewBlockHashesMsg:             handleNewBlockhashes,
 	NewBlockMsg:                   handleNewBlock,
@@ -183,8 +196,11 @@ var eth66 = map[uint64]msgHandler{
 
 // handleMessage is invoked whenever an inbound message is received from a remote
 // peer. The remote connection is torn down upon returning any error.
+// handleMessage会被调用，当从一个remote peer接收到一个inbound message的时候
+// 当返回任何error的时候，说明remote connection被关闭了
 func handleMessage(backend Backend, peer *Peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
+	// 从remote peer读取下一个message，并且确保它被完全消费
 	msg, err := peer.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -211,6 +227,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 			metrics.GetOrRegisterHistogramLazy(h, nil, sampler).Update(time.Since(start).Microseconds())
 		}(time.Now())
 	}
+	// 根据message code找到对应的handler进行处理
 	if handler := handlers[msg.Code]; handler != nil {
 		return handler(backend, msg, peer)
 	}

@@ -33,6 +33,7 @@ func testHandshake(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Create a test backend only to have some valid genesis chain
+	// 创建一个test backend，只有一些合法的genesis chain
 	backend := newTestBackend(3)
 	defer backend.close()
 
@@ -70,6 +71,7 @@ func testHandshake(t *testing.T, protocol uint) {
 	}
 	for i, test := range tests {
 		// Create the two peers to shake with each other
+		// 创建两个peers用来互相握手
 		app, net := p2p.MsgPipe()
 		defer app.Close()
 		defer net.Close()
@@ -78,6 +80,7 @@ func testHandshake(t *testing.T, protocol uint) {
 		defer peer.Close()
 
 		// Send the junk test with one peer, check the handshake failure
+		// peer互相发送垃圾测试，检查handshake failure
 		go p2p.Send(app, test.code, test.data)
 
 		err := peer.Handshake(1, td, head.Hash(), genesis.Hash(), forkID, forkid.NewFilter(backend.chain))

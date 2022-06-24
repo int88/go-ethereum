@@ -487,10 +487,12 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsPac
 
 func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
+	// Transactions来了，确保我们有一个合法的以及新鲜的链来处理它们
 	if !backend.AcceptTxs() {
 		return nil
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
+	// Transactions可以被处理，解析所有并且传送到pool中
 	var txs TransactionsPacket
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
