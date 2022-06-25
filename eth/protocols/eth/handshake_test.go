@@ -76,6 +76,7 @@ func testHandshake(t *testing.T, protocol uint) {
 		defer app.Close()
 		defer net.Close()
 
+		// 首先构建p2p的new peer
 		peer := NewPeer(protocol, p2p.NewPeer(enode.ID{}, "peer", nil), net, nil)
 		defer peer.Close()
 

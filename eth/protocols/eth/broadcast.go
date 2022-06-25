@@ -39,6 +39,8 @@ type blockPropagation struct {
 // broadcastBlocks is a write loop that multiplexes blocks and block accouncements
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// broadcastBlocks是一个write loop，多路复用blocks以及block announcements到remote peer
+// 目的是有一个async writer，不会锁住node internals，同时能限制queued data的rate limits
 func (p *Peer) broadcastBlocks() {
 	for {
 		select {
@@ -63,6 +65,7 @@ func (p *Peer) broadcastBlocks() {
 // broadcastTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// broadcastTransactions是一个write loop，用来调度广播到remote peer的transactions
 func (p *Peer) broadcastTransactions() {
 	var (
 		queue  []common.Hash         // Queue of hashes to broadcast as full transactions
@@ -89,6 +92,7 @@ func (p *Peer) broadcastTransactions() {
 			queue = queue[:copy(queue, queue[hashesCount:])]
 
 			// If there's anything available to transfer, fire up an async writer
+			// 如果有任何的可用的transactions用于transfer，触发一个异步的writer
 			if len(txs) > 0 {
 				done = make(chan struct{})
 				go func() {
@@ -102,13 +106,16 @@ func (p *Peer) broadcastTransactions() {
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
+		// Transfer goroutine可能启动，也可能没启动，对事件进行监听
 		select {
 		case hashes := <-p.txBroadcast:
 			// If the connection failed, discard all transaction events
+			// 如果连接失败，丢弃所有的transaction events
 			if failed {
 				continue
 			}
 			// New batch of transactions to be broadcast, queue them (with cap)
+			// 新的要被广播的transactions的批次，将它们入队
 			queue = append(queue, hashes...)
 			if len(queue) > maxQueuedTxs {
 				// Fancy copy and resize to ensure buffer doesn't grow indefinitely

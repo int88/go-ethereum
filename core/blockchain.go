@@ -2357,6 +2357,8 @@ Error: %v
 // InsertHeaderChain attempts to insert the given header chain in to the local
 // chain, possibly creating a reorg. If an error is returned, it will return the
 // index number of the failing header as well an error describing what went wrong.
+// InsertHeaderChain试着插入给定的header chain到local chain，可能会创建一个reorg，如果返回了错误
+// 它会返回failing header的索引号，以及一个error描述错误原因
 //
 // The verify parameter can be used to fine tune whether nonce verification
 // should be done or not. The reason behind the optional check is because some

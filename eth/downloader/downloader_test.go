@@ -112,6 +112,7 @@ func (dl *downloadTester) sync(id string, td *big.Int, mode SyncMode) error {
 	select {
 	case <-dl.downloader.cancelCh:
 		// Ok, downloader fully cancelled after sync cycle
+		// 在同步周期结束之后，downloader可以完全取消
 	default:
 		// Downloader is still accepting packets, can block a peer up
 		panic("downloader active post sync cycle") // panic will be caught by tester
@@ -125,6 +126,7 @@ func (dl *downloadTester) newPeer(id string, version uint, blocks []*types.Block
 	dl.lock.Lock()
 	defer dl.lock.Unlock()
 
+	// 构建download tester peer
 	peer := &downloadTesterPeer{
 		dl:              dl,
 		id:              id,
@@ -430,6 +432,7 @@ func (dlp *downloadTesterPeer) Log() log.Logger {
 
 // assertOwnChain checks if the local chain contains the correct number of items
 // of the various chain components.
+// assertOwnChain检查local chain包含了正确数目的items，比如各种chain components
 func assertOwnChain(t *testing.T, tester *downloadTester, length int) {
 	// Mark this method as a helper to report errors at callsite, not in here
 	t.Helper()
@@ -991,6 +994,7 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol uint) {
 			t.Fatalf("test %d: registered peer not found", i)
 		}
 		// Simulate a synchronisation and check the required result
+		// 模拟一个synchronisation并且检车需要的结果
 		tester.downloader.synchroniseMock = func(string, common.Hash) error { return tt.result }
 
 		tester.downloader.LegacySync(id, tester.chain.Genesis().Hash(), big.NewInt(1000), nil, FullSync)

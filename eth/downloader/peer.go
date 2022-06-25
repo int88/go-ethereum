@@ -60,7 +60,9 @@ type peerConnection struct {
 // LightPeer封装了用于从一个remote light peer进行同步的方法
 type LightPeer interface {
 	Head() (common.Hash, *big.Int)
+	// 通过hash请求headers
 	RequestHeadersByHash(common.Hash, int, int, bool, chan *eth.Response) (*eth.Request, error)
+	// 通过number请求hashes
 	RequestHeadersByNumber(uint64, int, int, bool, chan *eth.Response) (*eth.Request, error)
 }
 

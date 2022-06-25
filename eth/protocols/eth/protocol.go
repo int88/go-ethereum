@@ -96,9 +96,10 @@ type StatusPacket struct {
 }
 
 // NewBlockHashesPacket is the network packet for the block announcements.
+// NewBlockHashesPacket是network packet用于block announcements
 type NewBlockHashesPacket []struct {
-	Hash   common.Hash // Hash of one particular block being announced
-	Number uint64      // Number of one particular block being announced
+	Hash   common.Hash // Hash of one particular block being announced // 被宣告的特定block的hash
+	Number uint64      // Number of one particular block being announced // 被宣告的特定block的编号
 }
 
 // Unpack retrieves the block hashes and numbers from the announcement packet
@@ -189,6 +190,7 @@ type BlockHeadersRLPPacket66 struct {
 }
 
 // NewBlockPacket is the network packet for the block propagation message.
+// NewBlockPacket是对于block propagation message的network packet
 type NewBlockPacket struct {
 	Block *types.Block
 	TD    *big.Int

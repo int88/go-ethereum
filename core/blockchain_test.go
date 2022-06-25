@@ -65,6 +65,7 @@ func newCanonical(engine consensus.Engine, n int, full bool) (ethdb.Database, *B
 	// 初始化一个只有genesis block的fresh chain
 	blockchain, _ := NewBlockChain(db, nil, params.AllEthashProtocolChanges, engine, vm.Config{}, nil, nil)
 	// Create and inject the requested chain
+	// 创建并且注入requested chain
 	if n == 0 {
 		return db, blockchain, nil
 	}
@@ -216,6 +217,7 @@ func TestLastBlock(t *testing.T) {
 	if _, err := blockchain.InsertChain(blocks); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)
 	}
+	// 插入的blocks的哈希和db中的head block的哈希一致
 	if blocks[len(blocks)-1].Hash() != rawdb.ReadHeadBlockHash(blockchain.db) {
 		t.Fatalf("Write/Get HeadBlockHash failed")
 	}

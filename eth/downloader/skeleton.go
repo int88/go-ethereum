@@ -165,6 +165,7 @@ type backfiller interface {
 // aren't validated any more via PoW in a forward fashion, rather are dictated
 // and extended at the head via the beacon chain and backfilled on the original
 // Ethereum block sync protocol.
+// skeleton代表一个header chain，在merge之后，blocks不再通过PoW校验，
 //
 // Since the skeleton is grown backwards from head to genesis, it is handled as
 // a separate entity, not mixed in with the logical sequential transition of the
@@ -217,6 +218,8 @@ type skeleton struct {
 
 // newSkeleton creates a new sync skeleton that tracks a potentially dangling
 // header chain until it's linked into an existing set of blocks.
+// newSkeleton创建一个新的sync skeleton，追踪一系列的dangling header chain，直到它连接到
+// 一个已经存在的一系列blocks
 func newSkeleton(db ethdb.Database, peers *peerSet, drop peerDropFn, filler backfiller) *skeleton {
 	sk := &skeleton{
 		db:         db,

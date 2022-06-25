@@ -86,7 +86,7 @@ type Peer struct {
 	txAnnounce  chan []common.Hash // Channel used to queue transaction announcement requests
 
 	reqDispatch chan *request  // Dispatch channel to send requests and track then until fulfilment	// 分发channel用于发送请求并且追踪，直到fulfilment
-	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them
+	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them	// 分发channel用于取消pending requests并且不再追踪它们
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
 
 	term chan struct{} // Termination channel to stop the broadcasters
@@ -95,6 +95,7 @@ type Peer struct {
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
 // version.
+// NewPeer创建了一个对于network connection的封装并且协商protocol version
 func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Peer {
 	peer := &Peer{
 		id:              p.ID().String(),
@@ -114,6 +115,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		term:            make(chan struct{}),
 	}
 	// Start up all the broadcasters
+	// 启动所有的broadcasters
 	go peer.broadcastBlocks()
 	go peer.broadcastTransactions()
 	go peer.announceTransactions()
@@ -221,10 +223,14 @@ func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
 
 // sendPooledTransactionHashes sends transaction hashes to the peer and includes
 // them in its transaction hash set for future reference.
+// sendPooledTransactionHashes发送transaction hashes到peer并且将他们包含在transaction hash
+// set中，用于后续引用
 //
 // This method is a helper used by the async transaction announcer. Don't call it
 // directly as the queueing (memory) and transmission (bandwidth) costs should
 // not be managed directly.
+// 这个方法是一个helper，由async transaction announcer使用，不要直接调用，因为queueing (memory)
+// 以及transmission (bandwidth)不应该被直接管理
 func (p *Peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
 	p.knownTxs.Add(hashes...)
@@ -261,6 +267,7 @@ func (p *Peer) ReplyPooledTransactionsRLP(id uint64, hashes []common.Hash, txs [
 
 // SendNewBlockHashes announces the availability of a number of blocks through
 // a hash notification.
+// SendNewBlockHashes通过一个hash notification宣告一系列的blocks可用
 func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
 	// Mark all the block hashes as known, but ensure we don't overflow our limits
 	p.knownBlocks.Add(hashes...)
@@ -287,8 +294,10 @@ func (p *Peer) AsyncSendNewBlockHash(block *types.Block) {
 }
 
 // SendNewBlock propagates an entire block to a remote peer.
+// SendNewBlock传播整个block到一个remote peer
 func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 	// Mark all the block hash as known, but ensure we don't overflow our limits
+	// 将所有的block都标记为已知，但是确保我们不会超过limits
 	p.knownBlocks.Add(block.Hash())
 	return p2p.Send(p.rw, NewBlockMsg, &NewBlockPacket{
 		Block: block,

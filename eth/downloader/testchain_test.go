@@ -41,6 +41,7 @@ var (
 )
 
 // The common prefix of all test chains:
+// 所有测试链的公共前缀
 var testChainBase *testChain
 
 // Different forks on top of the base chain:
@@ -194,8 +195,11 @@ type testBlockchain struct {
 // newTestBlockchain creates a blockchain database built by running the given blocks,
 // either actually running them, or reusing a previously created one. The returned
 // chains are *shared*, so *do not* mutate them.
+// newTestBlockchain创建一个blockchain database，通过运行给定的blocks创建，要么实际运行它们
+// 要么重用一个之前创建的，返回的chain是共享的，不要修改它们
 func newTestBlockchain(blocks []*types.Block) *core.BlockChain {
 	// Retrieve an existing database, or create a new one
+	// 获取一个已经存在的database，或者创建一个新的
 	head := testGenesis.Hash()
 	if len(blocks) > 0 {
 		head = blocks[len(blocks)-1].Hash()
@@ -208,6 +212,7 @@ func newTestBlockchain(blocks []*types.Block) *core.BlockChain {
 	testBlockchainsLock.Unlock()
 
 	// Ensure that the database is generated
+	// 确保database被创建
 	tbc.gen.Do(func() {
 		if pregenerated {
 			panic("Requested chain generation outside of init")
@@ -219,6 +224,7 @@ func newTestBlockchain(blocks []*types.Block) *core.BlockChain {
 		if err != nil {
 			panic(err)
 		}
+		// 在链中加入blocks
 		if n, err := chain.InsertChain(blocks); err != nil {
 			panic(fmt.Sprintf("block %d: %v", n, err))
 		}

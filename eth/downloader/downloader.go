@@ -94,7 +94,7 @@ type headerTask struct {
 
 type Downloader struct {
 	mode uint32         // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode // strategy定义的Synchronisation mode，使用d.getMode()来获取SyncMode
-	mux  *event.TypeMux // Event multiplexer to announce sync operation events
+	mux  *event.TypeMux // Event multiplexer to announce sync operation events  // 事件的multiplexer用于宣布同步操作的时间
 
 	checkpoint uint64   // Checkpoint block number to enforce head against (e.g. snap sync)
 	genesis    uint64   // Genesis block number to limit sync to (e.g. light client CHT)
@@ -380,6 +380,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		}()
 	}
 	// Mock out the synchronisation if testing
+	// 如果是测试的话，mock out the synchronisation
 	if d.synchroniseMock != nil {
 		return d.synchroniseMock(id, hash)
 	}
@@ -467,6 +468,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	mode := d.getMode()
 
 	if !beaconMode {
+		// 和network进行同步
 		log.Debug("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "td", td, "mode", mode)
 	} else {
 		log.Debug("Backfilling with the network", "mode", mode)
@@ -476,6 +478,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	}(time.Now())
 
 	// Look up the sync boundaries: the common ancestor and the target block
+	// 寻找sync boundaries：公共的ancestor和target block
 	var latest, pivot *types.Header
 	if !beaconMode {
 		// In legacy mode, use the master peer to retrieve the headers from
@@ -1245,6 +1248,8 @@ func (d *Downloader) fillHeaderSkeleton(from uint64, skeleton []*types.Header) (
 // fetchBodies iteratively downloads the scheduled block bodies, taking any
 // available peers, reserving a chunk of blocks for each, waiting for delivery
 // and also periodically checking for timeouts.
+// fetchBodies遍历地下载scheduled block bodies，为每个可用的peer保留一系列的blocks
+// 等待传送并且阶段性的检查超时
 func (d *Downloader) fetchBodies(from uint64, beaconMode bool) error {
 	log.Debug("Downloading block bodies", "origin", from)
 	err := d.concurrentFetch((*bodyQueue)(d), beaconMode)

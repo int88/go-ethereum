@@ -23,7 +23,7 @@ import "fmt"
 type SyncMode uint32
 
 const (
-	FullSync  SyncMode = iota // Synchronise the entire blockchain history from full blocks
+	FullSync  SyncMode = iota // Synchronise the entire blockchain history from full blocks // 从full blocks同步整个blockchain history
 	SnapSync                  // Download the chain and the state via compact snapshots // 通过compact snapshots下载chain以及state
 	LightSync                 // Download only the headers and terminate afterwards // 只下载headers并且之后就结束
 )

@@ -37,6 +37,7 @@ const (
 // Handshake执行eth protocol handshake，协商版本号，network IDs，difficulties，head以及genesis block
 func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter) error {
 	// Send out own handshake in a new thread
+	// 在一个新的thread发送我们的handshake
 	errc := make(chan error, 2)
 
 	var status StatusPacket // safe to read after two values have been received from errc
@@ -56,6 +57,7 @@ func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
+	// 读取两次即可
 	for i := 0; i < 2; i++ {
 		select {
 		case err := <-errc:
@@ -77,6 +79,7 @@ func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 }
 
 // readStatus reads the remote handshake message.
+// readStatus读取远端的handshake message
 func (p *Peer) readStatus(network uint64, status *StatusPacket, genesis common.Hash, forkFilter forkid.Filter) error {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
@@ -89,6 +92,7 @@ func (p *Peer) readStatus(network uint64, status *StatusPacket, genesis common.H
 		return fmt.Errorf("%w: %v > %v", errMsgTooLarge, msg.Size, maxMessageSize)
 	}
 	// Decode the handshake and make sure everything matches
+	// 解码handshake并且确保所有都匹配
 	if err := msg.Decode(&status); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}

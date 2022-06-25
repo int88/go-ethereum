@@ -63,6 +63,7 @@ func (b *BlockGen) SetCoinbase(addr common.Address) {
 }
 
 // SetExtra sets the extra data field of the generated block.
+// SetExtra设置生成的block的extra data字段
 func (b *BlockGen) SetExtra(data []byte) {
 	b.header.Extra = data
 }
@@ -81,6 +82,7 @@ func (b *BlockGen) SetDifficulty(diff *big.Int) {
 
 // AddTx adds a transaction to the generated block. If no coinbase has
 // been set, the block's coinbase is set to the zero address.
+// AddTx添加一个transaction到生成的block，如果没有设置coinbase，block的coinbase会设置为0
 //
 // AddTx panics if the transaction cannot be executed. In addition to
 // the protocol-imposed limitations (gas limit, etc.), there are some
@@ -104,6 +106,7 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 		b.SetCoinbase(common.Address{})
 	}
 	b.statedb.Prepare(tx.Hash(), len(b.txs))
+	// 应用transaction
 	receipt, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
 	if err != nil {
 		panic(err)
@@ -157,6 +160,7 @@ func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 // AddUncle adds an uncle header to the generated block.
 func (b *BlockGen) AddUncle(h *types.Header) {
 	// The uncle will have the same timestamp and auto-generated difficulty
+	// uncle有着同样的时间戳和自动生成的difficulty
 	h.Time = b.header.Time
 
 	var parent *types.Header
@@ -170,6 +174,7 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 	h.Difficulty = b.engine.CalcDifficulty(chainreader, b.header.Time, parent)
 
 	// The gas limit and price should be derived from the parent
+	// gas limit和price应该继承自parent
 	h.GasLimit = parent.GasLimit
 	if b.config.IsLondon(h.Number) {
 		h.BaseFee = misc.CalcBaseFee(b.config, parent)
@@ -333,6 +338,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 }
 
 // makeHeaderChain creates a deterministic chain of headers rooted at parent.
+// makeHeaderChain创建一个确定性的chain of headers，将parent作为root
 func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.Header {
 	blocks := makeBlockChain(types.NewBlockWithHeader(parent), n, engine, db, seed)
 	headers := make([]*types.Header, len(blocks))
@@ -343,6 +349,7 @@ func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db et
 }
 
 // makeBlockChain creates a deterministic chain of blocks rooted at parent.
+// makeBlockChain创建一个确定的chain of blocks，将parent作为root
 func makeBlockChain(parent *types.Block, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.Block {
 	blocks, _ := GenerateChain(params.TestChainConfig, parent, engine, db, n, func(i int, b *BlockGen) {
 		// 设置coinbase

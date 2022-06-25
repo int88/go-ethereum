@@ -491,6 +491,7 @@ func NewSyncer(db ethdb.KeyValueStore) *Syncer {
 // Register注入一个新的data source到syncer的peerset
 func (s *Syncer) Register(peer SyncPeer) error {
 	// Make sure the peer is not registered yet
+	// 确保peer没有被注册
 	id := peer.ID()
 
 	s.lock.Lock()
@@ -504,6 +505,7 @@ func (s *Syncer) Register(peer SyncPeer) error {
 	s.rates.Track(id, msgrate.NewTracker(s.rates.MeanCapacities(), s.rates.MedianRoundTrip()))
 
 	// Mark the peer as idle, even if no sync is running
+	// 将peer标记为idle，即使没有sync在运行
 	s.accountIdlers[id] = struct{}{}
 	s.storageIdlers[id] = struct{}{}
 	s.bytecodeIdlers[id] = struct{}{}
@@ -512,6 +514,7 @@ func (s *Syncer) Register(peer SyncPeer) error {
 	s.lock.Unlock()
 
 	// Notify any active syncs that a new peer can be assigned data
+	// 通知任何的active syncs，一个新的peer可以分配数据
 	s.peerJoin.Send(id)
 	return nil
 }
