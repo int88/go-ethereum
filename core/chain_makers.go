@@ -202,12 +202,14 @@ func (b *BlockGen) PrevBlock(index int) *types.Block {
 // OffsetTime modifies the time instance of a block, implicitly changing its
 // associated difficulty. It's useful to test scenarios where forking is not
 // tied to chain length directly.
+// OffsetTime修改一个block的time instance，隐式地修改了它相关的difficulty
 func (b *BlockGen) OffsetTime(seconds int64) {
 	b.header.Time += uint64(seconds)
 	if b.header.Time <= b.parent.Header().Time {
 		panic("block time out of range")
 	}
 	chainreader := &fakeChainReader{config: b.config}
+	// 对difficulty进行重新计算
 	b.header.Difficulty = b.engine.CalcDifficulty(chainreader, b.header.Time, b.parent.Header())
 }
 

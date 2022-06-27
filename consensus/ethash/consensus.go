@@ -97,8 +97,10 @@ func (ethash *Ethash) Author(header *types.Header) (common.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
+// VerifyHeader检查是否一个header符合the stock Ethereum ethash引擎的共识规则
 func (ethash *Ethash) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
 	// If we're running a full engine faking, accept any input as valid
+	// 如果我们正在运行一个full engine faking，接收任何合法的input
 	if ethash.config.PowMode == ModeFullFake {
 		return nil
 	}
@@ -112,6 +114,7 @@ func (ethash *Ethash) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 		return consensus.ErrUnknownAncestor
 	}
 	// Sanity checks passed, do a proper verification
+	// 经过了完整性检查，做一个proper verification
 	return ethash.verifyHeader(chain, header, parent, false, seal, time.Now().Unix())
 }
 
@@ -275,6 +278,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return errOlderBlockTime
 	}
 	// Verify the block's difficulty based on its timestamp and parent's difficulty
+	// 验证block的difficulty基于它的时间戳和parent的difficulty
 	expected := ethash.CalcDifficulty(chain, header.Time, parent)
 
 	if expected.Cmp(header.Difficulty) != 0 {
@@ -312,6 +316,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		}
 	}
 	// If all checks passed, validate any special fields for hard forks
+	// 如果所有都检查通过，检测任何hard forks的特殊字段
 	if err := misc.VerifyDAOHeaderExtraData(chain.Config(), header); err != nil {
 		return err
 	}

@@ -92,6 +92,7 @@ func newGwei(n int64) *big.Int {
 // 测试长度为N的fork，从block i开始
 func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, comparator func(td1, td2 *big.Int)) {
 	// Copy old chain up to #i into a new db
+	// 拷贝old chain，直到第#i个到新的db
 	db, blockchain2, err := newCanonical(ethash.NewFaker(), i, full)
 	if err != nil {
 		t.Fatal("could not make new canonical in testFork", err)
@@ -111,11 +112,13 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		t.Errorf("chain content mismatch at %d: have hash %v, want hash %v", i, hash2, hash1)
 	}
 	// Extend the newly created chain
+	// 扩展新创建的chain
 	var (
 		blockChainB  []*types.Block
 		headerChainB []*types.Header
 	)
 	if full {
+		// 再创建n个blocks
 		blockChainB = makeBlockChain(blockchain2.CurrentBlock(), n, ethash.NewFaker(), db, forkSeed)
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
@@ -127,6 +130,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		}
 	}
 	// Sanity check that the forked chain can be imported into the original
+	// 健全性检查，forked chain能否发导入到原来的chain中
 	var tdPre, tdPost *big.Int
 
 	if full {
@@ -147,14 +151,18 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		tdPost = blockchain.GetTd(last.Hash(), last.Number.Uint64())
 	}
 	// Compare the total difficulties of the chains
+	// 比较chains的totoal difficulties
 	comparator(tdPre, tdPost)
 }
 
 // testBlockChainImport tries to process a chain of blocks, writing them into
 // the database if successful.
+// testBlockChainImport试着处理一个chain of blocks，将它们写入数据库，如果成功的话
 func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
+	// 遍历chains，将每个block写入到blockchain中
 	for _, block := range chain {
 		// Try and process the block
+		// 试着处理block
 		err := blockchain.engine.VerifyHeader(blockchain, block.Header(), true)
 		if err == nil {
 			err = blockchain.validator.ValidateBody(block)
@@ -165,15 +173,18 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 			}
 			return err
 		}
+		// 创建一个新的statedb
 		statedb, err := state.New(blockchain.GetBlockByHash(block.ParentHash()).Root(), blockchain.stateCache, nil)
 		if err != nil {
 			return err
 		}
+		// 对block进行处理，执行transactions，改变statedb
 		receipts, _, usedGas, err := blockchain.processor.Process(block, statedb, vm.Config{})
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
 			return err
 		}
+		// 对state进行检测
 		err = blockchain.validator.ValidateState(block, statedb, receipts, usedGas)
 		if err != nil {
 			blockchain.reportBlock(block, receipts, err)
@@ -181,6 +192,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		}
 
 		blockchain.chainmu.MustLock()
+		// 将id，block写入db中
 		rawdb.WriteTd(blockchain.db, block.Hash(), block.NumberU64(), new(big.Int).Add(block.Difficulty(), blockchain.GetTd(block.ParentHash(), block.NumberU64()-1)))
 		rawdb.WriteBlock(blockchain.db, block)
 		statedb.Commit(false)
@@ -296,6 +308,7 @@ func testExtendCanonical(t *testing.T, full bool) {
 		}
 	}
 	// Start fork from current height
+	// 从当前的height开始fork
 	testFork(t, processor, length, 1, full, better)
 	testFork(t, processor, length, 2, full, better)
 	testFork(t, processor, length, 5, full, better)
@@ -479,6 +492,7 @@ func TestBrokenBlockChain(t *testing.T)  { testBrokenChain(t, true) }
 
 func testBrokenChain(t *testing.T, full bool) {
 	// Make chain starting from genesis
+	// 构建从genesis开始的chain
 	db, blockchain, err := newCanonical(ethash.NewFaker(), 10, full)
 	if err != nil {
 		t.Fatalf("failed to make new canonical chain: %v", err)
@@ -486,6 +500,7 @@ func testBrokenChain(t *testing.T, full bool) {
 	defer blockchain.Stop()
 
 	// Create a forked chain, and try to insert with a missing link
+	// 创建一个forked chain，试着插入，但是有一个missing link
 	if full {
 		chain := makeBlockChain(blockchain.CurrentBlock(), 5, ethash.NewFaker(), db, forkSeed)[1:]
 		if err := testBlockChainImport(chain, blockchain); err == nil {
@@ -501,6 +516,8 @@ func testBrokenChain(t *testing.T, full bool) {
 
 // Tests that reorganising a long difficult chain after a short easy one
 // overwrites the canonical numbers and links in the database.
+// 测试重新组织一个更长的difficult chain，在一个短的easy one覆盖了数据库中的
+// canonical numbers以及links
 func TestReorgLongHeaders(t *testing.T) { testReorgLong(t, false) }
 func TestReorgLongBlocks(t *testing.T)  { testReorgLong(t, true) }
 
@@ -530,6 +547,7 @@ func testReorgShort(t *testing.T, full bool) {
 
 func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	// Create a pristine chain and database
+	// 创建一个原始的chain以及database
 	db, blockchain, err := newCanonical(ethash.NewFaker(), 0, full)
 	if err != nil {
 		t.Fatalf("failed to create pristine chain: %v", err)
@@ -537,6 +555,7 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	defer blockchain.Stop()
 
 	// Insert an easy and a difficult chain afterwards
+	// 插入一个easy以及difficult chain
 	easyBlocks, _ := GenerateChain(params.TestChainConfig, blockchain.CurrentBlock(), ethash.NewFaker(), db, len(first), func(i int, b *BlockGen) {
 		b.OffsetTime(first[i])
 	})
@@ -567,6 +586,7 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 		}
 	}
 	// Check that the chain is valid number and link wise
+	// 检查chain是合法的number以及link
 	if full {
 		prev := blockchain.CurrentBlock()
 		for block := blockchain.GetBlockByNumber(blockchain.CurrentBlock().NumberU64() - 1); block.NumberU64() != 0; prev, block = block, blockchain.GetBlockByNumber(block.NumberU64()-1) {
@@ -583,6 +603,7 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 		}
 	}
 	// Make sure the chain total difficulty is the correct one
+	// 确认chain difficulty是正确的
 	want := new(big.Int).Add(blockchain.genesisBlock.Difficulty(), big.NewInt(td))
 	if full {
 		cur := blockchain.CurrentBlock()

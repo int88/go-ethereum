@@ -74,6 +74,9 @@ func NewForkChoice(chainReader ChainReader, preserve func(header *types.Header) 
 // In the td mode, the new head is chosen if the corresponding
 // total difficulty is higher. In the extern mode, the trusted
 // header is always selected as the head.
+// ReorgNeeded返回是否需要应用reorg，基于给定的external header以及local canonical chain
+// 在td模式，新的header被选择，如果对应的td更高，在extern mode，trusted
+// header总是被选择为header
 func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (bool, error) {
 	var (
 		localTD  = f.chain.GetTd(current.Hash(), current.Number.Uint64())
@@ -85,6 +88,8 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 	// Accept the new header as the chain head if the transition
 	// is already triggered. We assume all the headers after the
 	// transition come from the trusted consensus layer.
+	// 接受新的header作为chain header，如果transition已经触发了，我们假设
+	// 所有transition之后的headers来自受信的consensus layer
 	if ttd := f.chain.Config().TerminalTotalDifficulty; ttd != nil && ttd.Cmp(externTd) <= 0 {
 		return true, nil
 	}

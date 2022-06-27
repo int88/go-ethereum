@@ -452,6 +452,7 @@ func (hc *HeaderChain) GetTd(hash common.Hash, number uint64) *big.Int {
 		return nil
 	}
 	// Cache the found body for next time and return
+	// 缓存found body用于下次返回
 	hc.tdCache.Add(hash, td)
 	return td
 }

@@ -170,7 +170,7 @@ type BlockChain struct {
 	cacheConfig *CacheConfig        // Cache configuration for pruning
 
 	db     ethdb.Database // Low level persistent database to store final content in
-	snaps  *snapshot.Tree // Snapshot tree for fast trie leaf access
+	snaps  *snapshot.Tree // Snapshot tree for fast trie leaf access // Snaptshot tree用于对于trie leaf的快速访问
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
 
@@ -200,6 +200,7 @@ type BlockChain struct {
 	currentFastBlock      atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
 	currentFinalizedBlock atomic.Value // Current finalized head
 
+	// State database在导入之间重用
 	stateCache    state.Database // State database to reuse between imports (contains state cache)
 	bodyCache     *lru.Cache     // Cache for the most recent block bodies
 	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
@@ -1206,9 +1207,12 @@ func (bc *BlockChain) writeBlockWithoutState(block *types.Block, td *big.Int) (e
 
 // writeKnownBlock updates the head block flag with a known block
 // and introduces chain reorg if necessary.
+// writeKnownBlock用一个已知的block更新head block并且引入chain reorg，
+// 如果需要的话
 func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 	current := bc.CurrentBlock()
 	if block.ParentHash() != current.Hash() {
+		// 如果block的parent hash和当前block的hash不匹配，则对blockchain进行reorg
 		if err := bc.reorg(current, block); err != nil {
 			return err
 		}
@@ -1400,6 +1404,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	for i := 1; i < len(chain); i++ {
 		block, prev := chain[i], chain[i-1]
 		if block.NumberU64() != prev.NumberU64()+1 || block.ParentHash() != prev.Hash() {
+			// 确保序号连续，当前block的parent hash和parent block的hash匹配
 			log.Error("Non contiguous block insert",
 				"number", block.Number(),
 				"hash", block.Hash(),
@@ -1412,6 +1417,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		}
 	}
 	// Pre-checks passed, start the full block imports
+	// Pre-checks全部通过，开始full block imports
 	if !bc.chainmu.TryLock() {
 		return 0, errChainStopped
 	}
@@ -1460,10 +1466,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 	defer close(abort)
 
 	// Peek the error for the first block to decide the directing import logic
+	// 窥视第一个block的错误，来决定directing import的logic
 	it := newInsertIterator(chain, results, bc.validator)
 	block, err := it.next()
 
 	// Left-trim all the known blocks that don't need to build snapshot
+	// 从左开始修剪known blocks，它们不需要构建snapshot
 	if bc.skipBlock(err, it) {
 		// First block (and state) is known
 		//   1. We did a roll-back, and should now do a re-import
@@ -1475,6 +1483,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			current = bc.CurrentBlock()
 		)
 		for block != nil && bc.skipBlock(err, it) {
+			// 是否需要reorg
 			reorg, err = bc.forker.ReorgNeeded(current.Header(), block.Header())
 			if err != nil {
 				return it.index, err
@@ -1503,6 +1512,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		// `insertChain` while a part of them have higher total difficulty than current
 		// head full block(new pivot point).
 		for block != nil && bc.skipBlock(err, it) {
+			// 写入之前已经知道的block
 			log.Debug("Writing previously known block", "number", block.Number(), "hash", block.Hash())
 			if err := bc.writeKnownBlock(block); err != nil {
 				return it.index, err
@@ -1512,6 +1522,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			block, err = it.next()
 		}
 		// Falls through to the block import
+		// 开始block import
 	}
 	switch {
 	// First block is pruned
@@ -1981,6 +1992,8 @@ func mergeLogs(logs [][]*types.Log, reverse bool) []*types.Log {
 // potential missing transactions and post an event about them.
 // Note the new head block won't be processed here, callers need to handle it
 // externally.
+// reorg会拿两个链，一个old chain以及一个new chain，并且会重新构建blocks，将它们插入
+// 作为新的canonical chain的一部分，积累潜在缺失的transactions并且post关于它们的一个事件
 func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	var (
 		newChain    types.Blocks
@@ -1994,13 +2007,16 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		rebirthLogs [][]*types.Log
 	)
 	// Reduce the longer chain to the same number as the shorter one
+	// 将longer chain减小到和shorter one同样的大小
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// Old chain is longer, gather all transactions and logs as deleted ones
+		// Old chain更长，收集所有的transactions以及logs作为deleted ones
 		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = bc.GetBlock(oldBlock.ParentHash(), oldBlock.NumberU64()-1) {
 			oldChain = append(oldChain, oldBlock)
 			deletedTxs = append(deletedTxs, oldBlock.Transactions()...)
 
 			// Collect deleted logs for notification
+			// 收集被删除的logs用于通知
 			logs := bc.collectLogs(oldBlock.Hash(), true)
 			if len(logs) > 0 {
 				deletedLogs = append(deletedLogs, logs)
@@ -2008,6 +2024,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		}
 	} else {
 		// New chain is longer, stash all blocks away for subsequent insertion
+		// New chain更长，把所有的blocks都收集起来用于后续的插入
 		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = bc.GetBlock(newBlock.ParentHash(), newBlock.NumberU64()-1) {
 			newChain = append(newChain, newBlock)
 		}
@@ -2020,8 +2037,10 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	}
 	// Both sides of the reorg are at the same number, reduce both until the common
 	// ancestor is found
+	// 新老的chain都reorg到了同样大小，同时减小直到找到common ancestor
 	for {
 		// If the common ancestor was found, bail out
+		// 如果找到了common ancestor，bail out
 		if oldBlock.Hash() == newBlock.Hash() {
 			commonBlock = oldBlock
 			break
@@ -2038,6 +2057,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		newChain = append(newChain, newBlock)
 
 		// Step back with both chains
+		// 两个chains都回退一步
 		oldBlock = bc.GetBlock(oldBlock.ParentHash(), oldBlock.NumberU64()-1)
 		if oldBlock == nil {
 			return fmt.Errorf("invalid old chain")
@@ -2048,6 +2068,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		}
 	}
 	// Ensure the user sees large reorgs
+	// 确保用户看到large reorgs
 	if len(oldChain) > 0 && len(newChain) > 0 {
 		logFn := log.Info
 		msg := "Chain reorg detected"
@@ -2072,6 +2093,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	}
 	// Insert the new chain(except the head block(reverse order)),
 	// taking care of the proper incremental order.
+	// 插入新的链，注意proper incremental order
 	for i := len(newChain) - 1; i >= 1; i-- {
 		// Insert the block in the canonical way, re-writing history
 		bc.writeHeadBlock(newChain[i])
@@ -2086,6 +2108,8 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	}
 	// Delete useless indexes right now which includes the non-canonical
 	// transaction indexes, canonical chain indexes which above the head.
+	// 立即删除没用的索引，其中包含non-canonical transaction indexes
+	// 以及head之上的non-canonical transaction
 	indexesBatch := bc.db.NewBatch()
 	for _, tx := range types.TxDifference(deletedTxs, addedTxs) {
 		rawdb.DeleteTxLookupEntry(indexesBatch, tx.Hash())
@@ -2197,23 +2221,30 @@ func (bc *BlockChain) updateFutureBlocks() {
 
 // skipBlock returns 'true', if the block being imported can be skipped over, meaning
 // that the block does not need to be processed but can be considered already fully 'done'.
+// skipBlock返回'true'，如果正在导入的block可以被跳过，意味着block可以不被处理，但是可以认为已经
+// 处理完毕了
 func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 	// We can only ever bypass processing if the only error returned by the validator
 	// is ErrKnownBlock, which means all checks passed, but we already have the block
 	// and state.
+	// 我们可以跳过处理，如果validator唯一返回的错误是ErrKnownBlock，这意味着所有检查都已经通过了
+	// 我们已经有了block以及state
 	if !errors.Is(err, ErrKnownBlock) {
 		return false
 	}
 	// If we're not using snapshots, we can skip this, since we have both block
 	// and (trie-) state
+	// 如果我们不适用snapshots，我们可以跳过它，因此我们同时有block以及(trie-) state
 	if bc.snaps == nil {
 		return true
 	}
 	var (
+		// header不能为nil
 		header     = it.current() // header can't be nil
 		parentRoot common.Hash
 	)
 	// If we also have the snapshot-state, we can skip the processing.
+	// 如果我们也有snapshot-state，我们可以跳过处理
 	if bc.snaps.Snapshot(header.Root) != nil {
 		return true
 	}

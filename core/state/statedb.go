@@ -130,6 +130,7 @@ type StateDB struct {
 // New creates a new state from a given trie.
 // New创建一个新的state，从一个给定的trie
 func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) {
+	// 获取对应block的trie
 	tr, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err

@@ -81,6 +81,8 @@ type Engine interface {
 	// concurrently. The method returns a quit channel to abort the operations and
 	// a results channel to retrieve the async verifications (the order is that of
 	// the input slice).
+	// VerifyHeaders和VerifyHeader类似，但是并行地校验一系列的headers，它的方法返回一个
+	// quit channel用来中止操作以及一个result channel用于获取异步的verification
 	VerifyHeaders(chain ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error)
 
 	// VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -126,6 +128,7 @@ type Engine interface {
 
 	// CalcDifficulty is the difficulty adjustment algorithm. It returns the difficulty
 	// that a new block should have.
+	// CalcDifficulty是一个难度调整算法，它返回一个新的block应该有的difficulty
 	CalcDifficulty(chain ChainHeaderReader, time uint64, parent *types.Header) *big.Int
 
 	// APIs returns the RPC APIs this consensus engine provides.

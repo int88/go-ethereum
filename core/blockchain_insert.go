@@ -94,6 +94,7 @@ type insertIterator struct {
 
 // newInsertIterator creates a new iterator based on the given blocks, which are
 // assumed to be a contiguous chain.
+// newInsertIterator创建一个新的iterator，基于给定的blocks，假设这是一个连续的chain
 func newInsertIterator(chain types.Blocks, results <-chan error, validator Validator) *insertIterator {
 	return &insertIterator{
 		chain:     chain,
