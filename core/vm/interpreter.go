@@ -28,17 +28,18 @@ import (
 // Config是Interpreter的配置选项
 type Config struct {
 	Debug                   bool      // Enables debugging
-	Tracer                  EVMLogger // Opcode logger
+	Tracer                  EVMLogger // Opcode logger // Opcode的logger
 	NoBaseFee               bool      // Forces the EIP-1559 baseFee to 0 (needed for 0 price calls)
 	EnablePreimageRecording bool      // Enables recording of SHA3/keccak preimages
 
-	JumpTable *JumpTable // EVM instruction table, automatically populated if unset
+	JumpTable *JumpTable // EVM instruction table, automatically populated if unset	// EVM的指令表，如果没有设置的话，会自动填充
 
 	ExtraEips []int // Additional EIPS that are to be enabled
 }
 
 // ScopeContext contains the things that are per-call, such as stack and memory,
 // but not transients like pc and gas
+// ScopeContext包含per-call的一些信息，例如stack以及memory，但是不包括瞬间变好的pc以及gas
 type ScopeContext struct {
 	Memory   *Memory
 	Stack    *Stack
@@ -111,10 +112,13 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 
 // Run loops and evaluates the contract's code with the given input data and returns
 // the return byte-slice and an error if one occurred.
+// Run运行并且评估contract的代码，用给定的input data，并且返回return byte-slice以及一个error，如果遇到的话
 //
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
 // ErrExecutionReverted which means revert-and-keep-gas-left.
+// 注意interpreter返回的任何错误都应该被认为是一个revert-and-consume-all-gas操作，除了
+// ErrExecutionReverted应该被认为是revert-and-keep-gas-left
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 
 	// Increment the call depth which is restricted to 1024
@@ -133,14 +137,15 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	in.returnData = nil
 
 	// Don't bother with the execution if there's no code.
+	// 如果没有代码就不需要执行了
 	if len(contract.Code) == 0 {
 		return nil, nil
 	}
 
 	var (
-		op          OpCode        // current opcode
-		mem         = NewMemory() // bound memory
-		stack       = newstack()  // local stack
+		op          OpCode        // current opcode	// 当前的opcode
+		mem         = NewMemory() // bound memory	// 绑定的内存
+		stack       = newstack()  // local stack	// 本地堆栈
 		callContext = &ScopeContext{
 			Memory:   mem,
 			Stack:    stack,
@@ -153,8 +158,8 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		cost uint64
 		// copies used by tracer
 		pcCopy  uint64 // needed for the deferred EVMLogger
-		gasCopy uint64 // for EVMLogger to log gas remaining before execution
-		logged  bool   // deferred EVMLogger should ignore already logged steps
+		gasCopy uint64 // for EVMLogger to log gas remaining before execution	// 在执行之前，被EVMLogger用来记录剩余的gas
+		logged  bool   // deferred EVMLogger should ignore already logged steps	// deferred EVMLogger应该忽略已经logged steps
 		res     []byte // result of the opcode execution function
 	)
 	// Don't move this deferred function, it's placed before the capturestate-deferred method,
@@ -180,6 +185,8 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
+	// Interpreter的main run loop，这个loop运行直到返回显式的STOP, RETURN或者SELFDESTRUCT
+	// 或者在执行一个操作时返回错误，或者直到parent context设置done flag
 	for {
 		if in.cfg.Debug {
 			// Capture pre-execution values for tracing.
@@ -187,10 +194,12 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 		// Get the operation from the jump table and validate the stack to ensure there are
 		// enough stack items available to perform the operation.
+		// 从jump table获取operation并且检测stack有足够的stack items能执行操作
 		op = contract.GetOp(pc)
 		operation := in.cfg.JumpTable[op]
 		cost = operation.constantGas // For tracing
 		// Validate stack
+		// 检查stack
 		if sLen := stack.len(); sLen < operation.minStack {
 			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
 		} else if sLen > operation.maxStack {
@@ -201,6 +210,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		}
 		if operation.dynamicGas != nil {
 			// All ops with a dynamic memory usage also has a dynamic gas cost.
+			// 所有有着动态的memory usage的操作都有一个动态的gas cost
 			var memorySize uint64
 			// calculate the new memory size and expand the memory to fit
 			// the operation
@@ -218,6 +228,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				}
 			}
 			// Consume the gas and return an error if not enough gas is available.
+			// 计算gas并且返回一个error，如果没有足够的gas可用
 			// cost is explicitly set so that the capture state defer method can get the proper cost
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.evm, contract, stack, mem, memorySize)
@@ -226,6 +237,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				return nil, ErrOutOfGas
 			}
 			// Do tracing before memory expansion
+			// 进行tracing，在memory扩展之前
 			if in.cfg.Debug {
 				in.cfg.Tracer.CaptureState(pc, op, gasCopy, cost, callContext, in.returnData, in.evm.depth, err)
 				logged = true
@@ -238,6 +250,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			logged = true
 		}
 		// execute the operation
+		// 执行操作
 		res, err = operation.execute(&pc, in, callContext)
 		if err != nil {
 			break

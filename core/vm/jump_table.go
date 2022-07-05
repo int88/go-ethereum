@@ -31,16 +31,20 @@ type (
 
 type operation struct {
 	// execute is the operation function
+	// execute是执行函数
 	execute     executionFunc
 	constantGas uint64
 	dynamicGas  gasFunc
 	// minStack tells how many stack items are required
+	// minStack表明了需要多少个stack items
 	minStack int
 	// maxStack specifies the max length the stack can have for this operation
 	// to not overflow the stack.
+	// maxStack指定了这个operation可以有的最大的stack的长度，而不会栈溢出
 	maxStack int
 
 	// memorySize returns the memory size required for the operation
+	// memorySize返回这个操作所需的memory size
 	memorySize memorySizeFunc
 }
 

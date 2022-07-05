@@ -35,6 +35,7 @@ type JSONLogger struct {
 
 // NewJSONLogger creates a new EVM tracer that prints execution steps as JSON objects
 // into the provided stream.
+// NewJSONLogger创建一个新的EVM tracer，将execution steps作为JSON对象输出到提供的stream中
 func NewJSONLogger(cfg *Config, writer io.Writer) *JSONLogger {
 	l := &JSONLogger{encoder: json.NewEncoder(writer), cfg: cfg}
 	if l.cfg == nil {
@@ -53,6 +54,7 @@ func (l *JSONLogger) CaptureFault(pc uint64, op vm.OpCode, gas uint64, cost uint
 }
 
 // CaptureState outputs state information on the logger.
+// CaptureState在logger上输出state information
 func (l *JSONLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, err error) {
 	memory := scope.Memory
 	stack := scope.Stack
@@ -76,6 +78,7 @@ func (l *JSONLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 	if l.cfg.EnableReturnData {
 		log.ReturnData = rData
 	}
+	// 将log加入到
 	l.encoder.Encode(log)
 }
 

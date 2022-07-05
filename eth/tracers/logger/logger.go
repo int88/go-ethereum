@@ -36,6 +36,7 @@ import (
 )
 
 // Storage represents a contract's storage.
+// Storage代表了一个contract的storage
 type Storage map[common.Hash]common.Hash
 
 // Copy duplicates the current storage.
@@ -48,6 +49,7 @@ func (s Storage) Copy() Storage {
 }
 
 // Config are the configuration options for structured logger the EVM
+// Config是配置选项，用于EVM的结构化logger
 type Config struct {
 	EnableMemory     bool // enable memory capture
 	DisableStack     bool // disable stack capture
@@ -63,6 +65,7 @@ type Config struct {
 
 // StructLog is emitted to the EVM each cycle and lists information about the current internal state
 // prior to the execution of the statement.
+// StructLog在EVM的每个cycle中被发射，列举当前的internal state的信息，在statement执行之前
 type StructLog struct {
 	Pc            uint64                      `json:"pc"`
 	Op            vm.OpCode                   `json:"op"`
@@ -102,10 +105,13 @@ func (s *StructLog) ErrorString() string {
 }
 
 // StructLogger is an EVM state logger and implements EVMLogger.
+// StructLogger是一个EVM state logger并且实现了EVMLogger
 //
 // StructLogger can capture state based on the given Log configuration and also keeps
 // a track record of modified storage which is used in reporting snapshots of the
 // contract their storage.
+// StructLogger可以获取状态，基于给定的Log配置，同时对修改的storage做一个track record
+// 它可以用于汇报snapshots，对于contract它们的storage
 type StructLogger struct {
 	cfg Config
 	env *vm.EVM
@@ -122,6 +128,7 @@ type StructLogger struct {
 }
 
 // NewStructLogger returns a new logger
+// NewStructLogger返回一个新的logger
 func NewStructLogger(cfg *Config) *StructLogger {
 	logger := &StructLogger{
 		storage: make(map[common.Address]Storage),

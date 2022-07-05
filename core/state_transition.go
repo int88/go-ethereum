@@ -159,6 +159,7 @@ func IntrinsicGas(data []byte, accessList types.AccessList, isContractCreation b
 }
 
 // NewStateTransition initialises and returns a new state transition object.
+// NewStateTransition初始化并且返回一个新的state transition对象
 func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition {
 	return &StateTransition{
 		gp:        gp,
@@ -269,14 +270,18 @@ func (st *StateTransition) preCheck() error {
 //
 // - used gas:
 //      total gas used (including gas being refunded)
+//		使用的全部gas（包括退款的gas）
 // - returndata:
 //      the returned data from evm
+//		从evm返回的数据
 // - concrete execution error:
 //      various **EVM** error which aborts the execution,
 //      e.g. ErrOutOfGas, ErrExecutionReverted
+//		各种导致中断执行的**EVM**错误，例如，ErrOutOfGas，ErrExecutionReverted
 //
 // However if any consensus issue encountered, return the error directly with
 // nil evm execution result.
+// 然而，如果遇到了任何的共识问题，直接返回错误以及nil，作为evm的执行结果
 func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// First check this message satisfies all consensus rules before
 	// applying the message. The rules include these clauses
@@ -296,6 +301,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 
 	// Check clauses 1-3, buy gas if everything is correct
+	// 检查步骤1-3，购买gas，如果所有都正确的话
 	if err := st.preCheck(); err != nil {
 		return nil, err
 	}
@@ -308,13 +314,15 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 
 	var (
-		msg              = st.msg
-		sender           = vm.AccountRef(msg.From())
-		rules            = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil)
+		msg    = st.msg
+		sender = vm.AccountRef(msg.From())
+		rules  = st.evm.ChainConfig().Rules(st.evm.Context.BlockNumber, st.evm.Context.Random != nil)
+		// 如果msg.To()为nil，则表明是要创建contract
 		contractCreation = msg.To() == nil
 	)
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
+	// 检查步骤4-5，减去intrinsic gas，如果所有都正确的话
 	gas, err := IntrinsicGas(st.data, st.msg.AccessList(), contractCreation, rules.IsHomestead, rules.IsIstanbul)
 	if err != nil {
 		return nil, err
@@ -325,11 +333,13 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	st.gas -= gas
 
 	// Check clause 6
+	// 检查步骤6
 	if msg.Value().Sign() > 0 && !st.evm.Context.CanTransfer(st.state, msg.From(), msg.Value()) {
 		return nil, fmt.Errorf("%w: address %v", ErrInsufficientFundsForTransfer, msg.From().Hex())
 	}
 
 	// Set up the initial access list.
+	// 设置初始的access list
 	if rules.IsBerlin {
 		st.state.PrepareAccessList(msg.From(), msg.To(), vm.ActivePrecompiles(rules), msg.AccessList())
 	}
@@ -342,6 +352,7 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 		ret, _, st.gas, vmerr = st.evm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
+		// 为下一个transaction增加nonce
 		st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 		// 调用evm执行
 		ret, st.gas, vmerr = st.evm.Call(sender, st.to(), st.data, st.gas, st.value)

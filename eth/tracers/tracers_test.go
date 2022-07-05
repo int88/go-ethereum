@@ -33,6 +33,7 @@ import (
 )
 
 // callTrace is the result of a callTracer run.
+// callTrace是一个callTracer运行的结果
 type callTrace struct {
 	Type    string          `json:"type"`
 	From    common.Address  `json:"from"`
@@ -79,6 +80,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	alloc := core.GenesisAlloc{}
 	// The code pushes 'deadbeef' into memory, then the other params, and calls CREATE2, then returns
 	// the address
+	// 代码将'deadbeef'推入内存，之后是其他参数，并且调用CREATE2，之后再返回地址
 	loop := []byte{
 		byte(vm.JUMPDEST), //  [ count ]
 		byte(vm.PUSH1), 0, // jumpdestination
@@ -96,12 +98,14 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	}
 	_, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(), alloc, false)
 	// Create the tracer, the EVM environment and run it
+	// 创建tracer，EVM的环境并且运行它
 	tracer := logger.NewStructLogger(&logger.Config{
 		Debug: false,
 		//DisableStorage: true,
 		//EnableMemory: false,
 		//EnableReturnData: false,
 	})
+	// 构建vm
 	evm := vm.NewEVM(context, txContext, statedb, params.AllEthashProtocolChanges, vm.Config{Debug: true, Tracer: tracer})
 	msg, err := tx.AsMessage(signer, nil)
 	if err != nil {
@@ -111,12 +115,15 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
+		// 构建snapshot
 		snap := statedb.Snapshot()
+		// 构建新的State Transition
 		st := core.NewStateTransition(evm, msg, new(core.GasPool).AddGas(tx.Gas()))
 		_, err = st.TransitionDb()
 		if err != nil {
 			b.Fatal(err)
 		}
+		// 回退到snapshot
 		statedb.RevertToSnapshot(snap)
 		if have, want := len(tracer.StructLogs()), 244752; have != want {
 			b.Fatalf("trace wrong, want %d steps, have %d", want, have)

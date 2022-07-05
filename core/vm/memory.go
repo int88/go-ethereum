@@ -21,17 +21,20 @@ import (
 )
 
 // Memory implements a simple memory model for the ethereum virtual machine.
+// Memory对于ethereum virtual machine实现了一个简单的memory model
 type Memory struct {
 	store       []byte
 	lastGasCost uint64
 }
 
 // NewMemory returns a new memory model.
+// NewMemory返回一个新的memory model
 func NewMemory() *Memory {
 	return &Memory{}
 }
 
 // Set sets offset + size to value
+// 在memory中设置值
 func (m *Memory) Set(offset, size uint64, value []byte) {
 	// It's possible the offset is greater than 0 and size equals 0. This is because
 	// the calcMemSize (common.go) could potentially return 0 when size is zero (NO-OP)
@@ -47,6 +50,7 @@ func (m *Memory) Set(offset, size uint64, value []byte) {
 
 // Set32 sets the 32 bytes starting at offset to the value of val, left-padded with zeroes to
 // 32 bytes.
+// 设置32个字节
 func (m *Memory) Set32(offset uint64, val *uint256.Int) {
 	// length of store may never be less than offset + size.
 	// The store should be resized PRIOR to setting the memory
@@ -82,6 +86,7 @@ func (m *Memory) GetCopy(offset, size int64) (cpy []byte) {
 }
 
 // GetPtr returns the offset + size
+// GetPtr返回offset + size
 func (m *Memory) GetPtr(offset, size int64) []byte {
 	if size == 0 {
 		return nil

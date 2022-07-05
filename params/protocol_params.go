@@ -72,7 +72,7 @@ const (
 	EpochDuration uint64 = 30000 // Duration between proof-of-work epochs.
 
 	CreateDataGas         uint64 = 200   //
-	CallCreateDepth       uint64 = 1024  // Maximum depth of call/create stack.
+	CallCreateDepth       uint64 = 1024  // Maximum depth of call/create stack. // 调用/创建stack的最大深度
 	ExpGas                uint64 = 10    // Once per EXP instruction
 	LogGas                uint64 = 375   // Per LOG* operation.
 	CopyGas               uint64 = 3     //

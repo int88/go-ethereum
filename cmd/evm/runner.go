@@ -126,6 +126,7 @@ func runCmd(ctx *cli.Context) error {
 		genesisConfig *core.Genesis
 	)
 	if ctx.GlobalBool(MachineFlag.Name) {
+		// 构建tracer，输出到stdout
 		tracer = logger.NewJSONLogger(logconfig, os.Stdout)
 	} else if ctx.GlobalBool(DebugFlag.Name) {
 		debugLogger = logger.NewStructLogger(logconfig)

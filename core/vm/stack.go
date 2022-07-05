@@ -31,6 +31,8 @@ var stackPool = sync.Pool{
 // Stack is an object for basic stack operations. Items popped to the stack are
 // expected to be changed and modified. stack does not take care of adding newly
 // initialised objects.
+// Stack是一个用于基本的栈操作的对象，pop到stack的items期望被改变以及修改，stack不管添加新的
+// 初始化的对象
 type Stack struct {
 	data []uint256.Int
 }

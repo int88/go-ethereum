@@ -55,6 +55,7 @@ type Contract struct {
 	jumpdests map[common.Hash]bitvec // Aggregated result of JUMPDEST analysis.
 	analysis  bitvec                 // Locally cached result of JUMPDEST analysis
 
+	// 包含了contract code
 	Code     []byte
 	CodeHash common.Hash
 	CodeAddr *common.Address
@@ -65,6 +66,7 @@ type Contract struct {
 }
 
 // NewContract returns a new contract environment for the execution of EVM.
+// NewContract返回一个新的contract environment，用于EVM的执行
 func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
@@ -77,8 +79,10 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 
 	// Gas should be a pointer so it can safely be reduced through the run
 	// This pointer will be off the state transition
+	// Gas应该为一个指针，这样它可以安全地随着运行而减小，
 	c.Gas = gas
 	// ensures a value is set
+	// 确保一个value已经被设置了
 	c.value = value
 
 	return c
@@ -182,6 +186,7 @@ func (c *Contract) Value() *big.Int {
 
 // SetCallCode sets the code of the contract and address of the backing data
 // object
+// SetCallCode设置contract的代码以及backing data object的地址
 func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
 	c.Code = code
 	c.CodeHash = hash
