@@ -15,4 +15,5 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package runtime provides a basic execution model for executing EVM code.
+// Package runtime提供了一个基本的执行模式，对于执行EVM代码
 package runtime

@@ -31,6 +31,7 @@ import (
 
 // Config is a basic type specifying certain configuration flags for running
 // the EVM.
+// Config是一个基本的类型，制定特定配置的flag用于运行EVM
 type Config struct {
 	ChainConfig *params.ChainConfig
 	Difficulty  *big.Int
