@@ -55,11 +55,14 @@ var (
 // The beacon here is a half-functional consensus engine with partial functions which
 // is only used for necessary consensus checks. The legacy consensus engine can be any
 // engine implements the consensus interface (except the beacon itself).
+// 这里的beacon是一个half-functional的共识引擎，有着部分功能，只用于必要的共识检查，老的共识引擎
+// 可用是任何的共识接口的实现（除了beacon自己）
 type Beacon struct {
 	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 
 // New creates a consensus engine with the given embedded eth1 engine.
+// New用给定内嵌的eth1 engine创建一个共识引擎
 func New(ethone consensus.Engine) *Beacon {
 	if _, ok := ethone.(*Beacon); ok {
 		panic("nested consensus engine")
@@ -77,6 +80,7 @@ func (beacon *Beacon) Author(header *types.Header) (common.Address, error) {
 
 // VerifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum consensus engine.
+// VerifyHeader检查一个header是否符合the stock Ethereum consensus engine的共识协议
 func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
 	reached, _ := IsTTDReached(chain, header.ParentHash, header.Number.Uint64()-1)
 	if !reached {

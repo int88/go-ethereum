@@ -44,6 +44,7 @@ type Merger struct {
 }
 
 // NewMerger creates a new Merger which stores its transition status in the provided db.
+// NewMerger创建一个新的Merger，它在提供的db中存储过渡状态
 func NewMerger(db ethdb.KeyValueStore) *Merger {
 	var status transitionStatus
 	blob := rawdb.ReadTransitionStatus(db)

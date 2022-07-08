@@ -55,6 +55,9 @@ var (
 // users can invoke a named tracer through that lookup. If 'wildcard' is true,
 // then the lookup will be placed last. This is typically meant for interpreted
 // engines (js) which can evaluate dynamic user-supplied code.
+// RegisterLookup注册了一个方法，作为tracers的一个lookup，意味着用户可以通过lookup
+// 调用一个named tracer，如果，'wildcard'为true，则lookup会被放到最后，这意味着
+// interpreted engines（js）可以评估动态的用户提供的代码
 func RegisterLookup(wildcard bool, lookup lookupFunc) {
 	if wildcard {
 		lookups = append(lookups, lookup)
@@ -65,6 +68,7 @@ func RegisterLookup(wildcard bool, lookup lookupFunc) {
 
 // New returns a new instance of a tracer, by iterating through the
 // registered lookups.
+// New返回一个新的tracer的实例，通过遍历注册的lookups
 func New(code string, ctx *Context) (Tracer, error) {
 	for _, lookup := range lookups {
 		if tracer, err := lookup(code, ctx); err == nil {

@@ -47,6 +47,7 @@ import (
 const (
 	// defaultTraceTimeout is the amount of time a single transaction can execute
 	// by default before being forcefully aborted.
+	// defaultTraceTimeout是单次transaction能执行的默认时间，在被强制退出之前
 	defaultTraceTimeout = 5 * time.Second
 
 	// defaultTraceReexec is the number of blocks the tracer is willing to go back
@@ -64,6 +65,7 @@ const (
 
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
+// Backend接口提供了公共的API服务（full以及light clients都提供）用于访问必要的功能
 type Backend interface {
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
@@ -75,6 +77,7 @@ type Backend interface {
 	Engine() consensus.Engine
 	ChainDb() ethdb.Database
 	// StateAtBlock returns the state corresponding to the stateroot of the block.
+	// StateAtBlock返回state，根据block的stateroot
 	// N.B: For executing transactions on block N, the required stateRoot is block N-1,
 	// so this method should be called with the parent.
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive, preferDisk bool) (*state.StateDB, error)
@@ -82,6 +85,7 @@ type Backend interface {
 }
 
 // API is the collection of tracing APIs exposed over the private debugging endpoint.
+// API是一系列的tracing API接口，暴露出来用于提供private debugging endpoint
 type API struct {
 	backend Backend
 }
@@ -776,6 +780,7 @@ func containsTx(block *types.Block, hash common.Hash) bool {
 
 // TraceTransaction returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
+// TraceTransaction返回结构化的logs，在EVM的执行过程中被创建，并且将他们作为JSON对象返回
 func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
 	_, blockHash, blockNumber, index, err := api.backend.GetTransaction(ctx, hash)
 	if err != nil {
@@ -783,16 +788,19 @@ func (api *API) TraceTransaction(ctx context.Context, hash common.Hash, config *
 	}
 	// It shouldn't happen in practice.
 	if blockNumber == 0 {
+		// genesis block是不能trace的
 		return nil, errors.New("genesis is not traceable")
 	}
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
+	// 根据block number以及block Hash找到block
 	block, err := api.blockByNumberAndHash(ctx, rpc.BlockNumber(blockNumber), blockHash)
 	if err != nil {
 		return nil, err
 	}
+	// 获取msg, vmctx, statedb
 	msg, vmctx, statedb, err := api.backend.StateAtTransaction(ctx, block, int(index), reexec)
 	if err != nil {
 		return nil, err
@@ -862,6 +870,8 @@ func (api *API) TraceCall(ctx context.Context, args ethapi.TransactionArgs, bloc
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
+// traceTx配置一个新的tracer，根据提供的配置，并且执行给定的message，在提供的环境中
+// 返回的值是依赖于tracer的
 func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Context, vmctx vm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	var (
 		tracer    Tracer
@@ -873,6 +883,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Contex
 		config = &TraceConfig{}
 	}
 	// Default tracer is the struct logger
+	// 默认的tracer是struct logger
 	tracer = logger.NewStructLogger(config.Config)
 	if config.Tracer != nil {
 		tracer, err = New(*config.Tracer, txctx)
@@ -881,6 +892,7 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Contex
 		}
 	}
 	// Define a meaningful timeout of a single transaction trace
+	// 确定对于单个transaction trace的有意义的超时
 	if config.Timeout != nil {
 		if timeout, err = time.ParseDuration(*config.Timeout); err != nil {
 			return nil, err
@@ -890,14 +902,17 @@ func (api *API) traceTx(ctx context.Context, message core.Message, txctx *Contex
 	go func() {
 		<-deadlineCtx.Done()
 		if errors.Is(deadlineCtx.Err(), context.DeadlineExceeded) {
+			// 停止tracer
 			tracer.Stop(errors.New("execution timeout"))
 		}
 	}()
 	defer cancel()
 
 	// Run the transaction with tracing enabled.
+	// 运行transaction并且tracing可用
 	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), vm.Config{Debug: true, Tracer: tracer, NoBaseFee: true})
 	// Call Prepare to clear out the statedb access list
+	// 调用Prepare来清理statedb的access list
 	statedb.Prepare(txctx.TxHash, txctx.TxIndex)
 	if _, err = core.ApplyMessage(vmenv, message, new(core.GasPool).AddGas(message.Gas())); err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)

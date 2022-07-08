@@ -140,6 +140,7 @@ func NewStructLogger(cfg *Config) *StructLogger {
 }
 
 // Reset clears the data held by the logger.
+// Reset清理logger持有的data
 func (l *StructLogger) Reset() {
 	l.storage = make(map[common.Address]Storage)
 	l.output = make([]byte, 0)
@@ -279,6 +280,7 @@ func (l *StructLogger) CaptureTxEnd(restGas uint64) {
 }
 
 // StructLogs returns the captured log entries.
+// StructLogs返回捕获到的log entries
 func (l *StructLogger) StructLogs() []StructLog { return l.logs }
 
 // Error returns the VM error captured by the trace.
@@ -342,6 +344,7 @@ type mdLogger struct {
 
 // NewMarkdownLogger creates a logger which outputs information in a format adapted
 // for human readability, and is also a valid markdown table
+// NewMarkdownLogger创建一个logger，输出的信息格式用于human readability，并且同时也是一个合法的markdown table
 func NewMarkdownLogger(cfg *Config, writer io.Writer) *mdLogger {
 	l := &mdLogger{out: writer, cfg: cfg}
 	if l.cfg == nil {
@@ -375,6 +378,7 @@ func (t *mdLogger) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope
 
 	if !t.cfg.DisableStack {
 		// format stack
+		// 格式化输出栈的内容
 		var a []string
 		for _, elem := range stack.Data() {
 			a = append(a, elem.Hex())
@@ -419,6 +423,7 @@ type ExecutionResult struct {
 
 // StructLogRes stores a structured log emitted by the EVM while replaying a
 // transaction in debug mode
+// StructLogRes存储一个结构化的日志，由EVM发射，在debug模式重放一个transaction的时候
 type StructLogRes struct {
 	Pc            uint64             `json:"pc"`
 	Op            string             `json:"op"`
@@ -433,6 +438,7 @@ type StructLogRes struct {
 }
 
 // formatLogs formats EVM returned structured logs for json output
+// formatLogs格式化EVM返回的structured logs用于json output
 func formatLogs(logs []StructLog) []StructLogRes {
 	formatted := make([]StructLogRes, len(logs))
 	for index, trace := range logs {

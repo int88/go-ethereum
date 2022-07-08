@@ -53,10 +53,14 @@ var (
 )
 
 type testBackend struct {
+	// 链的配置
 	chainConfig *params.ChainConfig
-	engine      consensus.Engine
-	chaindb     ethdb.Database
-	chain       *core.BlockChain
+	// 共识引擎
+	engine consensus.Engine
+	// 数据库
+	chaindb ethdb.Database
+	// 链实例
+	chain *core.BlockChain
 }
 
 func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i int, b *core.BlockGen)) *testBackend {
@@ -66,6 +70,7 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 		chaindb:     rawdb.NewMemoryDatabase(),
 	}
 	// Generate blocks for testing
+	// 生成blocks用于测试
 	gspec.Config = backend.chainConfig
 	var (
 		gendb   = rawdb.NewMemoryDatabase()
@@ -74,6 +79,7 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 	blocks, _ := core.GenerateChain(backend.chainConfig, genesis, backend.engine, gendb, n, generator)
 
 	// Import the canonical chain
+	// 导入canonical chain
 	gspec.MustCommit(backend.chaindb)
 	cacheConfig := &core.CacheConfig{
 		TrieCleanLimit:    256,
@@ -82,10 +88,12 @@ func newTestBackend(t *testing.T, n int, gspec *core.Genesis, generator func(i i
 		SnapshotLimit:     0,
 		TrieDirtyDisabled: true, // Archive mode
 	}
+	// 构建chain
 	chain, err := core.NewBlockChain(backend.chaindb, cacheConfig, backend.chainConfig, backend.engine, vm.Config{}, nil, nil)
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
+	// 将blocks插入到chain中
 	if n, err := chain.InsertChain(blocks); err != nil {
 		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
 	}
@@ -315,6 +323,7 @@ func TestTraceTransaction(t *testing.T) {
 	t.Parallel()
 
 	// Initialize test accounts
+	// 初始化test accounts
 	accounts := newAccounts(2)
 	genesis := &core.Genesis{Alloc: core.GenesisAlloc{
 		accounts[0].addr: {Balance: big.NewInt(params.Ether)},
@@ -322,11 +331,13 @@ func TestTraceTransaction(t *testing.T) {
 	}}
 	target := common.Hash{}
 	signer := types.HomesteadSigner{}
+	// 构建API
 	api := NewAPI(newTestBackend(t, 1, genesis, func(i int, b *core.BlockGen) {
 		// Transfer from account[0] to account[1]
 		//    value: 1000 wei
 		//    fee:   0 wei
 		tx, _ := types.SignTx(types.NewTransaction(uint64(i), accounts[1].addr, big.NewInt(1000), params.TxGas, b.BaseFee(), nil), signer, accounts[0].key)
+		// 添加transaction
 		b.AddTx(tx)
 		target = tx.Hash()
 	}))

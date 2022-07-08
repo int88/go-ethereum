@@ -103,6 +103,8 @@ func (al accessList) accessList() types.AccessList {
 
 // AccessListTracer is a tracer that accumulates touched accounts and storage
 // slots into an internal set.
+// AccessListTracer是一个tracer，累计touched accounts以及storage slots到一个内部的
+// set中
 type AccessListTracer struct {
 	excl map[common.Address]struct{} // Set of account to exclude from the list
 	list accessList                  // Set of accounts and storage slots touched
@@ -111,6 +113,8 @@ type AccessListTracer struct {
 // NewAccessListTracer creates a new tracer that can generate AccessLists.
 // An optional AccessList can be specified to occupy slots and addresses in
 // the resulting accesslist.
+// NewAccessListTracer创建一个新的tracer，可以生成AccessLists，一个可选的AccessList
+// 可以被指定用来填充slots以及结果的accesslist中的address
 func NewAccessListTracer(acl types.AccessList, from, to common.Address, precompiles []common.Address) *AccessListTracer {
 	excl := map[common.Address]struct{}{
 		from: {}, to: {},

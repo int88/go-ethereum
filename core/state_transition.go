@@ -179,10 +179,13 @@ func NewStateTransition(evm *vm.EVM, msg Message, gp *GasPool) *StateTransition 
 // ApplyMessage计算新的state，通过应用给定的message，基于环境中的old state
 //
 // ApplyMessage returns the bytes returned by any EVM execution (if it took place),
+// ApplyMessage返回任何EVM执行的字节（如果发生了的话），使用的字节（包括gas refunds），以及error，如果失败的话
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
+// 一个error总是表示一个core error，这意味着message总是失败，对于特定的状态，并且绝不会在一个block之内被接受
 func ApplyMessage(evm *vm.EVM, msg Message, gp *GasPool) (*ExecutionResult, error) {
+	// 构建state transition，再调用transitionDb
 	return NewStateTransition(evm, msg, gp).TransitionDb()
 }
 
@@ -218,8 +221,10 @@ func (st *StateTransition) buyGas() error {
 
 func (st *StateTransition) preCheck() error {
 	// Only check transactions that are not fake
+	// 只检查不是fake的transactions
 	if !st.msg.IsFake() {
 		// Make sure this transaction's nonce is correct.
+		// 确保这个transaction的nonce是正确的
 		stNonce := st.state.GetNonce(st.msg.From())
 		if msgNonce := st.msg.Nonce(); stNonce < msgNonce {
 			return fmt.Errorf("%w: address %v, tx: %d state: %d", ErrNonceTooHigh,
@@ -232,12 +237,14 @@ func (st *StateTransition) preCheck() error {
 				st.msg.From().Hex(), stNonce)
 		}
 		// Make sure the sender is an EOA
+		// 确保sender是一个EOA
 		if codeHash := st.state.GetCodeHash(st.msg.From()); codeHash != emptyCodeHash && codeHash != (common.Hash{}) {
 			return fmt.Errorf("%w: address %v, codehash: %s", ErrSenderNoEOA,
 				st.msg.From().Hex(), codeHash)
 		}
 	}
 	// Make sure that transaction gasFeeCap is greater than the baseFee (post london)
+	// 确保这个transaction的gasFeeCap大于baseFee（在london之后）
 	if st.evm.ChainConfig().IsLondon(st.evm.Context.BlockNumber) {
 		// Skip the checks if gas fields are zero and baseFee was explicitly disabled (eth_call)
 		if !st.evm.Config.NoBaseFee || st.gasFeeCap.BitLen() > 0 || st.gasTipCap.BitLen() > 0 {
@@ -307,8 +314,10 @@ func (st *StateTransition) TransitionDb() (*ExecutionResult, error) {
 	}
 
 	if st.evm.Config.Debug {
+		// 如果要进行evm debug
 		st.evm.Config.Tracer.CaptureTxStart(st.initialGas)
 		defer func() {
+			// 标记剩余的gas
 			st.evm.Config.Tracer.CaptureTxEnd(st.gas)
 		}()
 	}

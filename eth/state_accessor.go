@@ -31,13 +31,17 @@ import (
 )
 
 // StateAtBlock retrieves the state database associated with a certain block.
+// StateAtBlock获取和一个特定的block相关的state database
 // If no state is locally available for the given block, a number of blocks
 // are attempted to be reexecuted to generate the desired state. The optional
 // base layer statedb can be passed then it's regarded as the statedb of the
 // parent block.
+// 如果对于给定的block本地没有state，一系列的blocks试着去重新执行来生成期望的state
+// 传入一个可选的layer statedb，之后它被作为一个parent block的statedb
 // Parameters:
 // - block: The block for which we want the state (== state at the stateRoot of the parent)
 // - reexec: The maximum number of blocks to reprocess trying to obtain the desired state
+// - reexec: 最大重新处理的blocks的数目来获取期望的state
 // - base: If the caller is tracing multiple blocks, the caller can provide the parent state
 //         continuously from the callsite.
 // - checklive: if true, then the live 'blockchain' state database is used. If the caller want to
@@ -159,18 +163,22 @@ func (eth *Ethereum) StateAtBlock(block *types.Block, reexec uint64, base *state
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
+// stateAtTransaction返回一个特定的transaction的执行环境
 func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
 	// Short circuit if it's genesis block.
+	// 如果是genesis block直接短路
 	if block.NumberU64() == 0 {
 		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
 	}
 	// Create the parent state database
+	// 创建parent的state database
 	parent := eth.blockchain.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
 		return nil, vm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.ParentHash())
 	}
 	// Lookup the statedb of parent block from the live database,
 	// otherwise regenerate it on the flight.
+	// 从live database中找到parent block的statedb，否则重新生成它，on the flight
 	statedb, err := eth.StateAtBlock(parent, reexec, nil, true, false)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
@@ -179,23 +187,29 @@ func (eth *Ethereum) stateAtTransaction(block *types.Block, txIndex int, reexec 
 		return nil, vm.BlockContext{}, statedb, nil
 	}
 	// Recompute transactions up to the target index.
+	// 重新计算transactions，直到target index
 	signer := types.MakeSigner(eth.blockchain.Config(), block.Number())
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset
+		// 构建transaction call message并且返回，如果是请求的offset
 		msg, _ := tx.AsMessage(signer, block.BaseFee())
 		txContext := core.NewEVMTxContext(msg)
 		context := core.NewEVMBlockContext(block.Header(), eth.blockchain, nil)
 		if idx == txIndex {
+			// 到达目标的index，返回
 			return msg, context, statedb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
+		// 还不是请求的transaction，在当前的state之上执行
 		vmenv := vm.NewEVM(context, txContext, statedb, eth.blockchain.Config(), vm.Config{})
 		statedb.Prepare(tx.Hash(), idx)
 		if _, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
+		// 确保任何的变更都提交到state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
+		// 只有在EIP158/161生效之后才删除空的对象
 		statedb.Finalise(vmenv.ChainConfig().IsEIP158(block.Number()))
 	}
 	return nil, vm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
