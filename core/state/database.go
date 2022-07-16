@@ -78,6 +78,7 @@ type Trie interface {
 	TryGet(key []byte) ([]byte, error)
 
 	// TryUpdateAccount abstract an account write in the trie.
+	// TryUpdateAccount抽象了在trie中，一个account的写入操作
 	TryUpdateAccount(key []byte, account *types.StateAccount) error
 
 	// TryUpdate associates key with value in the trie. If value has length zero, any

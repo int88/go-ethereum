@@ -246,12 +246,15 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		// Set the difficulty for clique block. The chain maker doesn't have access
 		// to a chain, so the difficulty will be left unset (nil). Set it here to the
 		// correct value.
+		// 为clique block设置difficulty，chain maker没有对于一个chain的访问权限，这样difficulty
+		// 会被遗留为未设置（nil），这里将它设置为正确值
 		if b.header.Difficulty == nil {
 			if config.TerminalTotalDifficulty == nil {
 				// Clique chain
 				b.header.Difficulty = big.NewInt(2)
 			} else {
 				// Post-merge chain
+				// merge之后的chain
 				b.header.Difficulty = big.NewInt(0)
 			}
 		}
@@ -275,7 +278,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 		if b.engine != nil {
 			// Finalize and seal the block
-			// 完成并且密封block
+			// 调用引擎完成并且密封block
 			block, _ := b.engine.FinalizeAndAssemble(chainreader, b.header, statedb, b.txs, b.uncles, b.receipts)
 
 			// Write state changes to db
@@ -292,7 +295,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		return nil, nil
 	}
 	for i := 0; i < n; i++ {
-		// 构建新的statedb
+		// 对于每个block都构建新的statedb
 		statedb, err := state.New(parent.Root(), state.NewDatabase(db), nil)
 		if err != nil {
 			panic(err)

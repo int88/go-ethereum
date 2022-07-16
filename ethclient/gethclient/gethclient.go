@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package gethclient provides an RPC client for geth-specific APIs.
+// gethclient包提供了一个RPC client用于geth相关的APIs
 package gethclient
 
 import (
@@ -130,10 +131,13 @@ type OverrideAccount struct {
 
 // CallContract executes a message call transaction, which is directly executed in the VM
 // of the node, but never mined into the blockchain.
+// CallContract执行一个message call transaction，它直接在节点的VM中执行，但是不会被写到blockchain中
 //
 // blockNumber selects the block height at which the call runs. It can be nil, in which
 // case the code is taken from the latest known block. Note that state from very old
 // blocks might not be available.
+// blockNumber选择调用运行的block height，它可以为nil，这个时候代码来自最新已知的block，注意，来自很老的block
+// 的状态可能无法获取
 //
 // overrides specifies a map of contract states that should be overwritten before executing
 // the message call.

@@ -137,6 +137,8 @@ func (p *Peer) broadcastTransactions() {
 // announceTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// announceTransactions是一个写循环，用来调度transaction的广播，到remote peer，目标是有一个async writer
+// 不会锁死node internals并且同时限制排队的数据
 func (p *Peer) announceTransactions() {
 	var (
 		queue  []common.Hash         // Queue of hashes to announce as transaction stubs
@@ -176,6 +178,7 @@ func (p *Peer) announceTransactions() {
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
+		// Transfer goroutine可能启动，也可能没启动，监听events
 		select {
 		case hashes := <-p.txAnnounce:
 			// If the connection failed, discard all transaction events

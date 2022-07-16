@@ -32,6 +32,8 @@ import (
 // ChainReader defines a small collection of methods needed to access the local
 // blockchain during header verification. It's implemented by both blockchain
 // and lightchain.
+// ChainReader定义了一个小的接口集合用于访问local blockchain，在header verification期间
+// 它由blockchain和lightchain实现
 type ChainReader interface {
 	// Config retrieves the header chain's chain configuration.
 	Config() *params.ChainConfig
@@ -45,6 +47,9 @@ type ChainReader interface {
 // choice used in the eth2). This main goal of this ForkChoice is not only for
 // offering fork choice during the eth1/2 merge phase, but also keep the compatibility
 // for all other proof-of-work networks.
+// ForkChoice是基于highest total difficulty of the chain（在eth1中使用的fork choice）的fork chooser
+// 以及external fork choice（在eth2中使用的fork choice），这个ForkChoice的主要用途不仅是
+// 在eth1/2 merge期间提供fork choice，同时也是为了和其他所有pow networks保持兼容
 type ForkChoice struct {
 	chain ChainReader
 	rand  *mrand.Rand
@@ -53,6 +58,8 @@ type ForkChoice struct {
 	// Miners will prefer to choose the local mined block if the
 	// local td is equal to the extern one. It can be nil for light
 	// client
+	// preserve在td fork choice中是一个帮助函数，Miner更倾向于选择本地挖出的block
+	// 如果local td和extern的一样，对于light client，它为nil
 	preserve func(header *types.Header) bool
 }
 

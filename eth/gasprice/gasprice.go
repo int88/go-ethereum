@@ -50,6 +50,7 @@ type Config struct {
 }
 
 // OracleBackend includes all necessary background APIs for oracle.
+// OracleBackend包含了oracle所需的所有必要的background APIs
 type OracleBackend interface {
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
@@ -61,6 +62,7 @@ type OracleBackend interface {
 
 // Oracle recommends gas prices based on the content of recent
 // blocks. Suitable for both light and full clients.
+// Oracle基于已有的recent blocks的内容建议gas prices，对light以及full clients都适用
 type Oracle struct {
 	backend     OracleBackend
 	lastHead    common.Hash
@@ -77,6 +79,7 @@ type Oracle struct {
 
 // NewOracle returns a new gasprice oracle which can recommend suitable
 // gasprice for newly created transaction.
+// NewOracle返回一个新的gasprice oracle，它可以对新创建的transaction建议合适的gasprice
 func NewOracle(backend OracleBackend, params Config) *Oracle {
 	blocks := params.Blocks
 	if blocks < 1 {

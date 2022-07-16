@@ -77,9 +77,10 @@ type StateDB struct {
 	snapStorage   map[common.Hash]map[common.Hash][]byte
 
 	// This map holds 'live' objects, which will get modified while processing a state transition.
+	// 这个map维护'live'对象，它会发生改变，当在处理一个state transition的时候
 	stateObjects        map[common.Address]*stateObject
-	stateObjectsPending map[common.Address]struct{} // State objects finalized but not yet written to the trie
-	stateObjectsDirty   map[common.Address]struct{} // State objects modified in the current execution
+	stateObjectsPending map[common.Address]struct{} // State objects finalized but not yet written to the trie	// 已经finalized的对象，但是还没有被写入trie
+	stateObjectsDirty   map[common.Address]struct{} // State objects modified in the current execution	// 在当前执行过程中被修改的State对象
 
 	// DB error.
 	// State objects are used by the consensus core and VM which are
@@ -824,6 +825,8 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 // IntermediateRoot computes the current root hash of the state trie.
 // It is called in between transactions to get the root hash that
 // goes into transaction receipts.
+// IntermediateRoot计算state trie当前的root hash，它在transactions之间被调用
+// 来获取放入transaction receipts的root hash
 func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// Finalise all the dirty storage states and write them into the tries
 	s.Finalise(deleteEmptyObjects)
@@ -901,24 +904,29 @@ func (s *StateDB) clearJournalAndRefund() {
 }
 
 // Commit writes the state to the underlying in-memory trie database.
+// Commit将state写入底层的in-memory trie database
 func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	if s.dbErr != nil {
 		return common.Hash{}, fmt.Errorf("commit aborted due to earlier error: %v", s.dbErr)
 	}
 	// Finalize any pending changes and merge everything into the tries
+	// 最终确定任何的pending changes并且合并所有到tries
 	s.IntermediateRoot(deleteEmptyObjects)
 
 	// Commit objects to the trie, measuring the elapsed time
+	// 提交对象到trie，测量消耗的时间
 	var storageCommitted int
 	codeWriter := s.db.TrieDB().DiskDB().NewBatch()
 	for addr := range s.stateObjectsDirty {
 		if obj := s.stateObjects[addr]; !obj.deleted {
 			// Write any contract code associated with the state object
+			// 写入任何contract code相关的state对象
 			if obj.code != nil && obj.dirtyCode {
 				rawdb.WriteCode(codeWriter, common.BytesToHash(obj.CodeHash()), obj.code)
 				obj.dirtyCode = false
 			}
 			// Write any storage changes in the state object to its storage trie
+			// 写入任何在state对象里的storage changes到storage trie
 			committed, err := obj.CommitTrie(s.db)
 			if err != nil {
 				return common.Hash{}, err
@@ -935,6 +943,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		}
 	}
 	// Write the account trie changes, measuing the amount of wasted time
+	// 写入account trie的变更，测量消耗的时间
 	var start time.Time
 	if metrics.EnabledExpensive {
 		start = time.Now()
@@ -967,6 +976,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 		s.StorageUpdated, s.StorageDeleted = 0, 0
 	}
 	// If snapshotting is enabled, update the snapshot tree with this new version
+	// 如果是能了snapshotting，更新snapshot tree，用新的版本
 	if s.snap != nil {
 		if metrics.EnabledExpensive {
 			defer func(start time.Time) { s.SnapshotCommits += time.Since(start) }(time.Now())

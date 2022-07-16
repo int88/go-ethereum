@@ -44,6 +44,8 @@ const (
 // LocalNode produces the signed node record of a local node, i.e. a node run in the
 // current process. Setting ENR entries via the Set method updates the record. A new version
 // of the record is signed on demand when the Node method is called.
+// LocalNode创建一个local node的signed node record，例如，一个node运行在当前进程中
+// 通过Set方法设置ENR entries更新record，一个新版本的record会按需签名，当Node方法被调用时
 type LocalNode struct {
 	cur atomic.Value // holds a non-nil node pointer while the record is up-to-date
 

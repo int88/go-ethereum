@@ -50,12 +50,12 @@ type Node struct {
 	keyDirTemp    bool              // If true, key directory will be removed by Stop
 	dirLock       fileutil.Releaser // prevents concurrent use of instance directory
 	stop          chan struct{}     // Channel to wait for termination notifications
-	server        *p2p.Server       // Currently running P2P networking layer
+	server        *p2p.Server       // Currently running P2P networking layer	// 当前运行的P2P网络层
 	startStopLock sync.Mutex        // Start/Stop are protected by an additional lock
 	state         int               // Tracks state of node lifecycle
 
 	lock          sync.Mutex
-	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle
+	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle	// 所有注册的backends, services以及辅助的services，有着一个生命周期
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
 	ws            *httpServer //
@@ -170,6 +170,7 @@ func New(conf *Config) (*Node, error) {
 
 // Start starts all registered lifecycles, RPC services and p2p networking.
 // Node can only be started once.
+// Start启动所有注册的lifecycles，RPC服务以及p2p networking，Node只能被启动一次
 func (n *Node) Start() error {
 	n.startStopLock.Lock()
 	defer n.startStopLock.Unlock()

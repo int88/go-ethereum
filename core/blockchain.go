@@ -169,7 +169,7 @@ type BlockChain struct {
 	chainConfig *params.ChainConfig // Chain & network configuration
 	cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db     ethdb.Database // Low level persistent database to store final content in
+	db     ethdb.Database // Low level persistent database to store final content in	// 底层的持久化数据库，用于存储最终的内容
 	snaps  *snapshot.Tree // Snapshot tree for fast trie leaf access // Snaptshot tree用于对于trie leaf的快速访问
 	triegc *prque.Prque   // Priority queue mapping block numbers to tries to gc
 	gcproc time.Duration  // Accumulates canonical block processing for trie dumping
@@ -196,18 +196,18 @@ type BlockChain struct {
 	// 这个mutext同步chain的写入操作，Reader不需要操作它，它可以直接读取database
 	chainmu *syncx.ClosableMutex
 
-	currentBlock          atomic.Value // Current head of the block chain
+	currentBlock          atomic.Value // Current head of the block chain	// block chain当前的header
 	currentFastBlock      atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
 	currentFinalizedBlock atomic.Value // Current finalized head
 
 	// State database在导入之间重用
-	stateCache    state.Database // State database to reuse between imports (contains state cache)
+	stateCache    state.Database // State database to reuse between imports (contains state cache)	// 在imports之间重用的State database（包含state缓存）
 	bodyCache     *lru.Cache     // Cache for the most recent block bodies
 	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
 	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
 	blockCache    *lru.Cache     // Cache for the most recent entire blocks
 	txLookupCache *lru.Cache     // Cache for the most recent transaction lookup data.
-	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
+	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing	// future blocks是后续用于添加处理的blocks
 
 	wg            sync.WaitGroup //
 	quit          chan struct{}  // shutdown signal, closed in Stop.
@@ -231,6 +231,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	if cacheConfig == nil {
 		cacheConfig = defaultCacheConfig
 	}
+	// 创建一系列的cache
 	bodyCache, _ := lru.New(bodyCacheLimit)
 	bodyRLPCache, _ := lru.New(bodyCacheLimit)
 	receiptsCache, _ := lru.New(receiptsCacheLimit)
@@ -259,6 +260,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		engine:        engine,
 		vmConfig:      vmConfig,
 	}
+	// 构建forker，validator，prefetcher以及processor
 	bc.forker = NewForkChoice(bc, shouldPreserve)
 	bc.validator = NewBlockValidator(chainConfig, bc, engine)
 	bc.prefetcher = newStatePrefetcher(chainConfig, bc, engine)
@@ -286,6 +288,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		rawdb.InitDatabaseFromFreezer(bc.db)
 		// If ancient database is not empty, reconstruct all missing
 		// indices in the background.
+		// 如果ancient database不为空，在后台重新构建所有缺失的索引
 		frozen, _ := bc.db.Ancients()
 		if frozen > 0 {
 			txIndexBlock = frozen
@@ -296,6 +299,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Make sure the state associated with the block is available
+	// 确保和这个block相关的state都是可用的
 	head := bc.CurrentBlock()
 	if _, err := state.New(head.Root(), bc.stateCache, bc.snaps); err != nil {
 		// Head state is missing, before the state recovery, find out the
@@ -325,6 +329,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Ensure that a previous crash in SetHead doesn't leave extra ancients
+	// 确保之前在SetHead的crash没有留下额外的ancients
 	if frozen, err := bc.db.Ancients(); err == nil && frozen > 0 {
 		var (
 			needRewind bool
@@ -358,9 +363,11 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	// The first thing the node will do is reconstruct the verification data for
 	// the head block (ethash cache or clique voting snapshot). Might as well do
 	// it in advance.
+	// node第一件要做的事就是重新构建head block的verification data（ethash cache或者clique voting snapshot）
 	bc.engine.VerifyHeader(bc, bc.CurrentHeader(), true)
 
 	// Check the current state of the block hashes and make sure that we do not have any of the bad blocks in our chain
+	// 检查当前state的block hashes并且确保在我们的chain中没有任何的bad blocks
 	for hash := range BadHashes {
 		if header := bc.GetHeaderByHash(hash); header != nil {
 			// get the canonical block corresponding to the offending header's number
@@ -377,6 +384,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Load any existing snapshot, regenerating it if loading failed
+	// 加载任何已经存在的snapshot，重新生成它，如果加载失败的话
 	if bc.cacheConfig.SnapshotLimit > 0 {
 		// If the chain was rewound past the snapshot persistent layer (causing
 		// a recovery block number to be persisted to disk), check if we're still
@@ -393,10 +401,12 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// Start future block processor.
+	// 启动对未来的block的处理
 	bc.wg.Add(1)
 	go bc.updateFutureBlocks()
 
 	// Start tx indexer/unindexer.
+	// 启动tx inderxer以及unindexer
 	if txLookupLimit != nil {
 		bc.txLookupLimit = *txLookupLimit
 
@@ -436,6 +446,7 @@ func (bc *BlockChain) empty() bool {
 
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
+// loadLastState从database加载最后一致的chain state
 func (bc *BlockChain) loadLastState() error {
 	// Restore the last known head block
 	head := rawdb.ReadHeadBlockHash(bc.db)
@@ -902,6 +913,7 @@ func (bc *BlockChain) procFutureBlocks() {
 			return blocks[i].NumberU64() < blocks[j].NumberU64()
 		})
 		// Insert one by one as chain insertion needs contiguous ancestry between blocks
+		// 一个个插入，因为chain insertion需要连续的祖先，在blocks之间
 		for i := range blocks {
 			bc.InsertChain(blocks[i : i+1])
 		}

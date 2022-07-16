@@ -46,6 +46,8 @@ const (
 // HeaderChain implements the basic block header chain logic that is shared by
 // core.BlockChain and light.LightChain. It is not usable in itself, only as
 // a part of either structure.
+// HeaderChain实现了基础的block header chain的逻辑，在core.BlockChain和light.LightChain之间共享
+// 它自己并没有什么用，只有在作为上述两个结构的一部分的时候才有用
 //
 // HeaderChain is responsible for maintaining the header chain including the
 // header query and updating.

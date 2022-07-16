@@ -172,6 +172,7 @@ func genUncles(i int, gen *BlockGen) {
 
 func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	// Create the database in memory or in a temporary directory.
+	// 创建一个基于内存或者临时目录的数据库
 	var db ethdb.Database
 	var err error
 	if !disk {
@@ -187,6 +188,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 
 	// Generate a chain of b.N blocks using the supplied block
 	// generator function.
+	// 创建有b.N个blocks的chain，使用提供的block generator函数
 	gspec := Genesis{
 		Config: params.TestChainConfig,
 		Alloc:  GenesisAlloc{benchRootAddr: {Balance: benchRootFunds}},
@@ -195,6 +197,7 @@ func benchInsertChain(b *testing.B, disk bool, gen func(int, *BlockGen)) {
 	chain, _ := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, b.N, gen)
 
 	// Time the insertion of the new chain.
+	// 记录新链插入的时间,State以及blocks被存储在同一个DB中
 	// State and blocks are stored in the same DB.
 	chainman, _ := NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
 	defer chainman.Stop()

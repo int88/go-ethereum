@@ -23,9 +23,12 @@ package node
 type Lifecycle interface {
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
+	// Start会被调用，在所有的services已经构建完成并且网络层已经初始化可以用来生成service所需
+	// 的所有service
 	Start() error
 
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
+	// Stop停止所有属于这个service的goroutines，阻塞直到他们全部结束
 	Stop() error
 }

@@ -25,6 +25,7 @@ import (
 //go:generate go run ../../rlp/rlpgen -type StateAccount -out gen_account_rlp.go
 
 // StateAccount is the Ethereum consensus representation of accounts.
+// StateAccount是Ethereum的账号的共识表示
 // These objects are stored in the main account trie.
 // 这些对象存储在main account trie
 type StateAccount struct {

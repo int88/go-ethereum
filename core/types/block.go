@@ -87,6 +87,7 @@ type Header struct {
 	Nonce       BlockNonce  `json:"nonce"`
 
 	// BaseFee was added by EIP-1559 and is ignored in legacy headers.
+	// BaseFee是由EIP-1559添加的，在legacy headers中被忽略
 	BaseFee *big.Int `json:"baseFeePerGas" rlp:"optional"`
 
 	/*
