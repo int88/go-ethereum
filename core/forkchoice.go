@@ -39,6 +39,7 @@ type ChainReader interface {
 	Config() *params.ChainConfig
 
 	// GetTd returns the total difficulty of a local block.
+	// GetTd返回一个local block的total difficulty
 	GetTd(common.Hash, uint64) *big.Int
 }
 
@@ -101,6 +102,7 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 		return true, nil
 	}
 	// If the total difficulty is higher than our known, add it to the canonical chain
+	// 如果total difficulty高于我们已知的，将它们加入到canonical chain
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
 	reorg := externTd.Cmp(localTD) > 0

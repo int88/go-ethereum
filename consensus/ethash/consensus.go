@@ -262,6 +262,7 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum ethash engine.
+// verifyHeader检查一个header是否符合stock Ethereum ethash engine的共识规则
 // See YP section 4.3.4. "Block Header Validity"
 func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header, uncle bool, seal bool, unixNow int64) error {
 	// Ensure that the header's extra-data section is of a reasonable size
@@ -310,6 +311,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return consensus.ErrInvalidNumber
 	}
 	// Verify the engine specific seal securing the block
+	// 确认engine特定的seal securing，用于block的安全
 	if seal {
 		if err := ethash.verifySeal(chain, header, false); err != nil {
 			return err
@@ -519,8 +521,11 @@ var DynamicDifficultyCalculator = makeDifficultyCalculator
 // verifySeal checks whether a block satisfies the PoW difficulty requirements,
 // either using the usual ethash cache for it, or alternatively using a full DAG
 // to make remote mining fast.
+// verifySeal检查是否一个block满足PoW的difficulty requirements，要么使用通常的ethash cache
+// 或者使用一个full DAG来让remote mining更快
 func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *types.Header, fulldag bool) error {
 	// If we're running a fake PoW, accept any seal as valid
+	// 如果正在运行一个fake PoW，接收任何的seal作为合法
 	if ethash.config.PowMode == ModeFake || ethash.config.PowMode == ModeFullFake {
 		time.Sleep(ethash.fakeDelay)
 		if ethash.fakeFail == header.Number.Uint64() {
@@ -529,6 +534,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		return nil
 	}
 	// If we're running a shared PoW, delegate verification to it
+	// 如果我们运行一个shared PoW，委托verification给它
 	if ethash.shared != nil {
 		return ethash.shared.verifySeal(chain, header, fulldag)
 	}
@@ -572,6 +578,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		runtime.KeepAlive(cache)
 	}
 	// Verify the calculated values against the ones provided in the header
+	// 确认计算出来的值和header中提供的值相等
 	if !bytes.Equal(header.MixDigest[:], digest) {
 		return errInvalidMixDigest
 	}

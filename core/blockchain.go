@@ -792,6 +792,9 @@ func (bc *BlockChain) ExportN(w io.Writer, first uint64, last uint64) error {
 // assumes that the block is indeed a true head. It will also reset the head
 // header and the head fast sync block to this very same block if they are older
 // or if they are on a different side chain.
+// writeHeadBlock插入一个新的head block到current block chain，这个方法假设block是
+// 一个true head，它同时会重置head header以及head fast sync block到这个same block
+// 如果他们更老或者他们在不同的side chain
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) writeHeadBlock(block *types.Block) {
@@ -1238,17 +1241,21 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 // writeBlockWithState写入block, metadata以及相应的state数据到数据库中
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB) error {
 	// Calculate the total difficulty of the block
+	// 计算block的td
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
 	if ptd == nil {
 		return consensus.ErrUnknownAncestor
 	}
 	// Make sure no inconsistent state is leaked during insertion
+	// 确保没有不一致的状态在插入期间泄露
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database.
+	// 和canonical status不相关，将block自己写入到数据库中
 	//
 	// Note all the components of block(td, hash->number map, header, body, receipts)
 	// should be written atomically. BlockBatch is used for containing all components.
+	// 注意所有的block的组件（td, hash->number map, header, body以及receipts）应该原子写入
 	blockBatch := bc.db.NewBatch()
 	rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
 	rawdb.WriteBlock(blockBatch, block)
@@ -1266,6 +1273,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	triedb := bc.stateCache.TrieDB()
 
 	// If we're running an archive node, always flush
+	// 如果我们运行一个archive node，总是flush
 	if bc.cacheConfig.TrieDirtyDisabled {
 		return triedb.Commit(root, false, nil)
 	} else {
@@ -1380,6 +1388,8 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 // addFutureBlock checks if the block is within the max allowed window to get
 // accepted for future processing, and returns an error if the block is too far
 // ahead and was not added.
+// addFutureBlock检查是否block在最大允许的窗口内，作为future processing被接收
+// 并且返回error，如果block离得太远并且不被添加
 //
 // TODO after the transition, the future block shouldn't be kept. Because
 // it's not checked in the Geth side anymore.
@@ -1474,6 +1484,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		headers[i] = block.Header()
 		seals[i] = verifySeals
 	}
+	// 校验headers
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
 	defer close(abort)
 
@@ -1538,9 +1549,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 	}
 	switch {
 	// First block is pruned
+	// 第一个block已经被修建了
 	case errors.Is(err, consensus.ErrPrunedAncestor):
 		if setHead {
 			// First block is pruned, insert as sidechain and reorg only if TD grows enough
+			// 第一个block已经被修建了，插入到sidechain并且reorg，当它的TD长得足够大
 			log.Debug("Pruned ancestor, inserting as sidechain", "number", block.Number(), "hash", block.Hash())
 			return bc.insertSideChain(block, it)
 		} else {
@@ -1565,6 +1578,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		return it.index, err
 
 	// Some other error(except ErrKnownBlock) occurred, abort.
+	// 有错误发生了（除了ErrKnownBlock），退出
 	// ErrKnownBlock is allowed here since some known blocks
 	// still need re-execution to generate snapshots that are missing
 	case err != nil && !errors.Is(err, ErrKnownBlock):
@@ -1637,6 +1651,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 
 		// Retrieve the parent block and it's state to execute on top
+		// 获取parent block以及它的state来在之上执行
 		start := time.Now()
 		parent := it.previous()
 		if parent == nil {
@@ -1693,6 +1708,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		blockExecutionTimer.Update(time.Since(substart) - trieproc - triehash)
 
 		// Validate the state using the default validator
+		// 使用默认的validator确认state
 		substart = time.Now()
 		if err := bc.validator.ValidateState(block, statedb, receipts, usedGas); err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -1707,6 +1723,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		blockValidationTimer.Update(time.Since(substart) - (statedb.AccountHashes + statedb.StorageHashes - triehash))
 
 		// Write the block to the chain and get the status.
+		// 将block写入chain并且获取status
 		substart = time.Now()
 		var status WriteStatus
 		if !setHead {
@@ -1789,10 +1806,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 // insertSideChain is called when an import batch hits upon a pruned ancestor
 // error, which happens when a sidechain with a sufficiently old fork-block is
 // found.
+// insertSideChain被调用，当一个import batch遇到了一个pruned ancestor error，它在一个sidechain
+// 有着足够的old fork-block的时候被找到
 //
 // The method writes all (header-and-body-valid) blocks to disk, then tries to
 // switch over to the new chain if the TD exceeded the current chain.
+// 这个方法写入所有的(header-and-body-valid)blocks到disk，之后试着转换到新的chain，如果
+// TD超过当前的chain
 // insertSideChain is only used pre-merge.
+// insertSideChain只在pre-merge的时候使用
 func (bc *BlockChain) insertSideChain(block *types.Block, it *insertIterator) (int, error) {
 	var (
 		externTd  *big.Int
@@ -1803,6 +1825,8 @@ func (bc *BlockChain) insertSideChain(block *types.Block, it *insertIterator) (i
 	// Since we don't import them here, we expect ErrUnknownAncestor for the remaining
 	// ones. Any other errors means that the block is invalid, and should not be written
 	// to disk.
+	// 第一个sidechain block error已经被确认为是ErrPrunedAncestor，因为我们不在这里import
+	// 我们期望对于剩余的是ErrUnknownAncestor，任何其他的错误意味着block是非法的，不应该写入磁盘
 	err := consensus.ErrPrunedAncestor
 	for ; block != nil && errors.Is(err, consensus.ErrPrunedAncestor); block, err = it.next() {
 		// Check the canonical state root for that number
@@ -1853,19 +1877,24 @@ func (bc *BlockChain) insertSideChain(block *types.Block, it *insertIterator) (i
 	// At this point, we've written all sidechain blocks to database. Loop ended
 	// either on some other error or all were processed. If there was some other
 	// error, we can ignore the rest of those blocks.
+	// 到这里，我们已经写入所有的sidechain blocks到数据库，循环结束要么有其他错误，或者所有
+	// 都被处理完了，如果有其他的错误，我们忽略剩余的blocks
 	//
 	// If the externTd was larger than our local TD, we now need to reimport the previous
 	// blocks to regenerate the required state
+	// 如果externTd大于local TD，我们需要重新import之前的blocks来重新生成需要的state
 	reorg, err := bc.forker.ReorgNeeded(current.Header(), lastBlock.Header())
 	if err != nil {
 		return it.index, err
 	}
 	if !reorg {
+		// 不需要reorg
 		localTd := bc.GetTd(current.Hash(), current.NumberU64())
 		log.Info("Sidechain written to disk", "start", it.first().NumberU64(), "end", it.previous().Number, "sidetd", externTd, "localtd", localTd)
 		return it.index, err
 	}
 	// Gather all the sidechain hashes (full blocks may be memory heavy)
+	// 收集所有的sidechain hashes（对于full blocks可能是memory heavy的）
 	var (
 		hashes  []common.Hash
 		numbers []uint64
@@ -1881,6 +1910,7 @@ func (bc *BlockChain) insertSideChain(block *types.Block, it *insertIterator) (i
 		return it.index, errors.New("missing parent")
 	}
 	// Import all the pruned blocks to make the state available
+	// 导入所有的pruned blocks来让state可用
 	var (
 		blocks []*types.Block
 		memory common.StorageSize
@@ -1910,6 +1940,7 @@ func (bc *BlockChain) insertSideChain(block *types.Block, it *insertIterator) (i
 		}
 	}
 	if len(blocks) > 0 {
+		// 导入sidechain segment
 		log.Info("Importing sidechain segment", "start", blocks[0].NumberU64(), "end", blocks[len(blocks)-1].NumberU64())
 		return bc.insertChain(blocks, false, true)
 	}
@@ -2006,6 +2037,7 @@ func mergeLogs(logs [][]*types.Log, reverse bool) []*types.Log {
 // externally.
 // reorg会拿两个链，一个old chain以及一个new chain，并且会重新构建blocks，将它们插入
 // 作为新的canonical chain的一部分，积累潜在缺失的transactions并且post关于它们的一个事件
+// 注意新的head block不能在这里处理，callers需要在外部处理它
 func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	var (
 		newChain    types.Blocks
@@ -2025,6 +2057,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// Old chain更长，收集所有的transactions以及logs作为deleted ones
 		for ; oldBlock != nil && oldBlock.NumberU64() != newBlock.NumberU64(); oldBlock = bc.GetBlock(oldBlock.ParentHash(), oldBlock.NumberU64()-1) {
 			oldChain = append(oldChain, oldBlock)
+			// 收集需要删除的transactions
 			deletedTxs = append(deletedTxs, oldBlock.Transactions()...)
 
 			// Collect deleted logs for notification
@@ -2108,14 +2141,17 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// 插入新的链，注意proper incremental order
 	for i := len(newChain) - 1; i >= 1; i-- {
 		// Insert the block in the canonical way, re-writing history
+		// 按照canonical way插入block，重写history
 		bc.writeHeadBlock(newChain[i])
 
 		// Collect reborn logs due to chain reorg
+		// 收集因为chain reorg的reborn logs
 		logs := bc.collectLogs(newChain[i].Hash(), false)
 		if len(logs) > 0 {
 			rebirthLogs = append(rebirthLogs, logs)
 		}
 		// Collect the new added transactions.
+		// 收集新添加的transactions
 		addedTxs = append(addedTxs, newChain[i].Transactions()...)
 	}
 	// Delete useless indexes right now which includes the non-canonical
@@ -2127,6 +2163,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		rawdb.DeleteTxLookupEntry(indexesBatch, tx.Hash())
 	}
 	// Delete any canonical number assignments above the new head
+	// 删除任何canonical number的赋值，在新的head之上
 	number := bc.CurrentBlock().NumberU64()
 	for i := number + 1; ; i++ {
 		hash := rawdb.ReadCanonicalHash(bc.db, i)

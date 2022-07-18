@@ -89,12 +89,17 @@ func (b *BlockGen) SetDifficulty(diff *big.Int) {
 // further limitations on the content of transactions that can be
 // added. Notably, contract code relying on the BLOCKHASH instruction
 // will panic during execution.
+// AddTx会pancis，如果transaction不能被执行，除了protocol施加的limitations（gas limit等）
+// 对于添加的transactions还有额外的限制，值得注意的是，依赖BLOCKHASH指令的contract code在执行
+// 的时候会panic
 func (b *BlockGen) AddTx(tx *types.Transaction) {
 	b.AddTxWithChain(nil, tx)
 }
 
 // AddTxWithChain adds a transaction to the generated block. If no coinbase has
 // been set, the block's coinbase is set to the zero address.
+// AddTxWithChain添加一个transaction到生成的block，如果没有设置coinbase，block的coinbase
+// 会被设置为zero
 //
 // AddTxWithChain panics if the transaction cannot be executed. In addition to
 // the protocol-imposed limitations (gas limit, etc.), there are some
@@ -111,6 +116,7 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	if err != nil {
 		panic(err)
 	}
+	// 扩展txs和receipts
 	b.txs = append(b.txs, tx)
 	b.receipts = append(b.receipts, receipt)
 }

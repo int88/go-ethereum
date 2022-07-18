@@ -100,11 +100,14 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	defer blockchain2.Stop()
 
 	// Assert the chains have the same header/block at #i
+	// 断言在#i，chains有着同样的header/block
 	var hash1, hash2 common.Hash
 	if full {
+		// full的话，拿block
 		hash1 = blockchain.GetBlockByNumber(uint64(i)).Hash()
 		hash2 = blockchain2.GetBlockByNumber(uint64(i)).Hash()
 	} else {
+		// 否则拿header
 		hash1 = blockchain.GetHeaderByNumber(uint64(i)).Hash()
 		hash2 = blockchain2.GetHeaderByNumber(uint64(i)).Hash()
 	}
@@ -135,11 +138,13 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 
 	if full {
 		cur := blockchain.CurrentBlock()
+		// 获取之前的td
 		tdPre = blockchain.GetTd(cur.Hash(), cur.NumberU64())
 		if err := testBlockChainImport(blockChainB, blockchain); err != nil {
 			t.Fatalf("failed to import forked block chain: %v", err)
 		}
 		last := blockChainB[len(blockChainB)-1]
+		// 获取当前的tdPost
 		tdPost = blockchain.GetTd(last.Hash(), last.NumberU64())
 	} else {
 		cur := blockchain.CurrentHeader()
@@ -191,6 +196,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 			return err
 		}
 
+		// 获取chain的全局锁
 		blockchain.chainmu.MustLock()
 		// 将id，block写入db中
 		rawdb.WriteTd(blockchain.db, block.Hash(), block.NumberU64(), new(big.Int).Add(block.Difficulty(), blockchain.GetTd(block.ParentHash(), block.NumberU64()-1)))
@@ -237,8 +243,11 @@ func TestLastBlock(t *testing.T) {
 
 // Test inserts the blocks/headers after the fork choice rule is changed.
 // The chain is reorged to whatever specified.
+// 测试插入的blocks/headers，在fork choice rule已经变更之后，chain会reorg到指定
+// 的样子
 func testInsertAfterMerge(t *testing.T, blockchain *BlockChain, i, n int, full bool) {
 	// Copy old chain up to #i into a new db
+	// 拷贝到#i的old chain到一个新的db
 	db, blockchain2, err := newCanonical(ethash.NewFaker(), i, full)
 	if err != nil {
 		t.Fatal("could not make new canonical in testFork", err)
@@ -246,6 +255,7 @@ func testInsertAfterMerge(t *testing.T, blockchain *BlockChain, i, n int, full b
 	defer blockchain2.Stop()
 
 	// Assert the chains have the same header/block at #i
+	// 断言到#i为止的chains有着共同的header/block
 	var hash1, hash2 common.Hash
 	if full {
 		hash1 = blockchain.GetBlockByNumber(uint64(i)).Hash()
@@ -259,6 +269,7 @@ func testInsertAfterMerge(t *testing.T, blockchain *BlockChain, i, n int, full b
 	}
 
 	// Extend the newly created chain
+	// 扩展新创建的chain
 	if full {
 		blockChainB := makeBlockChain(blockchain2.CurrentBlock(), n, ethash.NewFaker(), db, forkSeed)
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
@@ -336,6 +347,7 @@ func testExtendCanonicalAfterMerge(t *testing.T, full bool) {
 
 // Tests that given a starting canonical chain of a given size, creating shorter
 // forks do not take canonical ownership.
+// 测试给定一个starting canonical chain，有着给定的大小，创建更小的forks不会获取canonical ownership
 func TestShorterForkHeaders(t *testing.T) { testShorterFork(t, false) }
 func TestShorterForkBlocks(t *testing.T)  { testShorterFork(t, true) }
 
@@ -356,6 +368,7 @@ func testShorterFork(t *testing.T, full bool) {
 		}
 	}
 	// Sum of numbers must be less than `length` for this to be a shorter fork
+	// numbers的和必须小于`length`，因为这需要为一个shorter fork
 	testFork(t, processor, 0, 3, full, worse)
 	testFork(t, processor, 0, 7, full, worse)
 	testFork(t, processor, 1, 1, full, worse)
@@ -389,6 +402,8 @@ func testShorterForkAfterMerge(t *testing.T, full bool) {
 
 // Tests that given a starting canonical chain of a given size, creating longer
 // forks do take canonical ownership.
+// 测试给定一个starting canonical chain，有着给定的大小，创建更长的forks会获取canonical
+// ownership
 func TestLongerForkHeaders(t *testing.T) { testLongerFork(t, false) }
 func TestLongerForkBlocks(t *testing.T)  { testLongerFork(t, true) }
 
@@ -607,6 +622,7 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	want := new(big.Int).Add(blockchain.genesisBlock.Difficulty(), big.NewInt(td))
 	if full {
 		cur := blockchain.CurrentBlock()
+		// 获取当前的td
 		if have := blockchain.GetTd(cur.Hash(), cur.NumberU64()); have.Cmp(want) != 0 {
 			t.Errorf("total difficulty mismatch: have %v, want %v", have, want)
 		}
@@ -765,6 +781,7 @@ func testInsertNonceError(t *testing.T, full bool) {
 
 // Tests that fast importing a block chain produces the same chain data as the
 // classical full block processing.
+// Test测试fast importing一个block chain，能产生和经典的full block processing产生同样的chain data
 func TestFastVsFullChains(t *testing.T) {
 	// Configure and generate a sample block chain
 	var (
@@ -1013,6 +1030,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 }
 
 // Tests that chain reorganisations handle transaction removals and reinsertions.
+// 测试chain reorganisations处理transaction的移除和重新插入
 func TestChainTxReorgs(t *testing.T) {
 	var (
 		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -1036,14 +1054,20 @@ func TestChainTxReorgs(t *testing.T) {
 	)
 
 	// Create two transactions shared between the chains:
+	// 创建两个transactions，在chains之间共享
 	//  - postponed: transaction included at a later block in the forked chain
+	//  - postponed: transaction包含在forked chain中的一个later block
 	//  - swapped: transaction included at the same block number in the forked chain
+	//  - swapped: transaction包含在forked chain中的同样的block number中
 	postponed, _ := types.SignTx(types.NewTransaction(0, addr1, big.NewInt(1000), params.TxGas, big.NewInt(params.InitialBaseFee), nil), signer, key1)
 	swapped, _ := types.SignTx(types.NewTransaction(1, addr1, big.NewInt(1000), params.TxGas, big.NewInt(params.InitialBaseFee), nil), signer, key1)
 
 	// Create two transactions that will be dropped by the forked chain:
+	// 创建两个会被forked chain丢弃的transactions
 	//  - pastDrop: transaction dropped retroactively from a past block
+	//  - pastDrop: transaction从一个past block被追溯丢弃
 	//  - freshDrop: transaction dropped exactly at the block where the reorg is detected
+	//  - freshDrop: 在reorg被检测到的block丢弃的transaction
 	var pastDrop, freshDrop *types.Transaction
 
 	// Create three transactions that will be added in the forked chain:
@@ -1057,8 +1081,8 @@ func TestChainTxReorgs(t *testing.T) {
 		case 0:
 			pastDrop, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr2), addr2, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key2)
 
-			gen.AddTx(pastDrop)  // This transaction will be dropped in the fork from below the split point
-			gen.AddTx(postponed) // This transaction will be postponed till block #3 in the fork
+			gen.AddTx(pastDrop)  // This transaction will be dropped in the fork from below the split point	// 这个transaction会在fork中丢弃，对于split point之下
+			gen.AddTx(postponed) // This transaction will be postponed till block #3 in the fork	// 这个transaction会推迟到block #3中执行
 
 		case 2:
 			freshDrop, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr2), addr2, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key2)
@@ -1066,10 +1090,11 @@ func TestChainTxReorgs(t *testing.T) {
 			gen.AddTx(freshDrop) // This transaction will be dropped in the fork from exactly at the split point
 			gen.AddTx(swapped)   // This transaction will be swapped out at the exact height
 
-			gen.OffsetTime(9) // Lower the block difficulty to simulate a weaker chain
+			gen.OffsetTime(9) // Lower the block difficulty to simulate a weaker chain	// 降低block difficulty来模拟一个weaker chain
 		}
 	})
 	// Import the chain. This runs all block validation rules.
+	// 导入chain，它会运行所有的block validation规则
 	blockchain, _ := NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
 	if i, err := blockchain.InsertChain(chain); err != nil {
 		t.Fatalf("failed to insert original chain[%d]: %v", i, err)
@@ -1077,6 +1102,7 @@ func TestChainTxReorgs(t *testing.T) {
 	defer blockchain.Stop()
 
 	// overwrite the old chain
+	// 覆盖old chain
 	chain, _ = GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 5, func(i int, gen *BlockGen) {
 		switch i {
 		case 0:
@@ -1088,11 +1114,11 @@ func TestChainTxReorgs(t *testing.T) {
 			gen.AddTx(swapped)   // This transaction was swapped from the exact current spot in the original chain
 
 			freshAdd, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr3), addr3, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key3)
-			gen.AddTx(freshAdd) // This transaction will be added exactly at reorg time
+			gen.AddTx(freshAdd) // This transaction will be added exactly at reorg time	// 这个transaction会在reorg的时候添加
 
 		case 3:
 			futureAdd, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr3), addr3, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key3)
-			gen.AddTx(futureAdd) // This transaction will be added after a full reorg
+			gen.AddTx(futureAdd) // This transaction will be added after a full reorg	// 这个transaction会在完整的reorg之后添加
 		}
 	})
 	if _, err := blockchain.InsertChain(chain); err != nil {
@@ -1100,6 +1126,7 @@ func TestChainTxReorgs(t *testing.T) {
 	}
 
 	// removed tx
+	// 移除的tx
 	for i, tx := range (types.Transactions{pastDrop, freshDrop}) {
 		if txn, _, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn != nil {
 			t.Errorf("drop %d: tx %v found while shouldn't have been", i, txn)
@@ -1109,6 +1136,7 @@ func TestChainTxReorgs(t *testing.T) {
 		}
 	}
 	// added tx
+	// 添加的tx
 	for i, tx := range (types.Transactions{pastAdd, freshAdd, futureAdd}) {
 		if txn, _, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn == nil {
 			t.Errorf("add %d: expected tx to be found", i)
@@ -1118,6 +1146,7 @@ func TestChainTxReorgs(t *testing.T) {
 		}
 	}
 	// shared tx
+	// 共享的tx
 	for i, tx := range (types.Transactions{postponed, swapped}) {
 		if txn, _, _, _ := rawdb.ReadTransaction(db, tx.Hash()); txn == nil {
 			t.Errorf("share %d: expected tx to be found", i)

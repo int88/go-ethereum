@@ -418,6 +418,7 @@ func (s Transactions) EncodeIndex(i int, w *bytes.Buffer) {
 }
 
 // TxDifference returns a new set which is the difference between a and b.
+// TxDifference返回一个新的集合，是a和b的不同
 func TxDifference(a, b Transactions) Transactions {
 	keep := make(Transactions, 0, len(a))
 

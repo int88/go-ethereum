@@ -27,6 +27,8 @@ import (
 // VerifyForkHashes verifies that blocks conforming to network hard-forks do have
 // the correct hashes, to avoid clients going off on different chains. This is an
 // optional feature.
+// VerifyForkHashes确认blocks符合network hard-forks，确保有着正确的hashes，来避免
+// clients在不同的链上爆炸，这是一个可选的选项
 func VerifyForkHashes(config *params.ChainConfig, header *types.Header, uncle bool) error {
 	// We don't care about uncles
 	if uncle {

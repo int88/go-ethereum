@@ -151,11 +151,13 @@ func (bc *BlockChain) HasFastBlock(hash common.Hash, number uint64) bool {
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
+// GetBlock从数据库通过hash以number获取一个block，缓存它如果找到的话
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
+	// 从db中获取block
 	block := rawdb.ReadBlock(bc.db, hash, number)
 	if block == nil {
 		return nil

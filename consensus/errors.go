@@ -29,6 +29,7 @@ var (
 
 	// ErrFutureBlock is returned when a block's timestamp is in the future according
 	// to the current node.
+	// ErrFutureBlock表示一个block的时间戳在未来，根据current node
 	ErrFutureBlock = errors.New("block in the future")
 
 	// ErrInvalidNumber is returned if a block's number doesn't equal its parent's

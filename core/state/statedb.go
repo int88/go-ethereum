@@ -829,6 +829,7 @@ func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 // 来获取放入transaction receipts的root hash
 func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// Finalise all the dirty storage states and write them into the tries
+	// Finalise所有的dirty storage states并且将它们写入trie
 	s.Finalise(deleteEmptyObjects)
 
 	// If there was a trie prefetcher operating, it gets aborted and irrevocably

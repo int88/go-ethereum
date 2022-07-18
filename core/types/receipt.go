@@ -52,6 +52,7 @@ const (
 // Receipt代表一个transaction的结果
 type Receipt struct {
 	// Consensus fields: These fields are defined by the Yellow Paper
+	// 共识字段：这些字段由Yellow Paper定义
 	Type              uint8  `json:"type,omitempty"`
 	PostState         []byte `json:"root"`
 	Status            uint64 `json:"status"`
@@ -68,6 +69,7 @@ type Receipt struct {
 
 	// Inclusion information: These fields provide information about the inclusion of the
 	// transaction corresponding to this receipt.
+	// 下面这些字段提供了对应这个receipt的transaction的信息
 	BlockHash        common.Hash `json:"blockHash,omitempty"`
 	BlockNumber      *big.Int    `json:"blockNumber,omitempty"`
 	TransactionIndex uint        `json:"transactionIndex"`
