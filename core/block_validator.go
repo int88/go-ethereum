@@ -55,6 +55,7 @@ func NewBlockValidator(config *params.ChainConfig, blockchain *BlockChain, engin
 // headers假设已经在这里被校验了
 func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
+	// 检查这个block是否是已知的，如果不是的话，说明是linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
 		return ErrKnownBlock
 	}
@@ -72,8 +73,10 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	}
 	if !v.bc.HasBlockAndState(block.ParentHash(), block.NumberU64()-1) {
 		if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
+			// parent未知
 			return consensus.ErrUnknownAncestor
 		}
+		// parent已经被移除
 		return consensus.ErrPrunedAncestor
 	}
 	return nil

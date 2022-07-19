@@ -397,6 +397,7 @@ func (bc *BlockChain) SubscribeChainSideEvent(ch chan<- ChainSideEvent) event.Su
 }
 
 // SubscribeLogsEvent registers a subscription of []*types.Log.
+// SubscribeLogsEvent注册对于[]*types.Log的订阅
 func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
 	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
 }

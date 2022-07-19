@@ -82,13 +82,15 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 }
 
 // insertIterator is a helper to assist during chain import.
+// insertIterator是一个helper用于支持chain import
 type insertIterator struct {
 	chain types.Blocks // Chain of blocks being iterated over
 
 	results <-chan error // Verification result sink from the consensus engine
 	errors  []error      // Header verification errors for the blocks
 
-	index     int       // Current offset of the iterator
+	index int // Current offset of the iterator
+	// 如果verification成功的话，运行的Validator
 	validator Validator // Validator to run if verification succeeds
 }
 
@@ -107,6 +109,8 @@ func newInsertIterator(chain types.Blocks, results <-chan error, validator Valid
 
 // next returns the next block in the iterator, along with any potential validation
 // error for that block. When the end is reached, it will return (nil, nil).
+// next返回iterator中的下一个block，以及对于该block的任何潜在的validation error
+// 当到达最后时会返回(nil, nil)
 func (it *insertIterator) next() (*types.Block, error) {
 	// If we reached the end of the chain, abort
 	if it.index+1 >= len(it.chain) {
@@ -122,6 +126,7 @@ func (it *insertIterator) next() (*types.Block, error) {
 		return it.chain[it.index], it.errors[it.index]
 	}
 	// Block header valid, run body validation and return
+	// Block header是合法的，运行body validation并且返回
 	return it.chain[it.index], it.validator.ValidateBody(it.chain[it.index])
 }
 

@@ -1209,10 +1209,12 @@ func TestLogReorgs(t *testing.T) {
 }
 
 // This EVM code generates a log when the contract is created.
+// 这个EVM code生成一个log，当contract创建时
 var logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
 
 // This test checks that log events and RemovedLogsEvent are sent
 // when the chain reorganizes.
+// 这个测试检查log events
 func TestLogRebirth(t *testing.T) {
 	var (
 		key1, _       = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -1230,6 +1232,7 @@ func TestLogRebirth(t *testing.T) {
 	// The event channels.
 	newLogCh := make(chan []*types.Log, 10)
 	rmLogsCh := make(chan RemovedLogsEvent, 10)
+	// 订阅logs event
 	blockchain.SubscribeLogsEvent(newLogCh)
 	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 
@@ -1250,6 +1253,7 @@ func TestLogRebirth(t *testing.T) {
 
 	// Generate long reorg chain containing another log. Inserting the
 	// chain removes one log and adds one.
+	// 生成长的reorg chain，包含另一个log，插入chain，移除一个log并且添加一个
 	forkChain, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
 			tx, err := types.SignTx(types.NewContractCreation(gen.TxNonce(addr1), new(big.Int), 1000000, gen.header.BaseFee, logCode), signer, key1)
@@ -1796,6 +1800,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 
 func TestBlockchainRecovery(t *testing.T) {
 	// Configure and generate a sample block chain
+	// 配置并且生成一个sample block chain
 	var (
 		gendb   = rawdb.NewMemoryDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -1808,6 +1813,7 @@ func TestBlockchainRecovery(t *testing.T) {
 	blocks, receipts := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), gendb, int(height), nil)
 
 	// Import the chain as a ancient-first node and ensure all pointers are updated
+	// 导入chain，作为一个ancient-first node并且确保所有的pointers都已经更新了
 	frdir := t.TempDir()
 
 	ancientDb, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), frdir, "", false)

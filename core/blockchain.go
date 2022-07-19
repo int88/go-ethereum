@@ -197,8 +197,8 @@ type BlockChain struct {
 	chainmu *syncx.ClosableMutex
 
 	currentBlock          atomic.Value // Current head of the block chain	// block chain当前的header
-	currentFastBlock      atomic.Value // Current head of the fast-sync chain (may be above the block chain!)
-	currentFinalizedBlock atomic.Value // Current finalized head
+	currentFastBlock      atomic.Value // Current head of the fast-sync chain (may be above the block chain!)	// 当前的fast-sync的chain的head（可能在block chain之上）
+	currentFinalizedBlock atomic.Value // Current finalized head	// 当前的finalized head
 
 	// State database在导入之间重用
 	stateCache    state.Database // State database to reuse between imports (contains state cache)	// 在imports之间重用的State database（包含state缓存）
@@ -799,6 +799,7 @@ func (bc *BlockChain) ExportN(w io.Writer, first uint64, last uint64) error {
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	// Add the block to the canonical chain number scheme and mark as the head
+	// 添加block到canonical chain number scheme并且标记为head
 	batch := bc.db.NewBatch()
 	rawdb.WriteHeadHeaderHash(batch, block.Hash())
 	rawdb.WriteHeadFastBlockHash(batch, block.Hash())
@@ -807,15 +808,19 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	rawdb.WriteHeadBlockHash(batch, block.Hash())
 
 	// Flush the whole batch into the disk, exit the node if failed
+	// 将整个batch刷到磁盘，退出node，如果失败的话
 	if err := batch.Write(); err != nil {
 		log.Crit("Failed to update chain indexes and markers", "err", err)
 	}
 	// Update all in-memory chain markers in the last step
+	// 更新所有内存中的chain markers，在最后一步
 	bc.hc.SetCurrentHeader(block.Header())
 
+	// 存储current fast block
 	bc.currentFastBlock.Store(block)
 	headFastBlockGauge.Update(int64(block.NumberU64()))
 
+	// 存储current block
 	bc.currentBlock.Store(block)
 	headBlockGauge.Update(int64(block.NumberU64()))
 }
@@ -1500,7 +1505,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		//   1. We did a roll-back, and should now do a re-import
 		//   2. The block is stored as a sidechain, and is lying about it's stateroot, and passes a stateroot
 		//      from the canonical chain, which has not been verified.
+		// 第一个block（以及state）已知
+		//   1. 我们做了一个回滚，并且现在应该做一个re-import
+		//   2. block作为sidechain存储
 		// Skip all known blocks that are behind us.
+		// 跳过所有已知的blocks
 		var (
 			reorg   bool
 			current = bc.CurrentBlock()
@@ -1514,9 +1523,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			if reorg {
 				// Switch to import mode if the forker says the reorg is necessary
 				// and also the block is not on the canonical chain.
+				// 转换为import mode，如果forker说reorg是必须的并且block不在canonical chain上
 				// In eth2 the forker always returns true for reorg decision (blindly trusting
 				// the external consensus engine), but in order to prevent the unnecessary
 				// reorgs when importing known blocks, the special case is handled here.
+				// 在eth2中，forker总是返回true，对于reorg decision（盲目信任external consensus engine）
+				// 但是为了防止不必要的reorgs，当导入已知的blocks，在这里处理特殊情况
 				if block.NumberU64() > current.NumberU64() || bc.GetCanonicalHash(block.NumberU64()) != block.Hash() {
 					break
 				}
@@ -1599,6 +1611,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 	}()
 
+	// 没有遇到错误或者是已知的block
 	for ; block != nil && err == nil || errors.Is(err, ErrKnownBlock); block, err = it.next() {
 		// If the chain is terminating, stop processing blocks
 		if bc.insertStopped() {
@@ -1663,6 +1676,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 
 		// Enable prefetching to pull in trie node paths while processing transactions
+		// 使能prefetching，来拉取trie node paths，当处理transactions时
 		statedb.StartPrefetcher("chain")
 		activeState = statedb
 
@@ -1728,6 +1742,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		var status WriteStatus
 		if !setHead {
 			// Don't set the head, only insert the block
+			// 不要设置head，只是插入block
 			err = bc.writeBlockWithState(block, receipts, logs, statedb)
 		} else {
 			// 写入blcok并且设置head
@@ -1995,11 +2010,14 @@ func (bc *BlockChain) recoverAncestors(block *types.Block) (common.Hash, error) 
 // collectLogs collects the logs that were generated or removed during
 // the processing of the block that corresponds with the given hash.
 // These logs are later announced as deleted or reborn.
+// collectLogs收集在处理block时生成或者移除的logs，对于给定的hash
+// 这是logs之后被声明为deleted或者reborn
 func (bc *BlockChain) collectLogs(hash common.Hash, removed bool) []*types.Log {
 	number := bc.hc.GetBlockNumber(hash)
 	if number == nil {
 		return nil
 	}
+	// 基于block number获取receipts
 	receipts := rawdb.ReadReceipts(bc.db, hash, *number, bc.chainConfig)
 
 	var logs []*types.Log
@@ -2009,6 +2027,7 @@ func (bc *BlockChain) collectLogs(hash common.Hash, removed bool) []*types.Log {
 			if removed {
 				l.Removed = true
 			}
+			// 收集receipts中的日志
 			logs = append(logs, &l)
 		}
 	}
@@ -2071,6 +2090,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// New chain is longer, stash all blocks away for subsequent insertion
 		// New chain更长，把所有的blocks都收集起来用于后续的插入
 		for ; newBlock != nil && newBlock.NumberU64() != oldBlock.NumberU64(); newBlock = bc.GetBlock(newBlock.ParentHash(), newBlock.NumberU64()-1) {
+			// 收集old block之上的blocks
 			newChain = append(newChain, newBlock)
 		}
 	}
@@ -2095,6 +2115,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		deletedTxs = append(deletedTxs, oldBlock.Transactions()...)
 
 		// Collect deleted logs for notification
+		// 收集deleted logs用于通知
 		logs := bc.collectLogs(oldBlock.Hash(), true)
 		if len(logs) > 0 {
 			deletedLogs = append(deletedLogs, logs)
@@ -2116,6 +2137,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// 确保用户看到large reorgs
 	if len(oldChain) > 0 && len(newChain) > 0 {
 		logFn := log.Info
+		// 检测到了一个reorg
 		msg := "Chain reorg detected"
 		if len(oldChain) > 63 {
 			msg = "Large chain reorg detected"
@@ -2129,6 +2151,8 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	} else if len(newChain) > 0 {
 		// Special case happens in the post merge stage that current head is
 		// the ancestor of new head while these two blocks are not consecutive
+		// 特殊情况，在post merge stage，current head是new head的ancestor，同时
+		// 这两个blocks不是连续的
 		log.Info("Extend chain", "add", len(newChain), "number", newChain[0].NumberU64(), "hash", newChain[0].Hash())
 		blockReorgAddMeter.Mark(int64(len(newChain)))
 	} else {
@@ -2160,6 +2184,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// 以及head之上的non-canonical transaction
 	indexesBatch := bc.db.NewBatch()
 	for _, tx := range types.TxDifference(deletedTxs, addedTxs) {
+		// 移除tx lookup entry
 		rawdb.DeleteTxLookupEntry(indexesBatch, tx.Hash())
 	}
 	// Delete any canonical number assignments above the new head
@@ -2170,6 +2195,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		if hash == (common.Hash{}) {
 			break
 		}
+		// 移除canonical hash
 		rawdb.DeleteCanonicalHash(indexesBatch, i)
 	}
 	if err := indexesBatch.Write(); err != nil {
@@ -2211,6 +2237,8 @@ func (bc *BlockChain) InsertBlockWithoutSetHead(block *types.Block) error {
 // SetCanonical rewinds the chain to set the new head block as the specified
 // block. It's possible that the state of the new head is missing, and it will
 // be recovered in this function as well.
+// SetCanonical rewinds the chain，将指定的block设置为新的head block，可能新head的
+// state是缺失的，它会在这个函数中恢复
 func (bc *BlockChain) SetCanonical(head *types.Block) (common.Hash, error) {
 	if !bc.chainmu.TryLock() {
 		return common.Hash{}, errChainStopped
@@ -2218,6 +2246,7 @@ func (bc *BlockChain) SetCanonical(head *types.Block) (common.Hash, error) {
 	defer bc.chainmu.Unlock()
 
 	// Re-execute the reorged chain in case the head state is missing.
+	// 重新执行reorged chain，万一丢失head state
 	if !bc.HasState(head.Root()) {
 		if latestValidHash, err := bc.recoverAncestors(head); err != nil {
 			return latestValidHash, err
@@ -2225,15 +2254,19 @@ func (bc *BlockChain) SetCanonical(head *types.Block) (common.Hash, error) {
 		log.Info("Recovered head state", "number", head.Number(), "hash", head.Hash())
 	}
 	// Run the reorg if necessary and set the given block as new head.
+	// 运行reorg，如果需要的话，并且设置给定的block为新的head
 	start := time.Now()
 	if head.ParentHash() != bc.CurrentBlock().Hash() {
+		// 调用reorg函数
 		if err := bc.reorg(bc.CurrentBlock(), head); err != nil {
 			return common.Hash{}, err
 		}
 	}
+	// 写入head block
 	bc.writeHeadBlock(head)
 
 	// Emit events
+	// 发送events事件
 	logs := bc.collectLogs(head.Hash(), false)
 	bc.chainFeed.Send(ChainEvent{Block: head, Hash: head.Hash(), Logs: logs})
 	if len(logs) > 0 {

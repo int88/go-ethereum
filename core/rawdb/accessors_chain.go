@@ -49,6 +49,7 @@ func ReadCanonicalHash(db ethdb.Reader, number uint64) common.Hash {
 }
 
 // WriteCanonicalHash stores the hash assigned to a canonical block number.
+// WriteCanonicalHash存储赋值给一个canonical block number的hash
 func WriteCanonicalHash(db ethdb.KeyValueWriter, hash common.Hash, number uint64) {
 	if err := db.Put(headerHashKey(number), hash.Bytes()); err != nil {
 		log.Crit("Failed to store number to hash mapping", "err", err)
@@ -56,6 +57,7 @@ func WriteCanonicalHash(db ethdb.KeyValueWriter, hash common.Hash, number uint64
 }
 
 // DeleteCanonicalHash removes the number to hash canonical mapping.
+// DeleteCanonicalHash移除number到hash canonical之间的映射
 func DeleteCanonicalHash(db ethdb.KeyValueWriter, number uint64) {
 	if err := db.Delete(headerHashKey(number)); err != nil {
 		log.Crit("Failed to delete number to hash mapping", "err", err)
@@ -624,6 +626,8 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 // ReadReceipts retrieves all the transaction receipts belonging to a block, including
 // its corresponding metadata fields. If it is unable to populate these metadata
 // fields then nil is returned.
+// ReadReceipts获取属于一个block的所有transaction receipts，包括对应的metadata字段，如果不能填充
+// 这些元数据字段，则会返回nil
 //
 // The current implementation populates these metadata fields by reading the receipts'
 // corresponding block body, so if the block body is not found it will return nil even

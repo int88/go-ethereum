@@ -27,6 +27,7 @@ var (
 	ErrKnownBlock = errors.New("block already known")
 
 	// ErrBannedHash is returned if a block to import is on the banned list.
+	// ErrBannedHash返回，如果导入的block在banned list中
 	ErrBannedHash = errors.New("banned hash")
 
 	// ErrNoGenesis is returned when there is no Genesis Block.

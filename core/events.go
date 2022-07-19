@@ -29,6 +29,7 @@ type NewTxsEvent struct{ Txs []*types.Transaction }
 type NewMinedBlockEvent struct{ Block *types.Block }
 
 // RemovedLogsEvent is posted when a reorg happens
+// RemovedLogsEvent会在一个reorg发生的时候被发送
 type RemovedLogsEvent struct{ Logs []*types.Log }
 
 type ChainEvent struct {
