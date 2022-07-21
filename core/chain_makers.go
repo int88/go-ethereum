@@ -329,8 +329,9 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 		Coinbase:   parent.Coinbase(),
 		// Difficulty根据genine进行计算
 		Difficulty: engine.CalcDifficulty(chain, time, &types.Header{
-			Number:     parent.Number(),
-			Time:       time - 10,
+			Number: parent.Number(),
+			Time:   time - 10,
+			// 获取parent的difficulty
 			Difficulty: parent.Difficulty(),
 			UncleHash:  parent.UncleHash(),
 		}),
@@ -353,6 +354,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 func makeHeaderChain(parent *types.Header, n int, engine consensus.Engine, db ethdb.Database, seed int) []*types.Header {
 	blocks := makeBlockChain(types.NewBlockWithHeader(parent), n, engine, db, seed)
 	headers := make([]*types.Header, len(blocks))
+	// 获取blocks中的header
 	for i, block := range blocks {
 		headers[i] = block.Header()
 	}

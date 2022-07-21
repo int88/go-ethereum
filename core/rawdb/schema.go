@@ -35,6 +35,7 @@ var (
 	headHeaderKey = []byte("LastHeader")
 
 	// headBlockKey tracks the latest known full block's hash.
+	// headBlockKey追踪最后一个知道的full block的hash
 	headBlockKey = []byte("LastBlock")
 
 	// headFastBlockKey tracks the latest known incomplete block's hash during fast sync.

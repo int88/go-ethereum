@@ -1435,6 +1435,7 @@ done:
 }
 
 // Tests if the canonical block can be fetched from the database during chain insertion.
+// 测试是否canonical block可以从数据库中获取，在chain insertion的时候
 func TestCanonicalBlockRetrieval(t *testing.T) {
 	_, blockchain, err := newCanonical(ethash.NewFaker(), 0, true)
 	if err != nil {
@@ -1452,9 +1453,11 @@ func TestCanonicalBlockRetrieval(t *testing.T) {
 			defer pend.Done()
 
 			// try to retrieve a block by its canonical hash and see if the block data can be retrieved.
+			// 试着通过canonical hash获取一个block并且查看是否block data能够被获取
 			for {
 				ch := rawdb.ReadCanonicalHash(blockchain.db, block.NumberU64())
 				if ch == (common.Hash{}) {
+					// 轮询等待canonical hash被写入
 					continue // busy wait for canonical hash to be written
 				}
 				if ch != block.Hash() {

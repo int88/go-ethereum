@@ -388,6 +388,7 @@ func (bc *BlockChain) SubscribeChainEvent(ch chan<- ChainEvent) event.Subscripti
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 // SubscribeChainHeadEvent注册了对于ChainHeadEvent的订阅
 func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+	// 订阅chain head event
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }
 

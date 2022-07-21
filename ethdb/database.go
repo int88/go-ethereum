@@ -97,11 +97,13 @@ type AncientReaderOp interface {
 }
 
 // AncientReader is the extended ancient reader interface including 'batched' or 'atomic' reading.
+// AncientReader是扩展的ancient  reader接口，包含'batched'或者'atomic'读取操作
 type AncientReader interface {
 	AncientReaderOp
 
 	// ReadAncients runs the given read operation while ensuring that no writes take place
 	// on the underlying freezer.
+	// ReadAncients运行给定的read操作，同时确保在底层freezer的时候没有写操作发生
 	ReadAncients(fn func(AncientReaderOp) error) (err error)
 }
 

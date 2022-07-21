@@ -45,7 +45,9 @@ The state transitioning model does all the necessary work to work out a valid ne
 4) Value transfer
 == If contract creation ==
   4a) Attempt to run transaction data
+  4a) 试着运行transaction数据
   4b) If valid, use result as code for the new state object
+  4a) 如果是合法的，使用result作为code用于新的state对象
 == end ==
 5) Run Script section
 6) Derive new state root

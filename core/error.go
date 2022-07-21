@@ -39,10 +39,14 @@ var (
 // List of evm-call-message pre-checking errors. All state transition messages will
 // be pre-checked before execution. If any invalidation detected, the corresponding
 // error should be returned which is defined here.
+// 一系列的evm-call-message的pre-checking错误，所有的state transition messages会进行pre-check
+// 在执行之前，如果检测到任何的invalidation，对应的error会被返回，它们都定义在这里
 //
 // - If the pre-checking happens in the miner, then the transaction won't be packed.
+// - 如果pre-checking在miner发生，则transaction不会被打包
 // - If the pre-checking happens in the block processing procedure, then a "BAD BLOCk"
 // error should be emitted.
+// - 如果pre-checking发生在block processing的过程中，那么会发射"BAD BLOCK"的错误
 var (
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.

@@ -44,6 +44,8 @@ var (
 // Database is an ephemeral key-value store. Apart from basic data storage
 // functionality it also supports batch writes and iterating over the keyspace in
 // binary-alphabetical order.
+// Database是一个临时的key-value store，除了基础的data storage功能，它同时支持batch writes
+// 并且遍历keyspace，按照binary-alphabetical顺序
 type Database struct {
 	db   map[string][]byte
 	lock sync.RWMutex
@@ -51,6 +53,7 @@ type Database struct {
 
 // New returns a wrapped map with all the required database interface methods
 // implemented.
+// New返回一个封装的map，包含了所有必须的database接口
 func New() *Database {
 	return &Database{
 		db: make(map[string][]byte),

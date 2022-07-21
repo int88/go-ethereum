@@ -275,11 +275,15 @@ func (l *txList) Overlaps(tx *types.Transaction) bool {
 
 // Add tries to insert a new transaction into the list, returning whether the
 // transaction was accepted, and if yes, any previous transaction it replaced.
+// Add试着插入一个新的transaction到list，返回是否这个transaction已经被接收了，如果是的话
+// 之前的transaction被替代
 //
 // If the new transaction is accepted into the list, the lists' cost and gas
 // thresholds are also potentially updated.
+// 如果新的transaction被接受到list中，则list的cost以及gas thresholds应该被更新
 func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Transaction) {
 	// If there's an older better transaction, abort
+	// 如果有一个老的transaction更好，退出
 	old := l.txs.Get(tx.Nonce())
 	if old != nil {
 		if old.GasFeeCapCmp(tx) >= 0 || old.GasTipCapCmp(tx) >= 0 {
@@ -303,6 +307,7 @@ func (l *txList) Add(tx *types.Transaction, priceBump uint64) (bool, *types.Tran
 		}
 	}
 	// Otherwise overwrite the old transaction with the current one
+	// 否则用当前的transaction覆盖old transaction
 	l.txs.Put(tx)
 	if cost := tx.Cost(); l.costcap.Cmp(cost) < 0 {
 		l.costcap = cost
@@ -472,6 +477,7 @@ func (h *priceHeap) Pop() interface{} {
 // contents in a price-incrementing way. It's built opon the all transactions
 // in txpool but only interested in the remote part. It means only remote transactions
 // will be considered for tracking, sorting, eviction, etc.
+// 只有remote transactions才会被追踪，排序，驱逐
 //
 // Two heaps are used for sorting: the urgent heap (based on effective tip in the next
 // block) and the floating heap (based on gasFeeCap). Always the bigger heap is chosen for

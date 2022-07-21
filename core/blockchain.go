@@ -1253,6 +1253,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	}
 	// Make sure no inconsistent state is leaked during insertion
 	// 确保没有不一致的状态在插入期间泄露
+	// parent的td加上当前block的difficulty
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database.
@@ -1262,6 +1263,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// should be written atomically. BlockBatch is used for containing all components.
 	// 注意所有的block的组件（td, hash->number map, header, body以及receipts）应该原子写入
 	blockBatch := bc.db.NewBatch()
+	// 写入TD
 	rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
 	rawdb.WriteBlock(blockBatch, block)
 	rawdb.WriteReceipts(blockBatch, block.Hash(), block.NumberU64(), receipts)

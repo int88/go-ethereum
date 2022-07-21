@@ -525,6 +525,7 @@ func DeleteBody(db ethdb.KeyValueWriter, hash common.Hash, number uint64) {
 }
 
 // ReadTdRLP retrieves a block's total difficulty corresponding to the hash in RLP encoding.
+// ReadTdRLP获取一个block的td，根据以RLP编码的hash
 func ReadTdRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
 	var data []byte
 	db.ReadAncients(func(reader ethdb.AncientReaderOp) error {
@@ -534,6 +535,7 @@ func ReadTdRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
 			return nil
 		}
 		// If not, try reading from leveldb
+		// 如果不是，试着从leveldb中读取
 		data, _ = db.Get(headerTDKey(number, hash))
 		return nil
 	})
@@ -541,6 +543,7 @@ func ReadTdRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
 }
 
 // ReadTd retrieves a block's total difficulty corresponding to the hash.
+// ReadTd获取一个block的td，根据对应的哈希值
 func ReadTd(db ethdb.Reader, hash common.Hash, number uint64) *big.Int {
 	data := ReadTdRLP(db, hash, number)
 	if len(data) == 0 {

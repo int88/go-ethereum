@@ -39,6 +39,7 @@ var (
 // A BlockNonce is a 64-bit hash which proves (combined with the
 // mix-hash) that a sufficient amount of computation has been carried
 // out on a block.
+// 一个BlockNonce是一个64位的哈希，它证明在一个block之上已经进行了足够的计算
 type BlockNonce [8]byte
 
 // EncodeNonce converts the given integer to a block nonce.

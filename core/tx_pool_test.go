@@ -218,6 +218,8 @@ func (c *testChain) State() (*state.StateDB, error) {
 // This test simulates a scenario where a new block is imported during a
 // state reset and tests whether the pending state is in sync with the
 // block head event that initiated the resetState().
+// 这个测试模拟了一个场景，当一个state重置时，一个新的block被导入，测试是否pending state
+// 是和block head event同步的，它初始化了resetState()
 func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
 	t.Parallel()
 
@@ -229,6 +231,7 @@ func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
 	)
 
 	// setup pool with 2 transaction in it
+	// 设置有两个transaction的pool
 	statedb.SetBalance(address, new(big.Int).SetUint64(params.Ether))
 	blockchain := &testChain{&testBlockChain{1000000000, statedb, new(event.Feed)}, address, &trigger}
 
@@ -243,6 +246,7 @@ func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
 		t.Fatalf("Invalid nonce, want 0, got %d", nonce)
 	}
 
+	// 往pool中添加transactions
 	pool.AddRemotesSync([]*types.Transaction{tx0, tx1})
 
 	nonce = pool.Nonce(address)
@@ -251,6 +255,7 @@ func TestStateChangeDuringTransactionPoolReset(t *testing.T) {
 	}
 
 	// trigger state change in the background
+	// 在后台触发state change
 	trigger = true
 	<-pool.requestReset(nil, nil)
 
@@ -436,6 +441,7 @@ func TestTransactionChainFork(t *testing.T) {
 	pool.removeTx(tx.Hash(), true)
 
 	// reset the pool's internal state
+	// 重置pool的内部状态
 	resetState()
 	if _, err := pool.add(tx, false); err != nil {
 		t.Error("didn't expect error", err)

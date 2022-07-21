@@ -66,8 +66,8 @@ type HeaderChain struct {
 	chainDb       ethdb.Database
 	genesisHeader *types.Header
 
-	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
-	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)
+	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)	// 当header chain的head（可能在block chain之上）
+	currentHeaderHash common.Hash  // Hash of the current head of the header chain (prevent recomputing all the time)	// header chain当前head的哈希值（避免一直重复计算）
 
 	headerCache *lru.Cache // Cache for the most recent block headers
 	tdCache     *lru.Cache // Cache for the most recent block total difficulties
@@ -81,12 +81,14 @@ type HeaderChain struct {
 
 // NewHeaderChain creates a new HeaderChain structure. ProcInterrupt points
 // to the parent's interrupt semaphore.
+// NewHeaderChain创建一个新的HeaderChain结构，ProcInterrupt指向parent的interrupt semaphore
 func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine consensus.Engine, procInterrupt func() bool) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	tdCache, _ := lru.New(tdCacheLimit)
 	numberCache, _ := lru.New(numberCacheLimit)
 
 	// Seed a fast but crypto originating random generator
+	// 构建一个random generator
 	seed, err := crand.Int(crand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		return nil, err
@@ -105,6 +107,7 @@ func NewHeaderChain(chainDb ethdb.Database, config *params.ChainConfig, engine c
 	if hc.genesisHeader == nil {
 		return nil, ErrNoGenesis
 	}
+	// 设置current header
 	hc.currentHeader.Store(hc.genesisHeader)
 	if head := rawdb.ReadHeadBlockHash(chainDb); head != (common.Hash{}) {
 		if chead := hc.GetHeaderByHash(head); chead != nil {
@@ -141,6 +144,8 @@ type headerWriteResult struct {
 // Reorg reorgs the local canonical chain into the specified chain. The reorg
 // can be classified into two cases: (a) extend the local chain (b) switch the
 // head to the given header.
+// Reorg调整local canonical chain到特定从chain，reorg可以分为两种类型：（a）扩展local chain
+// （b）转换head到给定的header
 func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 	// Short circuit if nothing to reorg.
 	if len(headers) == 0 {
@@ -150,6 +155,8 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 	// we don't have to go backwards to delete canon blocks, but simply
 	// pile them onto the existing chain. Otherwise, do the necessary
 	// reorgs.
+	// 如果第一个block的parent已经是canon header，我们不会回过去删除canon blocks
+	// 而是简单地累加到已经存在的chain，否则做必要的reorg
 	var (
 		first = headers[0]
 		last  = headers[len(headers)-1]
@@ -157,6 +164,7 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 	)
 	if first.ParentHash != hc.currentHeaderHash {
 		// Delete any canonical number assignments above the new head
+		// 删除所有新的head之上的canonical number assignments
 		for i := last.Number.Uint64() + 1; ; i++ {
 			hash := rawdb.ReadCanonicalHash(hc.chainDb, i)
 			if hash == (common.Hash{}) {
@@ -167,6 +175,8 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 		// Overwrite any stale canonical number assignments, going
 		// backwards from the first header in this import until the
 		// cross link between two chains.
+		// 覆盖任何过时的canonical number assignments，从这次导入的第一个header
+		// 往前，知道两条链有交叉
 		var (
 			header     = first
 			headNumber = header.Number.Uint64()
@@ -177,6 +187,7 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 			if headNumber == 0 {
 				break // It shouldn't be reached
 			}
+			// 获取parent
 			headHash, headNumber = header.ParentHash, header.Number.Uint64()-1
 			header = hc.GetHeader(headHash, headNumber)
 			if header == nil {
@@ -185,13 +196,16 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 		}
 	}
 	// Extend the canonical chain with the new headers
+	// 用新的headers扩展canonical chain
 	for i := 0; i < len(headers)-1; i++ {
 		hash := headers[i+1].ParentHash // Save some extra hashing
 		num := headers[i].Number.Uint64()
+		// 写入canonical hash和head header hash
 		rawdb.WriteCanonicalHash(batch, hash, num)
 		rawdb.WriteHeadHeaderHash(batch, hash)
 	}
 	// Write the last header
+	// 写入最后一个header
 	hash := headers[len(headers)-1].Hash()
 	num := headers[len(headers)-1].Number.Uint64()
 	rawdb.WriteCanonicalHash(batch, hash, num)
@@ -201,6 +215,7 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 		return err
 	}
 	// Last step update all in-memory head header markers
+	// 最后一步，更新所有的in-memory  head header marker
 	hc.currentHeaderHash = last.Hash()
 	hc.currentHeader.Store(types.CopyHeader(last))
 	headHeaderGauge.Update(last.Number.Int64())
@@ -211,6 +226,8 @@ func (hc *HeaderChain) Reorg(headers []*types.Header) error {
 // parents are already known. The chain head header won't be updated in this
 // function, the additional SetCanonical is expected in order to finish the entire
 // procedure.
+// WriteHeaders写入一系列的headers到local chain，给定parents已经知道了，chain head header
+// 不会在这个函数里更新，额外的SetCanonical会期望执行，为了完整整个流程
 func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 	if len(headers) == 0 {
 		return 0, nil
@@ -230,6 +247,8 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 		// The headers have already been validated at this point, so we already
 		// know that it's a contiguous chain, where
 		// headers[i].Hash() == headers[i+1].ParentHash
+		// 到这里，headers已经被校验过了，这样我们已经知道它是一个连续的chain，其中
+		// headers[i].Hash() == headers[i+1].ParentHash
 		if i < len(headers)-1 {
 			hash = headers[i+1].ParentHash
 		} else {
@@ -243,6 +262,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 		alreadyKnown := parentKnown && hc.HasHeader(hash, number)
 		if !alreadyKnown {
 			// Irrelevant of the canonical status, write the TD and header to the database.
+			// 不管canonical status，将TD以及header写入到数据库中
 			rawdb.WriteTd(batch, hash, number, newTD)
 			hc.tdCache.Add(hash, new(big.Int).Set(newTD))
 
@@ -254,11 +274,13 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 		parentKnown = alreadyKnown
 	}
 	// Skip the slow disk write of all headers if interrupted.
+	// 跳过所有headers缓慢的磁盘写，如果被中断的话
 	if hc.procInterrupt() {
 		log.Debug("Premature abort during headers import")
 		return 0, errors.New("aborted")
 	}
 	// Commit to disk!
+	// 提交到磁盘
 	if err := batch.Write(); err != nil {
 		log.Crit("Failed to write headers", "error", err)
 	}
@@ -272,6 +294,10 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 // without the real blocks. Hence, writing headers directly should only be done
 // in two scenarios: pure-header mode of operation (light clients), or properly
 // separated header/block phases (non-archive clients).
+// writeHeadersAndSetHead写入一系列的block headers并且应用最后的header作为chain head
+// 如果fork choicer认为更新chain是ok的
+// 直接写入headers应该在以下两种场景：纯header模式的操作（light clients），或者合理地分开
+// header/block阶段（non-archive clients）
 func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header, forker *ForkChoice) (*headerWriteResult, error) {
 	inserted, err := hc.WriteHeaders(headers)
 	if err != nil {
@@ -289,6 +315,7 @@ func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header, forker *F
 		}
 	)
 	// Ask the fork choicer if the reorg is necessary
+	// 调用fork choicer，是否需要reorg
 	if reorg, err := forker.ReorgNeeded(hc.CurrentHeader(), lastHeader); err != nil {
 		return nil, err
 	} else if !reorg {
@@ -299,10 +326,12 @@ func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header, forker *F
 	}
 	// Special case, all the inserted headers are already on the canonical
 	// header chain, skip the reorg operation.
+	// 特殊情况，所有插入的headers都已经在canonical header chain, 跳过reorg操作
 	if hc.GetCanonicalHash(lastHeader.Number.Uint64()) == lastHash && lastHeader.Number.Uint64() <= hc.CurrentHeader().Number.Uint64() {
 		return result, nil
 	}
 	// Apply the reorg operation
+	// 应用reorg操作
 	if err := hc.Reorg(headers); err != nil {
 		return nil, err
 	}
@@ -368,24 +397,31 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 }
 
 // InsertHeaderChain inserts the given headers and does the reorganisations.
+// InsertHeaderChain插入给定的headers并且做reorganisations
 //
 // The validity of the headers is NOT CHECKED by this method, i.e. they need to be
 // validated by ValidateHeaderChain before calling InsertHeaderChain.
+// headers的合法性不是在这个方法里检查，例如，他们在调用InsertHeaderChain之前应该先被
+// ValidateHeaderChain校验
 //
 // This insert is all-or-nothing. If this returns an error, no headers were written,
 // otherwise they were all processed successfully.
+// 这是all-or-nothing的操作，如果返回的是一个error，则没有headers写入，否则他们都被成功处理
 //
 // The returned 'write status' says if the inserted headers are part of the canonical chain
 // or a side chain.
+// 返回的'write status'表示插入的headers是canonical chain或者是sidechain的一部分
 func (hc *HeaderChain) InsertHeaderChain(chain []*types.Header, start time.Time, forker *ForkChoice) (WriteStatus, error) {
 	if hc.procInterrupt() {
 		return 0, errors.New("aborted")
 	}
+	// 写入headers并且设置head
 	res, err := hc.writeHeadersAndSetHead(chain, forker)
 	if err != nil {
 		return 0, err
 	}
 	// Report some public statistics so the user has a clue what's going on
+	// 汇报一些public statistics，这样用户就能知道发生了些什么
 	context := []interface{}{
 		"count", res.imported,
 		"elapsed", common.PrettyDuration(time.Since(start)),
@@ -488,8 +524,11 @@ func (hc *HeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 }
 
 // HasHeader checks if a block header is present in the database or not.
+// HasHeader检查是否一个block header在database中存在
 // In theory, if header is present in the database, all relative components
 // like td and hash->number should be present too.
+// 理论上来说，如果header在数据库中存在，所有相关的组件，例如td以及hash->number
+// 应该也存在
 func (hc *HeaderChain) HasHeader(hash common.Hash, number uint64) bool {
 	if hc.numberCache.Contains(hash) || hc.headerCache.Contains(hash) {
 		return true
