@@ -103,6 +103,8 @@ func TestMiner(t *testing.T) {
 	// stop mining operations by causing a downloader sync
 	// until it was discovered they were invalid, whereon mining would resume.
 	// 在一个成功的DoneEvent之后的downloader events不应该导致minter开始或停止
+	// 这防止了一个security vulnerability，它会允许entities展现fake high blocks
+	// 它会停止mining操作，导致一个downloader sync
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -114,6 +116,8 @@ func TestMiner(t *testing.T) {
 // permitted to run indefinitely once the downloader sees a DoneEvent (success).
 // An initial FailedEvent should allow mining to stop on a subsequent
 // downloader StartEvent.
+// TestMinerDownloaderFirstFails测试只有在downlaoder看到一个DoneEvent (success)的时候，miner
+// 才允许一直运行
 func TestMinerDownloaderFirstFails(t *testing.T) {
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
@@ -124,6 +128,7 @@ func TestMinerDownloaderFirstFails(t *testing.T) {
 	waitForMiningState(t, miner, false)
 
 	// Stop the downloader and wait for the update loop to run
+	// 停止downloader并且等待update loop运行
 	mux.Post(downloader.FailedEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -139,6 +144,8 @@ func TestMinerDownloaderFirstFails(t *testing.T) {
 	// Downloader starts again.
 	// Since it has achieved a DoneEvent once, we expect miner
 	// state to be unchanged.
+	// Downloader又启动了，因为它已经实现了一次DoneEvent，我们期望
+	// miner的state不再改变
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -207,22 +214,27 @@ func TestCloseMiner(t *testing.T) {
 
 // TestMinerSetEtherbase checks that etherbase becomes set even if mining isn't
 // possible at the moment
+// TestMinerSetEtherbase检查etherbase能够被设置，即使mining当前是不可能的
 func TestMinerSetEtherbase(t *testing.T) {
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 	// Start with a 'bad' mining address
+	// 以一个'bad'mining地址启动
 	miner.Start(common.HexToAddress("0xdead"))
 	waitForMiningState(t, miner, true)
 	// Start the downloader
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, false)
 	// Now user tries to configure proper mining address
+	// 现在用户尝试设置合适的mining address
 	miner.Start(common.HexToAddress("0x1337"))
 	// Stop the downloader and wait for the update loop to run
+	// 停止downloader并且等待update loop运行
 	mux.Post(downloader.DoneEvent{})
 
 	waitForMiningState(t, miner, true)
 	// The miner should now be using the good address
+	// miner应该使用good address
 	if got, exp := miner.coinbase, common.HexToAddress("0x1337"); got != exp {
 		t.Fatalf("Wrong coinbase, got %x expected %x", got, exp)
 	}
@@ -274,6 +286,7 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(chainDB), nil)
 	blockchain := &testBlockChain{statedb, 10000000, new(event.Feed)}
 
+	// 构建tx pool
 	pool := core.NewTxPool(testTxPoolConfig, chainConfig, blockchain)
 	backend := NewMockBackend(bc, pool)
 	// Create event Mux
@@ -283,10 +296,14 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 	// 创建Miner
 	miner := New(backend, &config, chainConfig, mux, engine, nil)
 	cleanup := func(skipMiner bool) {
+		// 停止chain
 		bc.Stop()
+		// 关闭engine
 		engine.Close()
+		// 停止pool
 		pool.Stop()
 		if !skipMiner {
+			// 关闭miner
 			miner.Close()
 		}
 	}

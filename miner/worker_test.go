@@ -200,7 +200,9 @@ func (b *testWorkerBackend) newRandomTx(creation bool) *types.Transaction {
 }
 
 func newTestWorker(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine, db ethdb.Database, blocks int) (*worker, *testWorkerBackend) {
+	// 构建worker backend
 	backend := newTestWorkerBackend(t, chainConfig, engine, db, blocks)
+	// 添加pending tx
 	backend.txPool.AddLocals(pendingTxs)
 	w := newWorker(testConfig, chainConfig, engine, backend, new(event.TypeMux), nil, false)
 	w.setEtherbase(testBankAddress)
@@ -231,10 +233,12 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	}
 
 	chainConfig.LondonBlock = big.NewInt(0)
+	// 构建test worker
 	w, b := newTestWorker(t, chainConfig, engine, db, 0)
 	defer w.close()
 
 	// This test chain imports the mined blocks.
+	// test chain导入mined blocks
 	db2 := rawdb.NewMemoryDatabase()
 	b.genesis.MustCommit(db2)
 	chain, _ := core.NewBlockChain(db2, nil, b.chain.Config(), engine, vm.Config{}, nil, nil)
@@ -246,15 +250,19 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	}
 
 	// Wait for mined blocks.
+	// 等待mined blocks
 	sub := w.mux.Subscribe(core.NewMinedBlockEvent{})
 	defer sub.Unsubscribe()
 
 	// Start mining!
+	// 开始mining
 	w.start()
 
 	for i := 0; i < 5; i++ {
+		// 在tx pool中添加local tx
 		b.txPool.AddLocal(b.newRandomTx(true))
 		b.txPool.AddLocal(b.newRandomTx(false))
+		// 发送side block
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 
@@ -364,6 +372,7 @@ func TestStreamUncleBlock(t *testing.T) {
 		}
 	}
 
+	// 发送sideblock
 	w.postSideBlock(core.ChainSideEvent{Block: b.uncleBlock})
 
 	select {

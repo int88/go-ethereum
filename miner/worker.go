@@ -90,12 +90,14 @@ var (
 type environment struct {
 	signer types.Signer
 
-	state     *state.StateDB // apply state changes here //在这里应用state changes
-	ancestors mapset.Set     // ancestor set (used for checking uncle parent validity)
-	family    mapset.Set     // family set (used for checking uncle invalidity)
-	tcount    int            // tx count in cycle
-	gasPool   *core.GasPool  // available gas used to pack transactions
-	coinbase  common.Address
+	state *state.StateDB // apply state changes here //在这里应用state changes
+	// ancestor set，用于检查uncle parent的正确性
+	ancestors mapset.Set // ancestor set (used for checking uncle parent validity)
+	// family set，用于检查uncle invalidity
+	family   mapset.Set    // family set (used for checking uncle invalidity)
+	tcount   int           // tx count in cycle
+	gasPool  *core.GasPool // available gas used to pack transactions	// 可用的gas，用于追踪transactions
+	coinbase common.Address
 
 	header   *types.Header
 	txs      []*types.Transaction
@@ -150,6 +152,7 @@ func (env *environment) discard() {
 }
 
 // task contains all information for consensus engine sealing and result submitting.
+// task包含所有的信息用于共识引擎sealing以及result submitting
 type task struct {
 	receipts  []*types.Receipt
 	state     *state.StateDB
@@ -198,6 +201,7 @@ type worker struct {
 	pendingLogsFeed event.Feed
 
 	// Subscriptions
+	// 对于一系列对象的订阅
 	mux          *event.TypeMux
 	txsCh        chan core.NewTxsEvent
 	txsSub       event.Subscription
@@ -218,8 +222,10 @@ type worker struct {
 
 	wg sync.WaitGroup
 
-	current      *environment                 // An environment for current running cycle. // 当前运行周期的执行环境
-	localUncles  map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
+	current *environment // An environment for current running cycle. // 当前运行周期的执行环境
+	// 一系列本地产生的side blocks，作为可能的uncle blocks
+	localUncles map[common.Hash]*types.Block // A set of side blocks generated locally as the possible uncle blocks.
+	// 一系列的side blocks，可能作为uncle blocks
 	remoteUncles map[common.Hash]*types.Block // A set of side blocks as the possible uncle blocks.
 	unconfirmed  *unconfirmedBlocks           // A set of locally mined blocks pending canonicalness confirmations.
 
@@ -236,8 +242,10 @@ type worker struct {
 	snapshotState    *state.StateDB
 
 	// atomic status counters
+	// 表明consensus engine是否在运行
 	running int32 // The indicator whether the consensus engine is running or not.
-	newTxs  int32 // New arrival transaction count since last sealing work submitting.
+	// 新来的transaction的数目，从上次的sealing work提交之后
+	newTxs int32 // New arrival transaction count since last sealing work submitting.
 
 	// noempty is the flag used to control whether the feature of pre-seal empty
 	// block is enabled. The default value is false(pre-seal is enabled by default).
@@ -250,7 +258,7 @@ type worker struct {
 	isLocalBlock func(header *types.Header) bool // Function used to determine whether the specified block is mined by local miner.
 
 	// Test hooks
-	newTaskHook  func(*task)                        // Method to call upon receiving a new sealing task.
+	newTaskHook  func(*task)                        // Method to call upon receiving a new sealing task.	// 当接收到一个新的sealing task时候的方法
 	skipSealHook func(*task) bool                   // Method to decide whether skipping the sealing.
 	fullTaskHook func()                             // Method to call before pushing the full sealing task.
 	resubmitHook func(time.Duration, time.Duration) // Method to call upon updating resubmitting interval.
@@ -290,6 +298,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	worker.chainSideSub = eth.BlockChain().SubscribeChainSideEvent(worker.chainSideCh)
 
 	// Sanitize recommit interval if the user-specified one is too short.
+	// 检查recommit interval，如果用户指定的太短了
 	recommit := worker.config.Recommit
 	if recommit < minRecommitInterval {
 		log.Warn("Sanitizing miner recommit interval", "provided", recommit, "updated", minRecommitInterval)
@@ -304,6 +313,7 @@ func newWorker(config *Config, chainConfig *params.ChainConfig, engine consensus
 	go worker.taskLoop()
 
 	// Submit first work to initialize pending state.
+	// 提交first work来初始化pending state
 	if init {
 		worker.startCh <- struct{}{}
 	}
@@ -443,7 +453,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 		}
 		interrupt = new(int32)
 		select {
-		// 构建新的worker request
+		// 构建新的worker request，真是开始封装block，进行mining
 		case w.newWorkCh <- &newWorkReq{interrupt: interrupt, noempty: noempty, timestamp: timestamp}:
 		case <-w.exitCh:
 			return
@@ -472,6 +482,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			commit(false, commitInterruptNewHead)
 
 		case head := <-w.chainHeadCh:
+			// 发生了chain head事件
 			clearPending(head.Block.NumberU64())
 			timestamp = time.Now().Unix()
 			commit(false, commitInterruptNewHead)
@@ -566,6 +577,7 @@ func (w *worker) mainLoop() {
 				continue
 			}
 			// Add side block to possible uncle block set depending on the author.
+			// 添加side block到可能的uncle block set，基于author
 			if w.isLocalBlock != nil && w.isLocalBlock(ev.Block.Header()) {
 				w.localUncles[ev.Block.Hash()] = ev.Block
 			} else {
@@ -574,6 +586,8 @@ func (w *worker) mainLoop() {
 			// If our sealing block contains less than 2 uncle blocks,
 			// add the new uncle block if valid and regenerate a new
 			// sealing block for higher profit.
+			// 如果我们的sealing block包含少于2个uncle blocks，添加新的uncle block
+			// 如果合法的话并且重新生成一个新的sealing block，为了更高的profit
 			if w.isRunning() && w.current != nil && len(w.current.uncles) < 2 {
 				start := time.Now()
 				if err := w.commitUncle(w.current, ev.Block.Header()); err == nil {
@@ -595,6 +609,7 @@ func (w *worker) mainLoop() {
 			}
 
 		case ev := <-w.txsCh:
+			// 订阅来自tx pool的tx
 			// Apply transactions to the pending state if we're not sealing
 			// 添加transactions到pending state，如果我们不在sealing
 			//
@@ -616,6 +631,7 @@ func (w *worker) mainLoop() {
 				}
 				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
 				tcount := w.current.tcount
+				// 提交transactions
 				w.commitTransactions(w.current, txset, nil)
 
 				// Only update the snapshot if any new transactions were added
@@ -649,6 +665,7 @@ func (w *worker) mainLoop() {
 
 // taskLoop is a standalone goroutine to fetch sealing task from the generator and
 // push them to consensus engine.
+// taskLoop是一个独立的goroutine，用于从generator获取sealing task并且把它们推向consensus engine
 func (w *worker) taskLoop() {
 	defer w.wg.Done()
 	var (
@@ -667,9 +684,11 @@ func (w *worker) taskLoop() {
 		select {
 		case task := <-w.taskCh:
 			if w.newTaskHook != nil {
+				// 运行task hook
 				w.newTaskHook(task)
 			}
 			// Reject duplicate sealing work due to resubmitting.
+			// 拒绝因为重复提交的产生的重复的sealing work，根据block的header
 			sealHash := w.engine.SealHash(task.block.Header())
 			if sealHash == prev {
 				continue
@@ -685,6 +704,7 @@ func (w *worker) taskLoop() {
 			w.pendingTasks[sealHash] = task
 			w.pendingMu.Unlock()
 
+			// 调用执行引擎，最后会通过result ch传输结果
 			if err := w.engine.Seal(w.chain, task.block, w.resultCh, stopCh); err != nil {
 				log.Warn("Block sealing failed", "err", err)
 				w.pendingMu.Lock()
@@ -708,6 +728,7 @@ func (w *worker) resultLoop() {
 		select {
 		case block := <-w.resultCh:
 			// Short circuit when receiving empty result.
+			// 当收到空的结果，则直接跳过
 			if block == nil {
 				continue
 			}
@@ -738,12 +759,14 @@ func (w *worker) resultLoop() {
 				*receipt = *taskReceipt
 
 				// add block location fields
+				// 添加block的location字段
 				receipt.BlockHash = hash
 				receipt.BlockNumber = block.Number()
 				receipt.TransactionIndex = uint(i)
 
 				// Update the block hash in all logs since it is now available and not when the
 				// receipt/log of individual transactions were created.
+				// 在所有的logs中更新block hash，因为它现在可用，不是在单个的transactions创建时候的receipts/log
 				receipt.Logs = make([]*types.Log, len(taskReceipt.Logs))
 				for i, taskLog := range taskReceipt.Logs {
 					log := new(types.Log)
@@ -754,6 +777,7 @@ func (w *worker) resultLoop() {
 				logs = append(logs, receipt.Logs...)
 			}
 			// Commit block and state to database.
+			// 提交block以及state到database
 			_, err := w.chain.WriteBlockAndSetHead(block, receipts, logs, task.state, true)
 			if err != nil {
 				log.Error("Failed writing block to chain", "err", err)
@@ -763,6 +787,7 @@ func (w *worker) resultLoop() {
 				"elapsed", common.PrettyDuration(time.Since(task.createdAt)))
 
 			// Broadcast the block and announce chain insertion event
+			// 广播block并且通知chain insertion event
 			w.mux.Post(core.NewMinedBlockEvent{Block: block})
 
 			// Insert the block into the set of pending ones to resultLoop for confirmations
@@ -775,9 +800,11 @@ func (w *worker) resultLoop() {
 }
 
 // makeEnv creates a new environment for the sealing block.
+// makeEnv对于sealing block创建一个新的environment
 func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase common.Address) (*environment, error) {
 	// Retrieve the parent state to execute on top and start a prefetcher for
 	// the miner to speed block sealing up a bit.
+	// 获取parent state在它之上执行并且启动一个prefetcher，用于miner来加速block sealing
 	state, err := w.chain.StateAt(parent.Root())
 	if err != nil {
 		// Note since the sealing block can be created upon the arbitrary parent
@@ -818,6 +845,7 @@ func (w *worker) makeEnv(parent *types.Block, header *types.Header, coinbase com
 }
 
 // commitUncle adds the given block to uncle block set, returns error if failed to add.
+// commitUncle添加给定的block到uncle block set，返回error，如果添加失败的话
 func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 	if w.isTTDReached(env.header) {
 		return errors.New("ignore uncle for beacon block")
@@ -827,11 +855,14 @@ func (w *worker) commitUncle(env *environment, uncle *types.Header) error {
 		return errors.New("uncle not unique")
 	}
 	if env.header.ParentHash == uncle.ParentHash {
+		// uncle是兄弟
 		return errors.New("uncle is sibling")
 	}
 	if !env.ancestors.Contains(uncle.ParentHash) {
+		// 需要在ancestors中包含uncle的parent hash
 		return errors.New("uncle's parent unknown")
 	}
+	// family中已经包含了uncle
 	if env.family.Contains(hash) {
 		return errors.New("uncle already included")
 	}
@@ -859,11 +890,13 @@ func (w *worker) commitTransaction(env *environment, tx *types.Transaction) ([]*
 	// 每次commitTransaction执行前都要记录当前StateDB的snapshot，一旦transaction执行失败，基于这个snapshot进行回滚
 	snap := env.state.Snapshot()
 
+	// 应用transaction
 	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, *w.chain.GetVMConfig())
 	if err != nil {
 		env.state.RevertToSnapshot(snap)
 		return nil, err
 	}
+	// 扩展env中的txs和receipts
 	env.txs = append(env.txs, tx)
 	env.receipts = append(env.receipts, receipt)
 
@@ -927,6 +960,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 		// 开始执行transaction
 		env.state.Prepare(tx.Hash(), env.tcount)
 
+		// 提交transaction，真正执行transaction
 		logs, err := w.commitTransaction(env, tx)
 		switch {
 		case errors.Is(err, core.ErrGasLimitReached):
@@ -980,6 +1014,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 	}
 	// Notify resubmit loop to decrease resubmitting interval if current interval is larger
 	// than the user-specified one.
+	// 通知resubmit loop，来降低resubmitting interval，如果当前的interval大于用户指定的
 	if interrupt != nil {
 		w.resubmitAdjustCh <- &intervalAdjust{inc: false}
 	}
@@ -987,25 +1022,29 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 }
 
 // generateParams wraps various of settings for generating sealing task.
+// generateParams封装了 一系列的设置用于生成sealing task
 type generateParams struct {
 	timestamp  uint64         // The timstamp for sealing task
 	forceTime  bool           // Flag whether the given timestamp is immutable or not
 	parentHash common.Hash    // Parent block hash, empty means the latest chain head
 	coinbase   common.Address // The fee recipient address for including transaction
 	random     common.Hash    // The randomness generated by beacon chain, empty before the merge
-	noUncle    bool           // Flag whether the uncle block inclusion is allowed
+	noUncle    bool           // Flag whether the uncle block inclusion is allowed	// 包含block是否是允许的
 	noExtra    bool           // Flag whether the extra field assignment is allowed
 	noTxs      bool           // Flag whether an empty block without any transaction is expected
 }
 
 // prepareWork constructs the sealing task according to the given parameters,
+// prepareWork构建sealing task，基于给定的参数，要么基于last chain head，要么基于指定的parent
 // either based on the last chain head or specified parent. In this function
 // the pending transactions are not filled yet, only the empty task returned.
+// 在这个函数中，pending transactions还没有被填充，只返回empty task
 func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	// Find the parent block for sealing task
+	// 找到parent block用于sealing task
 	parent := w.chain.CurrentBlock()
 	if genParams.parentHash != (common.Hash{}) {
 		parent = w.chain.GetBlockByHash(genParams.parentHash)
@@ -1023,7 +1062,9 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		timestamp = parent.Time() + 1
 	}
 	// Construct the sealing block header, set the extra field if it's allowed
+	// 构建sealing block header，设置extra field，如果允许的话
 	num := parent.Number()
+	// 构建header
 	header := &types.Header{
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
@@ -1047,6 +1088,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		}
 	}
 	// Run the consensus preparation with the default or customized consensus engine.
+	// 运行consensus preparation，用默认的或者自定义的共识引擎
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for sealing", "err", err)
 		return nil, err
@@ -1054,12 +1096,14 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	// Could potentially happen if starting to mine in an odd state.
 	// Note genParams.coinbase can be different with header.Coinbase
 	// since clique algorithm can modify the coinbase field in header.
+	// 构建env
 	env, err := w.makeEnv(parent, header, genParams.coinbase)
 	if err != nil {
 		log.Error("Failed to create sealing context", "err", err)
 		return nil, err
 	}
 	// Accumulate the uncles for the sealing work only if it's allowed.
+	// 累计uncles，对于sealing work，只有它们被允许的情况下
 	if !genParams.noUncle {
 		commitUncles := func(blocks map[common.Hash]*types.Block) {
 			for hash, uncle := range blocks {
@@ -1074,6 +1118,7 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 			}
 		}
 		// Prefer to locally generated uncle
+		// 更倾向于本地产生的uncle
 		commitUncles(w.localUncles)
 		commitUncles(w.remoteUncles)
 	}
@@ -1083,12 +1128,15 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 // fillTransactions retrieves the pending transactions from the txpool and fills them
 // into the given sealing block. The transaction selection and ordering strategy can
 // be customized with the plugin in the future.
+// fillTransactions从txpool中获取pending transactions并且将它们填充进给定的sealing block
+// transaction的选择以及排序策略可用插件自定义，在未来
 func (w *worker) fillTransactions(interrupt *int32, env *environment) error {
 	// Split the pending transactions into locals and remotes
 	// Fill the block with all available pending transactions.
 	pending := w.eth.TxPool().Pending(true)
 	localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 	for _, account := range w.eth.TxPool().Locals() {
+		// 如果本地的tx存在于remoteTxs中，则先将其删除
 		if txs := remoteTxs[account]; len(txs) > 0 {
 			delete(remoteTxs, account)
 			localTxs[account] = txs
@@ -1125,10 +1173,12 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, error) {
 
 // commitWork generates several new sealing tasks based on the parent block
 // and submit them to the sealer.
+// commitWork产生几个新的sealing tasks，基于parent block，并且将它们提交到sealer
 func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 	start := time.Now()
 
 	// Set the coinbase if the worker is running or it's required
+	// 设置coinbase，如果worker正在运行，或者它是必须的
 	var coinbase common.Address
 	if w.isRunning() {
 		if w.coinbase == (common.Address{}) {
@@ -1137,6 +1187,7 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 		}
 		coinbase = w.coinbase // Use the preset address as the fee recipient
 	}
+	// 构建environment
 	work, err := w.prepareWork(&generateParams{
 		timestamp: uint64(timestamp),
 		coinbase:  coinbase,
@@ -1151,15 +1202,18 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 	}
 
 	// Fill pending transactions from the txpool
+	// 从txpool中填充pending transactions
 	err = w.fillTransactions(interrupt, work)
 	if errors.Is(err, errBlockInterruptedByNewHead) {
 		work.discard()
 		return
 	}
+	// 提交commit
 	w.commit(work.copy(), w.fullTaskHook, true, start)
 
 	// Swap out the old work with the new one, terminating any leftover
 	// prefetcher processes in the mean time and starting a new one.
+	// 用new one替换old work，同时终结任何残留的prefetcher processes，并且启动一个新的
 	if w.current != nil {
 		w.current.discard()
 	}
@@ -1168,8 +1222,10 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 
 // commit runs any post-transaction state modifications, assembles the final block
 // and commits new work if consensus engine is running.
+// commit运行任何post-transaction的状态修改，组装最后的block并且提交新的work，如果共识引擎在运行的话
 // Note the assumption is held that the mutation is allowed to the passed env, do
 // the deep copy first.
+// 注意mutation是允许的，对于传入的env
 func (w *worker) commit(env *environment, interval func(), update bool, start time.Time) error {
 	if w.isRunning() {
 		if interval != nil {
@@ -1178,11 +1234,13 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 		// Create a local environment copy, avoid the data race with snapshot state.
 		// https://github.com/ethereum/go-ethereum/issues/24299
 		env := env.copy()
+		// 基于env中的header, state以及txs，封装block
 		block, err := w.engine.FinalizeAndAssemble(w.chain, env.header, env.state, env.txs, env.unclelist(), env.receipts)
 		if err != nil {
 			return err
 		}
 		// If we're post merge, just ignore
+		// 如果我们是post merge，则直接忽略
 		if !w.isTTDReached(block.Header()) {
 			select {
 			case w.taskCh <- &task{receipts: env.receipts, state: env.state, block: block, createdAt: time.Now()}:
@@ -1251,6 +1309,7 @@ func copyReceipts(receipts []*types.Receipt) []*types.Receipt {
 }
 
 // postSideBlock fires a side chain event, only use it for testing.
+// postSideBlock触发一个side chain event
 func (w *worker) postSideBlock(event core.ChainSideEvent) {
 	select {
 	case w.chainSideCh <- event:

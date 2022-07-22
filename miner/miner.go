@@ -106,6 +106,7 @@ func (miner *Miner) update() {
 	}()
 
 	shouldStart := false
+	// canStart一开始设置为true
 	canStart := true
 	dlEventCh := events.Chan()
 	for {
@@ -113,6 +114,7 @@ func (miner *Miner) update() {
 		case ev := <-dlEventCh:
 			if ev == nil {
 				// Unsubscription done, stop listening
+				// 取消订阅，停止监听
 				dlEventCh = nil
 				continue
 			}
@@ -120,6 +122,7 @@ func (miner *Miner) update() {
 			case downloader.StartEvent:
 				// 判断miner是否在mining
 				wasMining := miner.Mining()
+				// 停止worker
 				miner.worker.stop()
 				canStart = false
 				if wasMining {
@@ -148,6 +151,7 @@ func (miner *Miner) update() {
 		case addr := <-miner.startCh:
 			// 设置Etherbase
 			miner.SetEtherbase(addr)
+			// 只有设置了canStart之后，worker才能启动
 			if canStart {
 				// worker开始运行
 				miner.worker.start()

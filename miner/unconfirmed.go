@@ -46,7 +46,11 @@ type unconfirmedBlock struct {
 // have not yet reached enough maturity to guarantee chain inclusion. It is
 // used by the miner to provide logs to the user when a previously mined block
 // has a high enough guarantee to not be reorged out of the canonical chain.
+// unconfirmedBlocks实现了一个数据结构，用于维护本地的mined blocks，还没有达到足够的成熟度
+// 用于确保chain inclusion，它用于miner向用户提供logs，当之前的mined block已经到达了足够的成熟度
+// 保证不会被reorg，从而离开canonical chain
 type unconfirmedBlocks struct {
+	// 用于确认canonical status的Blockchain结构
 	chain  chainRetriever // Blockchain to verify canonical status through
 	depth  uint           // Depth after which to discard previous blocks
 	blocks *ring.Ring     // Block infos to allow canonical chain cross checks

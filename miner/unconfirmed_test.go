@@ -35,6 +35,8 @@ func (r *noopChainRetriever) GetBlockByNumber(number uint64) *types.Block {
 
 // Tests that inserting blocks into the unconfirmed set accumulates them until
 // the desired depth is reached, after which they begin to be dropped.
+// 测试插入blocks到unconfirmed set，累计它们直到到达desired depth，在这之后他们开始
+// 被丢弃
 func TestUnconfirmedInsertBounds(t *testing.T) {
 	limit := uint(10)
 
