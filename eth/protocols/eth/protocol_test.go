@@ -27,6 +27,7 @@ import (
 )
 
 // Tests that the custom union field encoder and decoder works correctly.
+// 测试自定义的union field encoder和decoder正常工作
 func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 	// Create a "random" hash for testing
 	var hash common.Hash

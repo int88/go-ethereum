@@ -476,6 +476,7 @@ func testCanonSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if a large batch of blocks are being downloaded, it is throttled
 // until the cached blocks are retrieved.
+// 测试如果有一大批的blocks正在被下载，它会被限流，直到缓存的blocks被获取
 func TestThrottling66Full(t *testing.T) { testThrottling(t, eth.ETH66, FullSync) }
 func TestThrottling66Snap(t *testing.T) { testThrottling(t, eth.ETH66, SnapSync) }
 
@@ -555,6 +556,8 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 // Tests that simple synchronization against a forked chain works correctly. In
 // this test common ancestor lookup should *not* be short circuited, and a full
 // binary search should be executed.
+// 测试对于一个forked chain，简单的同步能够正确执行，在这个测试中，共同祖先的查找不应该
+// 被短路
 func TestForkedSync66Full(t *testing.T)  { testForkedSync(t, eth.ETH66, FullSync) }
 func TestForkedSync66Snap(t *testing.T)  { testForkedSync(t, eth.ETH66, SnapSync) }
 func TestForkedSync66Light(t *testing.T) { testForkedSync(t, eth.ETH66, LightSync) }
@@ -582,6 +585,7 @@ func testForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that synchronising against a much shorter but much heavyer fork works
 // corrently and is not dropped.
+// 测试对于一个短得多，但是更重的fork应该能正确执行，而且不会被丢弃
 func TestHeavyForkedSync66Full(t *testing.T)  { testHeavyForkedSync(t, eth.ETH66, FullSync) }
 func TestHeavyForkedSync66Snap(t *testing.T)  { testHeavyForkedSync(t, eth.ETH66, SnapSync) }
 func TestHeavyForkedSync66Light(t *testing.T) { testHeavyForkedSync(t, eth.ETH66, LightSync) }
@@ -611,6 +615,7 @@ func testHeavyForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 // Tests that chain forks are contained within a certain interval of the current
 // chain head, ensuring that malicious peers cannot waste resources by feeding
 // long dead chains.
+// 确保malicious peers不会浪费资源，通过投喂long dead chains
 func TestBoundedForkedSync66Full(t *testing.T)  { testBoundedForkedSync(t, eth.ETH66, FullSync) }
 func TestBoundedForkedSync66Snap(t *testing.T)  { testBoundedForkedSync(t, eth.ETH66, SnapSync) }
 func TestBoundedForkedSync66Light(t *testing.T) { testBoundedForkedSync(t, eth.ETH66, LightSync) }
@@ -699,6 +704,7 @@ func testCancel(t *testing.T, protocol uint, mode SyncMode) {
 }
 
 // Tests that synchronisation from multiple peers works as intended (multi thread sanity test).
+// 测试从多个peers同步也能正常运行
 func TestMultiSynchronisation66Full(t *testing.T)  { testMultiSynchronisation(t, eth.ETH66, FullSync) }
 func TestMultiSynchronisation66Snap(t *testing.T)  { testMultiSynchronisation(t, eth.ETH66, SnapSync) }
 func TestMultiSynchronisation66Light(t *testing.T) { testMultiSynchronisation(t, eth.ETH66, LightSync) }
@@ -723,6 +729,7 @@ func testMultiSynchronisation(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that synchronisations behave well in multi-version protocol environments
 // and not wreak havoc on other nodes in the network.
+// 测试同步在多个协议版本的情况下也能给你正常运行，不会对网络中的其他节点造成破坏
 func TestMultiProtoSynchronisation66Full(t *testing.T)  { testMultiProtoSync(t, eth.ETH66, FullSync) }
 func TestMultiProtoSynchronisation66Snap(t *testing.T)  { testMultiProtoSync(t, eth.ETH66, SnapSync) }
 func TestMultiProtoSynchronisation66Light(t *testing.T) { testMultiProtoSync(t, eth.ETH66, LightSync) }
@@ -755,6 +762,7 @@ func testMultiProtoSync(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if a block is empty (e.g. header only), no body request should be
 // made, and instead the header should be assembled into a whole block in itself.
+// 测试如果一个block是空的（只有header），不应发送body request，而是header应该自己组装到一个block
 func TestEmptyShortCircuit66Full(t *testing.T)  { testEmptyShortCircuit(t, eth.ETH66, FullSync) }
 func TestEmptyShortCircuit66Snap(t *testing.T)  { testEmptyShortCircuit(t, eth.ETH66, SnapSync) }
 func TestEmptyShortCircuit66Light(t *testing.T) { testEmptyShortCircuit(t, eth.ETH66, LightSync) }
@@ -803,6 +811,7 @@ func testEmptyShortCircuit(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that headers are enqueued continuously, preventing malicious nodes from
 // stalling the downloader by feeding gapped header chains.
+// 测试headers连续入队，防止恶意节点卡主downloader，通过投喂gapped header chains
 func TestMissingHeaderAttack66Full(t *testing.T)  { testMissingHeaderAttack(t, eth.ETH66, FullSync) }
 func TestMissingHeaderAttack66Snap(t *testing.T)  { testMissingHeaderAttack(t, eth.ETH66, SnapSync) }
 func TestMissingHeaderAttack66Light(t *testing.T) { testMissingHeaderAttack(t, eth.ETH66, LightSync) }
@@ -1006,6 +1015,7 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol uint) {
 
 // Tests that synchronisation progress (origin block number, current block number
 // and highest block number) is tracked and updated correctly.
+// 测试同步过程被追踪并且正确地更新
 func TestSyncProgress66Full(t *testing.T)  { testSyncProgress(t, eth.ETH66, FullSync) }
 func TestSyncProgress66Snap(t *testing.T)  { testSyncProgress(t, eth.ETH66, SnapSync) }
 func TestSyncProgress66Light(t *testing.T) { testSyncProgress(t, eth.ETH66, LightSync) }
@@ -1220,6 +1230,8 @@ func testFailedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if an attacker fakes a chain height, after the attack is detected,
 // the progress height is successfully reduced at the next sync invocation.
+// 测试如果一个attacker冒充一个chain height，在检测到攻击之后，progress height被成功降低
+// 在下一个检测调用时
 func TestFakedSyncProgress66Full(t *testing.T)  { testFakedSyncProgress(t, eth.ETH66, FullSync) }
 func TestFakedSyncProgress66Snap(t *testing.T)  { testFakedSyncProgress(t, eth.ETH66, SnapSync) }
 func TestFakedSyncProgress66Light(t *testing.T) { testFakedSyncProgress(t, eth.ETH66, LightSync) }
@@ -1364,6 +1376,7 @@ func TestRemoteHeaderRequestSpan(t *testing.T) {
 
 // Tests that peers below a pre-configured checkpoint block are prevented from
 // being fast-synced from, avoiding potential cheap eclipse attacks.
+// 测试在于一个提前配置的checkpoint block之下，防止fast-sync from，避免潜在的cheap eclipse attacks
 func TestCheckpointEnforcement66Full(t *testing.T) { testCheckpointEnforcement(t, eth.ETH66, FullSync) }
 func TestCheckpointEnforcement66Snap(t *testing.T) { testCheckpointEnforcement(t, eth.ETH66, SnapSync) }
 func TestCheckpointEnforcement66Light(t *testing.T) {

@@ -29,6 +29,7 @@ import (
 )
 
 // Constants to match up protocol versions and messages
+// 用于匹配protocol版本以及messages的常量
 const (
 	ETH66 = 66
 )
@@ -79,6 +80,7 @@ var (
 )
 
 // Packet represents a p2p message in the `eth` protocol.
+// Packet代表了一个在`eth`协议中的p2p message
 type Packet interface {
 	Name() string // Name returns a string corresponding to the message type.
 	Kind() byte   // Kind returns the message type.
@@ -117,6 +119,7 @@ func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64) {
 }
 
 // TransactionsPacket is the network packet for broadcasting new transactions.
+// TransactionsPacket是network packet用于广播transactions
 type TransactionsPacket []*types.Transaction
 
 // GetBlockHeadersPacket represents a block header query.
@@ -135,6 +138,7 @@ type GetBlockHeadersPacket66 struct {
 }
 
 // HashOrNumber is a combined field for specifying an origin block.
+// HashOrNumber是一个聚合的字段用于指定一个origin block
 type HashOrNumber struct {
 	Hash   common.Hash // Block hash from which to retrieve headers (excludes Number)
 	Number uint64      // Block hash from which to retrieve headers (excludes Hash)
@@ -171,9 +175,11 @@ func (hn *HashOrNumber) DecodeRLP(s *rlp.Stream) error {
 }
 
 // BlockHeadersPacket represents a block header response.
+// BlockHeadersPacket代表一个block header的response
 type BlockHeadersPacket []*types.Header
 
 // BlockHeadersPacket66 represents a block header response over eth/66.
+// BlockHeadersPacket66代表一个block header response，位于eth/66之上
 type BlockHeadersPacket66 struct {
 	RequestId uint64
 	BlockHeadersPacket
@@ -210,6 +216,7 @@ func (request *NewBlockPacket) sanityCheck() error {
 }
 
 // GetBlockBodiesPacket represents a block body query.
+// GetBlockBodiesPacket代表一个block body的query
 type GetBlockBodiesPacket []common.Hash
 
 // GetBlockBodiesPacket66 represents a block body query over eth/66.
@@ -219,6 +226,7 @@ type GetBlockBodiesPacket66 struct {
 }
 
 // BlockBodiesPacket is the network packet for block content distribution.
+// BlockBodiesPacket是用于block content分发的network packet
 type BlockBodiesPacket []*BlockBody
 
 // BlockBodiesPacket66 is the network packet for block content distribution over eth/66.
@@ -239,6 +247,7 @@ type BlockBodiesRLPPacket66 struct {
 }
 
 // BlockBody represents the data content of a single block.
+// BlockBody代表了单个的block的内容
 type BlockBody struct {
 	Transactions []*types.Transaction // Transactions contained within a block
 	Uncles       []*types.Header      // Uncles contained within a block
@@ -258,6 +267,7 @@ func (p *BlockBodiesPacket) Unpack() ([][]*types.Transaction, [][]*types.Header)
 }
 
 // GetNodeDataPacket represents a trie node data query.
+// GetNodeDataPacket代表对于一个trie node data的查询
 type GetNodeDataPacket []common.Hash
 
 // GetNodeDataPacket66 represents a trie node data query over eth/66.
@@ -276,6 +286,7 @@ type NodeDataPacket66 struct {
 }
 
 // GetReceiptsPacket represents a block receipts query.
+// GetReceiptsPacket代表了对于一个block receipts的查询
 type GetReceiptsPacket []common.Hash
 
 // GetReceiptsPacket66 represents a block receipts query over eth/66.
@@ -303,6 +314,7 @@ type ReceiptsRLPPacket66 struct {
 }
 
 // NewPooledTransactionHashesPacket represents a transaction announcement packet.
+// NewPooledTransactionHashesPacket代表一个transaction announcement的包
 type NewPooledTransactionHashesPacket []common.Hash
 
 // GetPooledTransactionsPacket represents a transaction query.
@@ -314,6 +326,7 @@ type GetPooledTransactionsPacket66 struct {
 }
 
 // PooledTransactionsPacket is the network packet for transaction distribution.
+// PooledTransactionsPacket是用于transaction分发的network packet
 type PooledTransactionsPacket []*types.Transaction
 
 // PooledTransactionsPacket66 is the network packet for transaction distribution over eth/66.
@@ -324,6 +337,7 @@ type PooledTransactionsPacket66 struct {
 
 // PooledTransactionsRLPPacket is the network packet for transaction distribution, used
 // in the cases we already have them in rlp-encoded form
+// 按照rlp编码的形式的transaction分发
 type PooledTransactionsRLPPacket []rlp.RawValue
 
 // PooledTransactionsRLPPacket66 is the eth/66 form of PooledTransactionsRLPPacket
@@ -332,6 +346,7 @@ type PooledTransactionsRLPPacket66 struct {
 	PooledTransactionsRLPPacket
 }
 
+// 从peer获取status,block hashes, block header, block body, node data, receipts, transactions等等
 func (*StatusPacket) Name() string { return "Status" }
 func (*StatusPacket) Kind() byte   { return StatusMsg }
 

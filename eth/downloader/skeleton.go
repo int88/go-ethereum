@@ -144,11 +144,16 @@ type headerResponse struct {
 // backfiller is a callback interface through which the skeleton sync can tell
 // the downloader that it should suspend or resume backfilling on specific head
 // events (e.g. suspend on forks or gaps, resume on successful linkups).
+// backfiller是一个回调接口，通过它skeleton sync可以告诉downloader，它应该停止还是继续回填
+// 特定的head events（例如，停止forks或者gaps，在成功的连接之后继续）
 type backfiller interface {
 	// suspend requests the backfiller to abort any running full or snap sync
 	// based on the skeleton chain as it might be invalid. The backfiller should
 	// gracefully handle multiple consecutive suspends without a resume, even
 	// on initial sartup.
+	// suspend请求bakcfiller退出任何正在运行的full或者snap sync，基于skeleton chain
+	// 因为它可能是非法的，backfiller应该能优雅地处理多个连续的suspends，而没有resume
+	// 即使在initial startup
 	//
 	// The method should return the last block header that has been successfully
 	// backfilled, or nil if the backfiller was not resumed.
@@ -165,7 +170,8 @@ type backfiller interface {
 // aren't validated any more via PoW in a forward fashion, rather are dictated
 // and extended at the head via the beacon chain and backfilled on the original
 // Ethereum block sync protocol.
-// skeleton代表一个header chain，在merge之后，blocks不再通过PoW校验，
+// skeleton代表一个header chain，在merge之后，blocks不再通过PoW校验，而是通过beacon chain
+// 在head进行扩展，并且回填到原来的Ethereum block sync protocol
 //
 // Since the skeleton is grown backwards from head to genesis, it is handled as
 // a separate entity, not mixed in with the logical sequential transition of the

@@ -51,12 +51,14 @@ var pregenerated bool
 
 func init() {
 	// Reduce some of the parameters to make the tester faster
+	// 缩小一些参数让tester更快
 	fullMaxForkAncestry = 10000
 	lightMaxForkAncestry = 10000
 	blockCacheMaxItems = 1024
 	fsHeaderSafetyNet = 256
 	fsHeaderContCheck = 500 * time.Millisecond
 
+	// 构建test chain
 	testChainBase = newTestChain(blockCacheMaxItems+200, testGenesis)
 
 	var forkLen = int(fullMaxForkAncestry + 50)
@@ -72,6 +74,8 @@ func init() {
 	// Generate the test peers used by the tests to avoid overloading during testing.
 	// These seemingly random chains are used in various downloader tests. We're just
 	// pre-generating them here.
+	// 生成供tests使用的test peers，来避免测试期间的重载，这些看起来随机的chains，是用于各种downlaoder测试
+	// 我们在这里提前生成它们
 	chains := []*testChain{
 		testChainBase,
 		testChainForkLightA,
@@ -83,6 +87,7 @@ func init() {
 		testChainBase.shorten(blockCacheMaxItems - 15 - 5),
 		testChainBase.shorten(MaxHeaderFetch),
 		testChainBase.shorten(800),
+		// 缩小并且拷贝chain
 		testChainBase.shorten(800 / 2),
 		testChainBase.shorten(800 / 3),
 		testChainBase.shorten(800 / 4),
@@ -116,6 +121,7 @@ type testChain struct {
 }
 
 // newTestChain creates a blockchain of the given length.
+// newTestChain创建一个给定长度的blockchain
 func newTestChain(length int, genesis *types.Block) *testChain {
 	tc := &testChain{
 		blocks: []*types.Block{genesis},
@@ -125,6 +131,7 @@ func newTestChain(length int, genesis *types.Block) *testChain {
 }
 
 // makeFork creates a fork on top of the test chain.
+// makeFork在test chain之上创建一个fork
 func (tc *testChain) makeFork(length int, heavy bool, seed byte) *testChain {
 	fork := tc.copy(len(tc.blocks) + length)
 	fork.generate(length, seed, tc.blocks[len(tc.blocks)-1], heavy)
@@ -145,6 +152,7 @@ func (tc *testChain) copy(newlen int) *testChain {
 	if newlen > len(tc.blocks) {
 		newlen = len(tc.blocks)
 	}
+	// 拷贝newlen个blocks
 	cpy := &testChain{
 		blocks: append([]*types.Block{}, tc.blocks[:newlen]...),
 	}
@@ -155,23 +163,29 @@ func (tc *testChain) copy(newlen int) *testChain {
 // the returned hash chain is ordered head->parent. In addition, every 22th block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
+// generate创建一个由n个blocks组成的chain，从parent开始并且包含parent
+// 每22个block包含一个transaction，每5个一个uncle，允许测试正确的block组装
 func (tc *testChain) generate(n int, seed byte, parent *types.Block, heavy bool) {
 	blocks, _ := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testDB, n, func(i int, block *core.BlockGen) {
 		block.SetCoinbase(common.Address{seed})
 		// If a heavy chain is requested, delay blocks to raise difficulty
+		// 如果请求了一个heavy chain，延迟blocks来提高difficulty
 		if heavy {
 			block.OffsetTime(-9)
 		}
 		// Include transactions to the miner to make blocks more interesting.
+		// 包含了transactions到miner中，让blocks更有趣
 		if parent == tc.blocks[0] && i%22 == 0 {
 			signer := types.MakeSigner(params.TestChainConfig, block.Number())
 			tx, err := types.SignTx(types.NewTransaction(block.TxNonce(testAddress), common.Address{seed}, big.NewInt(1000), params.TxGas, block.BaseFee(), nil), signer, testKey)
 			if err != nil {
 				panic(err)
 			}
+			// 添加transactions
 			block.AddTx(tx)
 		}
 		// if the block number is a multiple of 5, add a bonus uncle to the block
+		// 如果block number是5的倍数，添加一个bonus uncle到block
 		if i > 0 && i%5 == 0 {
 			block.AddUncle(&types.Header{
 				ParentHash: block.PrevBlock(i - 2).Hash(),

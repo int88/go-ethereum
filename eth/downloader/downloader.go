@@ -122,7 +122,7 @@ type Downloader struct {
 	ancientLimit    uint64 // The maximum block number which can be regarded as ancient data.
 
 	// Channels
-	headerProcCh chan *headerTask // Channel to feed the header processor new tasks
+	headerProcCh chan *headerTask // Channel to feed the header processor new tasks	// 用于给header processor提供新的tasks的channel
 
 	// Skeleton sync
 	skeleton *skeleton // Header skeleton to backfill the chain with (eth2 mode)
@@ -385,12 +385,14 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		return d.synchroniseMock(id, hash)
 	}
 	// Make sure only one goroutine is ever allowed past this point at once
+	// 确保只有一个goroutine能执行下去
 	if !atomic.CompareAndSwapInt32(&d.synchronising, 0, 1) {
 		return errBusy
 	}
 	defer atomic.StoreInt32(&d.synchronising, 0)
 
 	// Post a user notification of the sync (only once per session)
+	// 发送一个用户通知，对于sync
 	if atomic.CompareAndSwapInt32(&d.notified, 0, 1) {
 		log.Info("Block synchronisation started")
 	}
@@ -430,6 +432,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 	defer d.Cancel() // No matter what, we can't leave the cancel channel open
 
 	// Atomically set the requested sync mode
+	// 自动设置请求的sync mode
 	atomic.StoreUint32(&d.mode, uint32(mode))
 
 	// Retrieve the origin peer and initiate the downloading process
@@ -455,12 +458,14 @@ func (d *Downloader) getMode() SyncMode {
 // specified peer and head hash.
 // syncWithPeer启动一个block的同步，基于指定的peer以及head hash的hash chain
 func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *big.Int, beaconMode bool) (err error) {
+	// 向mux发送一个StartEvent{}
 	d.mux.Post(StartEvent{})
 	defer func() {
 		// reset on error
 		if err != nil {
 			d.mux.Post(FailedEvent{err})
 		} else {
+			// 没有error就发送一个DoneEvent
 			latest := d.lightchain.CurrentHeader()
 			d.mux.Post(DoneEvent{latest})
 		}
@@ -471,6 +476,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		// 和network进行同步
 		log.Debug("Synchronising with the network", "peer", p.id, "eth", p.version, "head", hash, "td", td, "mode", mode)
 	} else {
+		// 回填network
 		log.Debug("Backfilling with the network", "mode", mode)
 	}
 	defer func(start time.Time) {
@@ -489,6 +495,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		}
 	} else {
 		// In beacon mode, user the skeleton chain to retrieve the headers from
+		// 在beacon mode，使用skeleton chain来获取headers
 		latest, _, err = d.skeleton.Bounds()
 		if err != nil {
 			return err
@@ -550,6 +557,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	d.syncStatsLock.Unlock()
 
 	// Ensure our origin point is below any snap sync pivot point
+	// 确保我们的origin point在任何的snap sync pivot point之下
 	if mode == SnapSync {
 		if height <= uint64(fsMinFullBlocks) {
 			origin = 0
@@ -618,12 +626,14 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		headerFetcher = func() error { return d.fetchHeaders(p, origin+1, latest.Number.Uint64()) }
 	} else {
 		// In beacon mode, headers are served by the skeleton syncer
+		// 在beacon mode，headers来自skeleton syncer
 		headerFetcher = func() error { return d.fetchBeaconHeaders(origin + 1) }
 	}
 	fetchers := []func() error{
+		// headers总是要获取的
 		headerFetcher, // Headers are always retrieved
-		func() error { return d.fetchBodies(origin+1, beaconMode) },   // Bodies are retrieved during normal and snap sync
-		func() error { return d.fetchReceipts(origin+1, beaconMode) }, // Receipts are retrieved during snap sync
+		func() error { return d.fetchBodies(origin+1, beaconMode) },   // Bodies are retrieved during normal and snap sync	// Boides在normal以及snap sync的时候获取
+		func() error { return d.fetchReceipts(origin+1, beaconMode) }, // Receipts are retrieved during snap sync	// Receipts在snap sync的时候获取
 		func() error { return d.processHeaders(origin+1, td, ttd, beaconMode) },
 	}
 	if mode == SnapSync {
@@ -633,6 +643,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 
 		fetchers = append(fetchers, func() error { return d.processSnapSyncContent() })
 	} else if mode == FullSync {
+		// 扩展full sync content fetcher
 		fetchers = append(fetchers, func() error { return d.processFullSyncContent(ttd, beaconMode) })
 	}
 	return d.spawnSync(fetchers)
@@ -645,17 +656,21 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 func (d *Downloader) spawnSync(fetchers []func() error) error {
 	errc := make(chan error, len(fetchers))
 	d.cancelWg.Add(len(fetchers))
+	// 用goroutine启动fetchers
 	for _, fn := range fetchers {
 		fn := fn
 		go func() { defer d.cancelWg.Done(); errc <- fn() }()
 	}
 	// Wait for the first error, then terminate the others.
+	// 等待第一个error，之后终结其他的
 	var err error
 	for i := 0; i < len(fetchers); i++ {
 		if i == len(fetchers)-1 {
 			// Close the queue when all fetchers have exited.
+			// 关闭队列，当所有的fetchers都已经退出了
 			// This will cause the block processor to end when
 			// it has processed the queue.
+			// 这会导致block processor退出，当它已经处理完了队列
 			d.queue.Close()
 		}
 		if err = <-errc; err != nil && err != errCanceled {

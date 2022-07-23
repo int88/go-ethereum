@@ -108,6 +108,7 @@ func (b *testBackend) Handle(*Peer, Packet) error {
 }
 
 // Tests that block headers can be retrieved from a remote chain based on user queries.
+// 测试block headers可以从一个remote chain获取，基于user queries
 func TestGetBlockHeaders66(t *testing.T) { testGetBlockHeaders(t, ETH66) }
 
 func testGetBlockHeaders(t *testing.T, protocol uint) {
@@ -120,6 +121,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 	defer peer.close()
 
 	// Create a "random" unknown hash for testing
+	// 创建一个随机的，未知的hash用于测试
 	var unknown common.Hash
 	for i := range unknown {
 		unknown[i] = byte(i)
@@ -259,11 +261,13 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 	// Run each of the tests and verify the results against the chain
 	for i, tt := range tests {
 		// Collect the headers to expect in the response
+		// 收集期望在response中呈现的headers
 		var headers []*types.Header
 		for _, hash := range tt.expect {
 			headers = append(headers, backend.chain.GetBlockByHash(hash).Header())
 		}
 		// Send the hash request and verify the response
+		// 发送hash request并且确认response
 		p2p.Send(peer.app, GetBlockHeadersMsg, &GetBlockHeadersPacket66{
 			RequestId:             123,
 			GetBlockHeadersPacket: tt.query,

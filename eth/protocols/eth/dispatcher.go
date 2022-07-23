@@ -156,6 +156,7 @@ func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) erro
 	select {
 	case p.resDispatch <- resOp:
 		// Ensure the response is accepted by the dispatcher
+		// 确保response被dispatcher接收了
 		if err := <-resOp.fail; err != nil {
 			return nil
 		}

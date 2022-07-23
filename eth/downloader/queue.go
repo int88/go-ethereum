@@ -130,12 +130,12 @@ type queue struct {
 	blockTaskPool  map[common.Hash]*types.Header // Pending block (body) retrieval tasks, mapping hashes to headers
 	blockTaskQueue *prque.Prque                  // Priority queue of the headers to fetch the blocks (bodies) for
 	blockPendPool  map[string]*fetchRequest      // Currently pending block (body) retrieval operations
-	blockWakeCh    chan bool                     // Channel to notify the block fetcher of new tasks
+	blockWakeCh    chan bool                     // Channel to notify the block fetcher of new tasks	// 用于通知block fetcher有新的tasks的channel
 
 	receiptTaskPool  map[common.Hash]*types.Header // Pending receipt retrieval tasks, mapping hashes to headers
 	receiptTaskQueue *prque.Prque                  // Priority queue of the headers to fetch the receipts for
 	receiptPendPool  map[string]*fetchRequest      // Currently pending receipt retrieval operations
-	receiptWakeCh    chan bool                     // Channel to notify when receipt fetcher of new tasks
+	receiptWakeCh    chan bool                     // Channel to notify when receipt fetcher of new tasks	// 用于通知receipt fetcher有新的tasks的channel
 
 	resultCache *resultStore       // Downloaded but not yet delivered fetch results
 	resultSize  common.StorageSize // Approximate size of a block (exponential moving average)

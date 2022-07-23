@@ -80,7 +80,7 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 // by a given state root.
 // stateSync调度由一个给定的state root定义的state trie
 type stateSync struct {
-	d    *Downloader // Downloader instance to access and manage current peerset
+	d    *Downloader // Downloader instance to access and manage current peerset	// 用于访问以及管理当前的peerset的Downloader实例
 	root common.Hash // State root currently being synced
 
 	started    chan struct{} // Started is signalled once the sync loop starts

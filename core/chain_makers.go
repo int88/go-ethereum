@@ -92,6 +92,7 @@ func (b *BlockGen) SetDifficulty(diff *big.Int) {
 // AddTx会pancis，如果transaction不能被执行，除了protocol施加的limitations（gas limit等）
 // 对于添加的transactions还有额外的限制，值得注意的是，依赖BLOCKHASH指令的contract code在执行
 // 的时候会panic
+// 直接就会执行transaction
 func (b *BlockGen) AddTx(tx *types.Transaction) {
 	b.AddTxWithChain(nil, tx)
 }

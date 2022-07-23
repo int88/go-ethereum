@@ -87,7 +87,7 @@ type Peer struct {
 
 	reqDispatch chan *request  // Dispatch channel to send requests and track then until fulfilment	// 分发channel用于发送请求并且追踪，直到fulfilment
 	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them	// 分发channel用于取消pending requests并且不再追踪它们
-	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
+	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them	// 分发channel用于填充pending requests并且不再追踪它们
 
 	term chan struct{} // Termination channel to stop the broadcasters
 	lock sync.RWMutex  // Mutex protecting the internal fields

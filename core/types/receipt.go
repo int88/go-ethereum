@@ -53,12 +53,14 @@ const (
 type Receipt struct {
 	// Consensus fields: These fields are defined by the Yellow Paper
 	// 共识字段：这些字段由Yellow Paper定义
-	Type              uint8  `json:"type,omitempty"`
-	PostState         []byte `json:"root"`
+	Type      uint8  `json:"type,omitempty"`
+	PostState []byte `json:"root"`
+	// 包含了状态
 	Status            uint64 `json:"status"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed" gencodec:"required"`
 	Bloom             Bloom  `json:"logsBloom"         gencodec:"required"`
-	Logs              []*Log `json:"logs"              gencodec:"required"`
+	// 包含了日志
+	Logs []*Log `json:"logs"              gencodec:"required"`
 
 	// Implementation fields: These fields are added by geth when processing a transaction.
 	// They are stored in the chain database.

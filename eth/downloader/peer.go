@@ -46,6 +46,7 @@ var (
 type peerConnection struct {
 	id string // Unique identifier of the peer
 
+	// 用于记录每秒钟获取的items的数目
 	rates   *msgrate.Tracker         // Tracker to hone in on the number of items retrievable per second
 	lacking map[common.Hash]struct{} // Set of hashes not to request (didn't have previously)
 
@@ -201,7 +202,8 @@ type peeringEvent struct {
 // download procedure.
 // peerSet代表了一系列active peer，参与到chain download precedure中
 type peerSet struct {
-	peers  map[string]*peerConnection
+	peers map[string]*peerConnection
+	// 一系列的rate trackers来给sync一个公共的beat
 	rates  *msgrate.Trackers // Set of rate trackers to give the sync a common beat
 	events event.Feed        // Feed to publish peer lifecycle events on
 
@@ -244,6 +246,7 @@ func (ps *peerSet) Reset() {
 // 来给它一个现实的机会用于获取data
 func (ps *peerSet) Register(p *peerConnection) error {
 	// Register the new peer with some meaningful defaults
+	// 用一些有意义的默认值注册新的peer
 	ps.lock.Lock()
 	if _, ok := ps.peers[p.id]; ok {
 		ps.lock.Unlock()
@@ -256,6 +259,7 @@ func (ps *peerSet) Register(p *peerConnection) error {
 	ps.peers[p.id] = p
 	ps.lock.Unlock()
 
+	// 发送一个peering Event
 	ps.events.Send(&peeringEvent{peer: p, join: true})
 	return nil
 }

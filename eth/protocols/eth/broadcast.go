@@ -31,6 +31,7 @@ const (
 
 // blockPropagation is a block propagation event, waiting for its turn in the
 // broadcast queue.
+// blockPropagation是一个block propagation event，在broadcast queue中等待轮到它
 type blockPropagation struct {
 	block *types.Block
 	td    *big.Int
