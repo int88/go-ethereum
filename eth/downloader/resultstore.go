@@ -26,6 +26,7 @@ import (
 
 // resultStore implements a structure for maintaining fetchResults, tracking their
 // download-progress and delivering (finished) results.
+// resultStore实现了一个结构用于维护fetchResults，追踪download-progress以及delivering results
 type resultStore struct {
 	items        []*fetchResult // Downloaded but not yet delivered fetch results
 	resultOffset uint64         // Offset of the first cached fetch result in the block chain

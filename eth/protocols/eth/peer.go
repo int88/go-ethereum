@@ -400,6 +400,7 @@ func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, re
 			},
 		},
 	}
+	// 分发request
 	if err := p.dispatchRequest(req); err != nil {
 		return nil, err
 	}

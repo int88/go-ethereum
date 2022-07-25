@@ -70,12 +70,16 @@ type typedQueue interface {
 	// deliver is responsible for taking a generic response packet from the
 	// concurrent fetcher, unpacking the type specific data and delivering
 	// it to the downloader's queue.
+	// deliver负责从concurrent fetcher获取一个generic response packet
+	// unpacking类型特定的数据并且传输到downloader的队列中
 	deliver(peer *peerConnection, packet *eth.Response) (int, error)
 }
 
 // concurrentFetch iteratively downloads scheduled block parts, taking available
 // peers, reserving a chunk of fetch requests for each and waiting for delivery
 // or timeouts.
+// concurrentFetch迭代的下载调度的block parts，按照可用的peers，为每个保留一系列的fetch requests
+// 等待被传送或者超时
 func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 	// Create a delivery channel to accept responses from all peers
 	responses := make(chan *eth.Response)
@@ -118,15 +122,19 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 	// Subscribe to peer lifecycle events to schedule tasks to new joiners and
 	// reschedule tasks upon disconnections. We don't care which event happened
 	// for simplicity, so just use a single channel.
+	// 订阅peer的lifecycle events，从而调度任务到new joiners并且在断开连接的时候重新调度
+	// tasks
 	peering := make(chan *peeringEvent, 64) // arbitrary buffer, just some burst protection
 
 	peeringSub := d.peers.SubscribeEvents(peering)
 	defer peeringSub.Unsubscribe()
 
 	// Prepare the queue and fetch block parts until the block header fetcher's done
+	// 准备queue并且抓取block parts，直到block header fetcher已经完成
 	finished := false
 	for {
 		// Short circuit if we lost all our peers
+		// 丢失了所有的peers
 		if d.peers.Len() == 0 && !beaconMode {
 			return errNoPeers
 		}
@@ -187,6 +195,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 					continue
 				}
 				// Fetch the chunk and make sure any errors return the hashes to the queue
+				// 抓取chunk并且确保任何错误返回hashes到队列
 				req, err := queue.request(peer, request, responses)
 				if err != nil {
 					// Sending the request failed, which generally means the peer
@@ -214,6 +223,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			}
 		}
 		// Wait for something to happen
+		// 等待一些事情发生
 		select {
 		case <-d.cancelCh:
 			// If sync was cancelled, tear down the parallel retriever. Pending
@@ -224,6 +234,8 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 		case event := <-peering:
 			// A peer joined or left, the tasks queue and allocations need to be
 			// checked for potential assignment or reassignment
+			// 一个peer加入或者离开，tasks queue以及allocations需要被检查，对于潜在
+			// 的assignment或者reassignment
 			peerid := event.peer.id
 
 			if event.join {
@@ -332,6 +344,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			// Response arrived, it may be for an existing or an already timed
 			// out request. If the former, update the timeout heap and perhaps
 			// reschedule the timeout timer.
+			// Response到底，它可能是对于一个已经存在或者一个已经超时的request
 			index, live := ordering[res.Req]
 			if live {
 				timeouts.Remove(index)
@@ -359,6 +372,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			// in a reasonable time frame, ignore its message.
 			if peer := d.peers.Peer(res.Req.Peer); peer != nil {
 				// Deliver the received chunk of data and check chain validity
+				// 传送接收到的chunk of data并且检查chain validity
 				accepted, err := queue.deliver(peer, res)
 				if errors.Is(err, errInvalidChain) {
 					return err
@@ -373,6 +387,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 
 		case cont := <-queue.waker():
 			// The header fetcher sent a continuation flag, check if it's done
+			// header fetcher发送了一个continuation flag，检查它是否完成
 			if !cont {
 				finished = true
 			}

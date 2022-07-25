@@ -125,6 +125,7 @@ type response struct {
 //
 // The returned Request must either be closed before discarding it, or the reply
 // must be waited for and the Response's Done channel signalled.
+// 返回的Request在丢弃之前必须关闭，或者reply必须等待，以及Response的Done channel被通知
 func (p *Peer) dispatchRequest(req *Request) error {
 	reqOp := &request{
 		req:  req,
@@ -135,6 +136,7 @@ func (p *Peer) dispatchRequest(req *Request) error {
 	req.Peer = p.id
 
 	select {
+	// 发送到reqDispatch
 	case p.reqDispatch <- reqOp:
 		return <-reqOp.fail
 	case <-p.term:

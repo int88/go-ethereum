@@ -69,6 +69,7 @@ type downloadTester struct {
 }
 
 // newTester creates a new downloader test mocker.
+// newTester创建一个新的downloader test mocker
 func newTester() *downloadTester {
 	tester := &downloadTester{
 		genesis:     testGenesis,
@@ -81,6 +82,7 @@ func newTester() *downloadTester {
 		ownChainTd:  map[common.Hash]*big.Int{testGenesis.Hash(): testGenesis.Difficulty()},
 
 		// Initialize ancient store with test genesis block
+		// 用test genesis block初始化ancient store
 		ancientHeaders:  map[common.Hash]*types.Header{testGenesis.Hash(): testGenesis.Header()},
 		ancientBlocks:   map[common.Hash]*types.Block{testGenesis.Hash(): testGenesis},
 		ancientReceipts: map[common.Hash]types.Receipts{testGenesis.Hash(): nil},

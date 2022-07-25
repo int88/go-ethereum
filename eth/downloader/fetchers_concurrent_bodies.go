@@ -26,10 +26,14 @@ import (
 
 // bodyQueue implements typedQueue and is a type adapter between the generic
 // concurrent fetcher and the downloader.
+// bodyQueue实现了typedQueue并且是一个type adapter，在generic concurrent fetcher
+// 和downloader之间
 type bodyQueue Downloader
 
 // waker returns a notification channel that gets pinged in case more body
 // fetches have been queued up, so the fetcher might assign it to idle peers.
+// waker返回一个notification channel，当有更多的body fetches已经排队的时候进行通知
+// 这样fetcher可能会把它交给其他的idle peers
 func (q *bodyQueue) waker() chan bool {
 	return q.queue.blockWakeCh
 }

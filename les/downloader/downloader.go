@@ -152,6 +152,7 @@ type Downloader struct {
 }
 
 // LightChain encapsulates functions required to synchronise a light chain.
+// LightChain封住了从一个light chain同步所需的函数
 type LightChain interface {
 	// HasHeader verifies a header's presence in the local chain.
 	HasHeader(common.Hash, uint64) bool
@@ -163,9 +164,11 @@ type LightChain interface {
 	CurrentHeader() *types.Header
 
 	// GetTd returns the total difficulty of a local block.
+	// GetTd返回一个local block的total difficulty
 	GetTd(common.Hash, uint64) *big.Int
 
 	// InsertHeaderChain inserts a batch of headers into the local chain.
+	// InsertHeaderChain插入一系列的headers到local chain
 	InsertHeaderChain([]*types.Header, int) (int, error)
 
 	// SetHead rewinds the local chain to a new head.

@@ -77,6 +77,7 @@ func (d *Downloader) syncState(root common.Hash) *stateSync {
 
 // stateFetcher manages the active state sync and accepts requests
 // on its behalf.
+// stateFetcher管理active state sync并且代表自己接受requests
 func (d *Downloader) stateFetcher() {
 	for {
 		select {
@@ -94,6 +95,8 @@ func (d *Downloader) stateFetcher() {
 
 // runStateSync runs a state synchronisation until it completes or another root
 // hash is requested to be switched over to.
+// runStateSync运行一个state synchronisation，直到它完成或者另一个root hash被请求
+// 并且进行转换
 func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 	var (
 		active   = make(map[string]*stateReq) // Currently in-flight requests

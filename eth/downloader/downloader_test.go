@@ -200,6 +200,7 @@ func (dlp *downloadTesterPeer) RequestHeadersByHash(origin common.Hash, amount i
 	}, nil)
 	headers := unmarshalRlpHeaders(rlpHeaders)
 	// If a malicious peer is simulated withholding headers, delete them
+	// 如果一个malicious peer有预扣的headers，删除他们
 	for hash := range dlp.withholdHeaders {
 		for i, header := range headers {
 			if header.Hash() == hash {
@@ -213,6 +214,7 @@ func (dlp *downloadTesterPeer) RequestHeadersByHash(origin common.Hash, amount i
 		hashes[i] = header.Hash()
 	}
 	// Deliver the headers to the downloader
+	// 将header传送给downloader
 	req := &eth.Request{
 		Peer: dlp.id,
 	}
@@ -495,6 +497,7 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 		<-proceed
 	}
 	// Start a synchronisation concurrently
+	// 并行地启动一个同步
 	errc := make(chan error, 1)
 	go func() {
 		errc <- tester.sync("peer", nil, mode)
@@ -547,6 +550,7 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 		}
 	}
 	// Check that we haven't pulled more blocks than available
+	// 检查我们没有拉取超过可用数的blocks
 	assertOwnChain(t, tester, targetBlocks+1)
 	if err := <-errc; err != nil {
 		t.Fatalf("block synchronization failed: %v", err)
@@ -571,12 +575,14 @@ func testForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 	tester.newPeer("fork A", protocol, chainA.blocks[1:])
 	tester.newPeer("fork B", protocol, chainB.blocks[1:])
 	// Synchronise with the peer and make sure all blocks were retrieved
+	// 和peer同步并且确保所有的blocks被获取了
 	if err := tester.sync("fork A", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
 	assertOwnChain(t, tester, len(chainA.blocks))
 
 	// Synchronise with the second peer and make sure that fork is pulled too
+	// 同步第二个peer并且确保fork被拉取了
 	if err := tester.sync("fork B", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
@@ -677,6 +683,7 @@ func testBoundedHeavyForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 }
 
 // Tests that a canceled download wipes all previously accumulated state.
+// 测试一个canceled download擦除所有之前已经累计的state
 func TestCancel66Full(t *testing.T)  { testCancel(t, eth.ETH66, FullSync) }
 func TestCancel66Snap(t *testing.T)  { testCancel(t, eth.ETH66, SnapSync) }
 func TestCancel66Light(t *testing.T) { testCancel(t, eth.ETH66, LightSync) }
@@ -724,6 +731,7 @@ func testMultiSynchronisation(t *testing.T, protocol uint, mode SyncMode) {
 	if err := tester.sync("peer #0", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
+	// 确保获得指定长度的block
 	assertOwnChain(t, tester, len(chain.blocks))
 }
 
@@ -752,6 +760,7 @@ func testMultiProtoSync(t *testing.T, protocol uint, mode SyncMode) {
 	assertOwnChain(t, tester, len(chain.blocks))
 
 	// Check that no peers have been dropped off
+	// 检查没有peers已经被丢弃
 	for _, version := range []int{66} {
 		peer := fmt.Sprintf("peer %d", version)
 		if _, ok := tester.peers[peer]; !ok {
@@ -827,8 +836,11 @@ func testMissingHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 
 	if err := tester.sync("attack", nil, mode); err == nil {
 		t.Fatalf("succeeded attacker synchronisation")
+	} else {
+		t.Fatalf("error is: %v", err)
 	}
 	// Synchronise with the valid peer and make sure sync succeeds
+	// 和合法的peer进行同步并且确保sync成功，第一个参数是peer的id
 	tester.newPeer("valid", protocol, chain.blocks[1:])
 	if err := tester.sync("valid", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
@@ -838,6 +850,7 @@ func testMissingHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that if requested headers are shifted (i.e. first is missing), the queue
 // detects the invalid numbering.
+// 测试如果请求的headers被shifted（例如，第一个丢失），队列检测到非法的numbers
 func TestShiftedHeaderAttack66Full(t *testing.T)  { testShiftedHeaderAttack(t, eth.ETH66, FullSync) }
 func TestShiftedHeaderAttack66Snap(t *testing.T)  { testShiftedHeaderAttack(t, eth.ETH66, SnapSync) }
 func TestShiftedHeaderAttack66Light(t *testing.T) { testShiftedHeaderAttack(t, eth.ETH66, LightSync) }
@@ -866,6 +879,8 @@ func testShiftedHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 // Tests that upon detecting an invalid header, the recent ones are rolled back
 // for various failure scenarios. Afterwards a full sync is attempted to make
 // sure no state was corrupted.
+// 测试当检测到一个invalid header，最近接收到的都会因为各种错误场景回滚，之后，一个full sync
+// 会试着确保没有state被破坏
 func TestInvalidHeaderRollback66Snap(t *testing.T) { testInvalidHeaderRollback(t, eth.ETH66, SnapSync) }
 
 func testInvalidHeaderRollback(t *testing.T, protocol uint, mode SyncMode) {
@@ -944,6 +959,7 @@ func testInvalidHeaderRollback(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that a peer advertising a high TD doesn't get to stall the downloader
 // afterwards by not sending any useful hashes.
+// 测试当一个peer建议一个high TD不会stall the downloader，如果不发送任何有用的哈希的话
 func TestHighTDStarvationAttack66Full(t *testing.T) {
 	testHighTDStarvationAttack(t, eth.ETH66, FullSync)
 }
@@ -1027,6 +1043,7 @@ func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	chain := testChainBase.shorten(blockCacheMaxItems - 15)
 
 	// Set a sync init hook to catch progress changes
+	// 设置一个sync init hook来获取progress的变更
 	starting := make(chan struct{})
 	progress := make(chan struct{})
 

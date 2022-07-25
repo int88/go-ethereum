@@ -27,8 +27,11 @@ import (
 // fetchHeadersByHash is a blocking version of Peer.RequestHeadersByHash which
 // handles all the cancellation, interruption and timeout mechanisms of a data
 // retrieval to allow blocking API calls.
+// fetchHeadersByHash是一个阻塞版本的Peer.RequestHeadersByHash，它处理cancellation, interruption
+// 以及超时机制在data retrieval
 func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amount int, skip int, reverse bool) ([]*types.Header, []common.Hash, error) {
 	// Create the response sink and send the network request
+	// 创建response sink并且发送network request
 	start := time.Now()
 	resCh := make(chan *eth.Response)
 
@@ -39,6 +42,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 	defer req.Close()
 
 	// Wait until the response arrives, the request is cancelled or times out
+	// 等待直到response到来，request被取消或者超时
 	ttl := d.peers.rates.TargetTimeout()
 
 	timeoutTimer := time.NewTimer(ttl)
@@ -50,6 +54,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 
 	case <-timeoutTimer.C:
 		// Header retrieval timed out, update the metrics
+		// Header retrieval超时，更新metrics
 		p.log.Debug("Header request timed out", "elapsed", ttl)
 		headerTimeoutMeter.Mark(1)
 
@@ -66,6 +71,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 		// be processed by the caller
 		res.Done <- nil
 
+		// 从res中解析出BlockHeadersPacket
 		return *res.Res.(*eth.BlockHeadersPacket), res.Meta.([]common.Hash), nil
 	}
 }

@@ -41,9 +41,12 @@ func handleGetBlockHeaders66(backend Backend, msg Decoder, peer *Peer) error {
 
 // ServiceGetBlockHeadersQuery assembles the response to a header query. It is
 // exposed to allow external packages to test protocol behavior.
+// ServiceGetBlockHeadersQuery组装response到一个header query，它被暴露用于允许外部的包
+// 来测试protocol behavior
 func ServiceGetBlockHeadersQuery(chain *core.BlockChain, query *GetBlockHeadersPacket, peer *Peer) []rlp.RawValue {
 	if query.Skip == 0 {
 		// The fast path: when the request is for a contiguous segment of headers.
+		// 当前请求的是连续的headers
 		return serviceContiguousBlockHeaderQuery(chain, query)
 	} else {
 		return serviceNonContiguousBlockHeaderQuery(chain, query, peer)

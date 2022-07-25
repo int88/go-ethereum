@@ -60,6 +60,8 @@ type fetchRequest struct {
 
 // fetchResult is a struct collecting partial results from data fetchers until
 // all outstanding pieces complete and the result as a whole can be processed.
+// fetchResult是一个结构收集来自data fetchers的partial results
+// 直到所有的outstanding prices完成并且结果作为一个整体被处理
 type fetchResult struct {
 	pending int32 // Flag telling what deliveries are outstanding
 
@@ -110,6 +112,7 @@ func (f *fetchResult) Done(kind uint) bool {
 // queue represents hashes that are either need fetching or are being fetched
 // queue代表需要fetching或者正在被fetched的hash
 type queue struct {
+	// Synchronisation mode决定用于调度获取的block parts
 	mode SyncMode // Synchronisation mode to decide on the block parts to schedule for fetching
 
 	// Headers are "special", they download in batches, supported by a skeleton chain
@@ -137,6 +140,7 @@ type queue struct {
 	receiptPendPool  map[string]*fetchRequest      // Currently pending receipt retrieval operations
 	receiptWakeCh    chan bool                     // Channel to notify when receipt fetcher of new tasks	// 用于通知receipt fetcher有新的tasks的channel
 
+	// 已经下载但是没有分发的fetch results
 	resultCache *resultStore       // Downloaded but not yet delivered fetch results
 	resultSize  common.StorageSize // Approximate size of a block (exponential moving average)
 

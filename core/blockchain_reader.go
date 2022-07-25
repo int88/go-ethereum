@@ -49,6 +49,8 @@ func (bc *BlockChain) CurrentBlock() *types.Block {
 
 // CurrentFastBlock retrieves the current fast-sync head block of the canonical
 // chain. The block is retrieved from the blockchain's internal cache.
+// CurrentFastBlock获取当前的fast-sync的canonical chain的head block，这个block来自
+// blockchain的internal cache
 func (bc *BlockChain) CurrentFastBlock() *types.Block {
 	return bc.currentFastBlock.Load().(*types.Block)
 }

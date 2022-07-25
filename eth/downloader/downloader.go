@@ -38,7 +38,9 @@ import (
 )
 
 var (
+	// 每个retrieval request请求的blocks的数目
 	MaxBlockFetch   = 128 // Amount of blocks to be fetched per retrieval request
+	// 每个rerieval request请求的block headers的数目
 	MaxHeaderFetch  = 192 // Amount of block headers to be fetched per retrieval request
 	MaxSkeletonSize = 128 // Number of header fetches to need for a skeleton assembly
 	MaxReceiptFetch = 256 // Amount of transaction receipts to allow fetching per request
@@ -87,6 +89,7 @@ type peerDropFn func(id string)
 
 // headerTask is a set of downloaded headers to queue along with their precomputed
 // hashes to avoid constant rehashing.
+// headerTask是一系列下载的headers，用于和他们提前计算的hashes一起排队来避免constant rehashing
 type headerTask struct {
 	headers []*types.Header
 	hashes  []common.Hash
@@ -125,6 +128,7 @@ type Downloader struct {
 	headerProcCh chan *headerTask // Channel to feed the header processor new tasks	// 用于给header processor提供新的tasks的channel
 
 	// Skeleton sync
+	// Skeleton sync，Header skeleton用于回填chain（eth2模式下）
 	skeleton *skeleton // Header skeleton to backfill the chain with (eth2 mode)
 
 	// State sync
@@ -148,7 +152,8 @@ type Downloader struct {
 	syncInitHook     func(uint64, uint64)  // Method to call upon initiating a new sync run
 	bodyFetchHook    func([]*types.Header) // Method to call upon starting a block body fetch
 	receiptFetchHook func([]*types.Header) // Method to call upon starting a receipt fetch
-	chainInsertHook  func([]*fetchResult)  // Method to call upon inserting a chain of blocks (possibly in multiple invocations)
+	// 当插入一个chain of blocks的时候调用
+	chainInsertHook func([]*fetchResult) // Method to call upon inserting a chain of blocks (possibly in multiple invocations)
 }
 
 // LightChain encapsulates functions required to synchronise a light chain.
@@ -443,7 +448,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		if p == nil {
 			return errUnknownPeer
 		}
-	}
+	}1
 	if beaconPing != nil {
 		close(beaconPing)
 	}
@@ -532,6 +537,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	if mode == SnapSync && pivot == nil {
 		pivot = d.blockchain.CurrentBlock().Header()
 	}
+	// 获取remote chain的高度
 	height := latest.Number.Uint64()
 
 	var origin uint64
@@ -623,6 +629,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	var headerFetcher func() error
 	if !beaconMode {
 		// In legacy mode, headers are retrieved from the network
+		// 在legacy mode，headers从network获取
 		headerFetcher = func() error { return d.fetchHeaders(p, origin+1, latest.Number.Uint64()) }
 	} else {
 		// In beacon mode, headers are served by the skeleton syncer
@@ -730,6 +737,7 @@ func (d *Downloader) Terminate() {
 // a remote peer.
 // fetchHead从一个remote peer获取head header以及prior pivot block（如果可以获取的话）
 func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *types.Header, err error) {
+	// 获取远端的chain head
 	p.log.Debug("Retrieving remote chain head")
 	mode := d.getMode()
 
@@ -752,6 +760,8 @@ func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *ty
 	// The first header needs to be the head, validate against the checkpoint
 	// and request. If only 1 header was returned, make sure there's no pivot
 	// or there was not one requested.
+	// 第一个header需要为head，用checkpoint和request检测，如果只返回1个head，确保
+	// 没有pivot或者没有请求的
 	head = headers[0]
 	if (mode == SnapSync || mode == LightSync) && head.Number.Uint64() < d.checkpoint {
 		return nil, nil, fmt.Errorf("%w: remote head %d below checkpoint %d", errUnsyncedPeer, head.Number, d.checkpoint)
@@ -765,6 +775,8 @@ func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *ty
 	}
 	// At this point we have 2 headers in total and the first is the
 	// validated head of the chain. Check the pivot number and return,
+	// 现在我们有2个headers总共，第一个是校验过的head of the chain，检查
+	// pivot number并且返回
 	pivot = headers[1]
 	if pivot.Number.Uint64() != head.Number.Uint64()-uint64(fsMinFullBlocks) {
 		return nil, nil, fmt.Errorf("%w: remote pivot %d != requested %d", errInvalidChain, pivot.Number, head.Number.Uint64()-uint64(fsMinFullBlocks))
@@ -830,6 +842,7 @@ func calculateRequestSpan(remoteHeight, localHeight uint64) (int64, int, int, ui
 // In the rare scenario when we ended up on a long reorganisation (i.e. none of
 // the head links match), we do a binary search to find the common ancestor.
 // findAncestor试着定位local chain和一个remote peers blockchain的common ancestor link
+// 一般情况下，当我们的节点已经同步并且在正确的链上，检查top N个links应该就能匹配到
 func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header) (uint64, error) {
 	// Figure out the valid ancestor range to prevent rewrite attacks
 	// 找到合法的ancestor range，来防止rewrite attacks
@@ -856,10 +869,12 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 	}
 	if localHeight >= maxForkAncestry {
 		// We're above the max reorg threshold, find the earliest fork point
+		// 我们已经超过了max reorg threshold，找到最早的fork point
 		floor = int64(localHeight - maxForkAncestry)
 	}
 	// If we're doing a light sync, ensure the floor doesn't go below the CHT, as
 	// all headers before that point will be missing.
+	// 如果我们在light sync，确保floor不会小于CHT，因为所有这之前的headers都会丢失
 	if mode == LightSync {
 		// If we don't know the current CHT position, find it
 		if d.genesis == 0 {
@@ -906,6 +921,7 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 		return 0, err
 	}
 	// Wait for the remote response to the head fetch
+	// 等待head fetch的remote response
 	number, hash := uint64(0), common.Hash{}
 
 	// Make sure the peer actually gave something valid
@@ -914,6 +930,7 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 		return 0, errEmptyHeaderSet
 	}
 	// Make sure the peer's reply conforms to the request
+	// 确保peer的reply符合request
 	for i, header := range headers {
 		expectNumber := from + int64(i)*int64(skip+1)
 		if number := header.Number.Int64(); number != expectNumber {
@@ -922,12 +939,14 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 		}
 	}
 	// Check if a common ancestor was found
+	// 确认是否找到了一个公共的ancestor
 	for i := len(headers) - 1; i >= 0; i-- {
 		// Skip any headers that underflow/overflow our requested set
 		if headers[i].Number.Int64() < from || headers[i].Number.Uint64() > max {
 			continue
 		}
 		// Otherwise check if we already know the header or not
+		// 否则检查是否我们知道了header
 		h := hashes[i]
 		n := headers[i].Number.Uint64()
 
@@ -946,12 +965,14 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 		}
 	}
 	// If the head fetch already found an ancestor, return
+	// 如果head fetch已经找到了一个ancestor，返回
 	if hash != (common.Hash{}) {
 		if int64(number) <= floor {
 			p.log.Warn("Ancestor below allowance", "number", number, "hash", hash, "allowance", floor)
 			return 0, errInvalidAncestor
 		}
 		p.log.Debug("Found common ancestor", "number", number, "hash", hash)
+		// 找到了common ancestor
 		return number, nil
 	}
 	return 0, errNoAncestorFound
@@ -1022,6 +1043,11 @@ func (d *Downloader) findAncestorBinarySearch(p *peerConnection, mode SyncMode, 
 // other peers are only accepted if they map cleanly to the skeleton. If no one
 // can fill in the skeleton - not even the origin peer - it's assumed invalid and
 // the origin is dropped.
+// fetchHeaders持续从请求的number并行获取headers，直到没有更多的需要返回，可能中途限流
+// 为了利用concurrency，但是仍然能防止malicious nodes发送bad headers，我们构建一个header
+// chain skeleton，使用我们同步的"origin" peer，并且使用任何其他的填充missing headers
+// 来自其他的peers只有在它们匹配skeleton的时候才会被接收，如果没人可以填充skeleton，即使
+// 不是在origin peer -它们被假设为非法的并且origin被丢弃
 func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) error {
 	p.log.Debug("Directing header downloads", "origin", from)
 	defer p.log.Debug("Header download terminated")
@@ -1074,6 +1100,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			d.dropPeer(p.id)
 
 			// Finish the sync gracefully instead of dumping the gathered data though
+			// 优雅地结束同步，而不是dumping收集到的data
 			for _, ch := range []chan bool{d.queue.blockWakeCh, d.queue.receiptWakeCh} {
 				select {
 				case ch <- false:
@@ -1122,6 +1149,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			continue
 		}
 		// If the skeleton's finished, pull any remaining head headers directly from the origin
+		// 如果skeleton已经结束了，拉取所有剩余的head headers，直接从origin
 		if skeleton && len(headers) == 0 {
 			// A malicious node might withhold advertised headers indefinitely
 			if from+uint64(MaxHeaderFetch)-1 <= head {
@@ -1154,6 +1182,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			}
 		}
 		// If we received a skeleton batch, resolve internals concurrently
+		// 如果我们获取了一个skeleton batch，内部并发解析
 		var progressed bool
 		if skeleton {
 			filled, hashset, proced, err := d.fillHeaderSkeleton(from, headers)
@@ -1216,6 +1245,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			}
 		}
 		// Insert any remaining new headers and fetch the next batch
+		// 插入任何剩余的新的headers并且获取下一个batch
 		if len(headers) > 0 {
 			p.log.Trace("Scheduling new headers", "count", len(headers), "from", from)
 			select {
@@ -1269,6 +1299,7 @@ func (d *Downloader) fetchBodies(from uint64, beaconMode bool) error {
 	log.Debug("Downloading block bodies", "origin", from)
 	err := d.concurrentFetch((*bodyQueue)(d), beaconMode)
 
+	// 结束了block body的下载
 	log.Debug("Block body download terminated", "err", err)
 	return err
 }
@@ -1276,8 +1307,11 @@ func (d *Downloader) fetchBodies(from uint64, beaconMode bool) error {
 // fetchReceipts iteratively downloads the scheduled block receipts, taking any
 // available peers, reserving a chunk of receipts for each, waiting for delivery
 // and also periodically checking for timeouts.
+// fetchReceipts迭代下载scheduled block receipts，获取任何可用的peers，为每个分配一系列的receipts
+// 等待传输并且同时阶段性的检查超时
 func (d *Downloader) fetchReceipts(from uint64, beaconMode bool) error {
 	log.Debug("Downloading receipts", "origin", from)
+	// 下载receipts
 	err := d.concurrentFetch((*receiptQueue)(d), beaconMode)
 
 	log.Debug("Receipt download terminated", "err", err)
@@ -1287,6 +1321,8 @@ func (d *Downloader) fetchReceipts(from uint64, beaconMode bool) error {
 // processHeaders takes batches of retrieved headers from an input channel and
 // keeps processing and scheduling them into the header chain and downloader's
 // queue until the stream ends or a failure occurs.
+// processHeaders从一个input channel批量获取接收到的headers，并且保持处理以及调度它们
+// 到header chain以及downloader的队列，直到stream结束或者有failure
 func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode bool) error {
 	// Keep a count of uncertain headers to roll back
 	var (
@@ -1327,6 +1363,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 
 		case task := <-d.headerProcCh:
 			// Terminate header processing if we synced up
+			// 如果我们已经同步了，终止header processing
 			if task == nil || len(task.headers) == 0 {
 				// Notify everyone that headers are fully processed
 				for _, ch := range []chan bool{d.queue.blockWakeCh, d.queue.receiptWakeCh} {
@@ -1376,6 +1413,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				return nil
 			}
 			// Otherwise split the chunk of headers into batches and process them
+			// 否则划分一系列的headers到batches并且处理它们
 			headers, hashes := task.headers, task.hashes
 
 			gotHeaders = true
@@ -1388,6 +1426,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				default:
 				}
 				// Select the next chunk of headers to import
+				// 选取下一个chunk of headers来导入
 				limit := maxHeadersProcess
 				if limit > len(headers) {
 					limit = len(headers)
@@ -1471,6 +1510,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 					}
 				}
 				// Unless we're doing light chains, schedule the headers for associated content retrieval
+				// 除非我们是light chains，调度headers用于相关内容的获取
 				if mode == FullSync || mode == SnapSync {
 					// If we've reached the allowed number of pending headers, stall a bit
 					for d.queue.PendingBodies() >= maxQueuedHeaders || d.queue.PendingReceipts() >= maxQueuedHeaders {
@@ -1482,6 +1522,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 						}
 					}
 					// Otherwise insert the headers for content retrieval
+					// 否则插入headers用于content retrieval
 					inserts := d.queue.Schedule(chunkHeaders, chunkHashes, origin)
 					if len(inserts) != len(chunkHeaders) {
 						rollbackErr = fmt.Errorf("stale headers: len inserts %v len(chunk) %v", len(inserts), len(chunkHeaders))
@@ -1493,6 +1534,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				origin += uint64(limit)
 			}
 			// Update the highest block number we know if a higher one is found.
+			// 更新highest block number，如果找到了higher one
 			d.syncStatsLock.Lock()
 			if d.syncStatsChainHeight < origin {
 				d.syncStatsChainHeight = origin - 1
@@ -1500,6 +1542,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 			d.syncStatsLock.Unlock()
 
 			// Signal the content downloaders of the availablility of new tasks
+			// 通知content downloaders，新的tasks可用
 			for _, ch := range []chan bool{d.queue.blockWakeCh, d.queue.receiptWakeCh} {
 				select {
 				case ch <- true:
