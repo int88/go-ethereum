@@ -59,15 +59,19 @@ func Register(stack *node.Node, backend *eth.Ethereum) error {
 }
 
 type ConsensusAPI struct {
-	eth          *eth.Ethereum
-	remoteBlocks *headerQueue  // Cache of remote payloads received
-	localBlocks  *payloadQueue // Cache of local payloads generated
+	eth *eth.Ethereum
+	// 缓存接收到的远程payloads
+	remoteBlocks *headerQueue // Cache of remote payloads received
+	// 缓存产生的本地payloads
+	localBlocks *payloadQueue // Cache of local payloads generated
 	// Lock for the forkChoiceUpdated method
 	forkChoiceLock sync.Mutex
 }
 
 // NewConsensusAPI creates a new consensus api for the given backend.
 // The underlying blockchain needs to have a valid terminal total difficulty set.
+// NewConsensusAPI创建一个新的consensus api，对于给定的backend
+// 底层的blockchain需要有一个合法的terminal total difficulty被设置
 func NewConsensusAPI(eth *eth.Ethereum) *ConsensusAPI {
 	if eth.BlockChain().Config().TerminalTotalDifficulty == nil {
 		panic("Catalyst started without valid total difficulty")

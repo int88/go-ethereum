@@ -54,8 +54,9 @@ type Node struct {
 	startStopLock sync.Mutex        // Start/Stop are protected by an additional lock
 	state         int               // Tracks state of node lifecycle
 
-	lock          sync.Mutex
-	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle	// 所有注册的backends, services以及辅助的services，有着一个生命周期
+	lock       sync.Mutex
+	lifecycles []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle	// 所有注册的backends, services以及辅助的services，有着一个生命周期
+	// node当前提供的一系列APIs
 	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
 	http          *httpServer //
 	ws            *httpServer //
@@ -186,17 +187,20 @@ func (n *Node) Start() error {
 	}
 	n.state = runningState
 	// open networking and RPC endpoints
+	// 打开networking以及PRC endpoints
 	err := n.openEndpoints()
 	lifecycles := make([]Lifecycle, len(n.lifecycles))
 	copy(lifecycles, n.lifecycles)
 	n.lock.Unlock()
 
 	// Check if endpoint startup failed.
+	// 检查是否endpoint启动失败
 	if err != nil {
 		n.doClose(nil)
 		return err
 	}
 	// Start all registered lifecycles.
+	// 启动所有注册的lifecycles
 	var started []Lifecycle
 	for _, lifecycle := range lifecycles {
 		if err = lifecycle.Start(); err != nil {
@@ -543,6 +547,7 @@ func (n *Node) Wait() {
 }
 
 // RegisterLifecycle registers the given Lifecycle on the node.
+// RegisterLifecycle注册给定的Lifecycle到node
 func (n *Node) RegisterLifecycle(lifecycle Lifecycle) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

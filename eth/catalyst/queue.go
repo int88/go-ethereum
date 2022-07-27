@@ -135,6 +135,8 @@ type headerQueueItem struct {
 
 // headerQueue tracks the latest handful of constructed headers to be retrieved
 // by the beacon chain if block production is requested.
+// headerQueue追踪最后的一把constructed headers，由beacon chain获取，如果请求了
+// block production
 type headerQueue struct {
 	headers []*headerQueueItem
 	lock    sync.RWMutex

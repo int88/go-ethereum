@@ -47,6 +47,8 @@ var (
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
+// makeChain创建有n个blocks的chain，从parent开始并且包含parent
+// 返回的hash chain的顺序是head->parent
 func makeChain(n int, seed byte, parent *types.Block) ([]common.Hash, map[common.Hash]*types.Block) {
 	blocks, _ := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testdb, n, func(i int, block *core.BlockGen) {
 		block.SetCoinbase(common.Address{seed})
@@ -77,18 +79,24 @@ func makeChain(n int, seed byte, parent *types.Block) ([]common.Hash, map[common
 }
 
 // fetcherTester is a test simulator for mocking out local block chain.
+// fetcherTester是一个test simulator用来模拟local block chain
 type fetcherTester struct {
 	fetcher *BlockFetcher
 
-	hashes  []common.Hash                 // Hash chain belonging to the tester
+	// 属于tester的hash chain
+	hashes []common.Hash // Hash chain belonging to the tester
+	// 属于tester的headers
 	headers map[common.Hash]*types.Header // Headers belonging to the tester
-	blocks  map[common.Hash]*types.Block  // Blocks belonging to the tester
-	drops   map[string]bool               // Map of peers dropped by the fetcher
+	// 属于tester的blocks
+	blocks map[common.Hash]*types.Block // Blocks belonging to the tester
+	// fetcher丢弃的peers
+	drops map[string]bool // Map of peers dropped by the fetcher
 
 	lock sync.RWMutex
 }
 
 // newTester creates a new fetcher test mocker.
+// newTester创建一个新的fetcher test mocker
 func newTester(light bool) *fetcherTester {
 	tester := &fetcherTester{
 		hashes:  []common.Hash{genesis.Hash()},
@@ -96,6 +104,7 @@ func newTester(light bool) *fetcherTester {
 		blocks:  map[common.Hash]*types.Block{genesis.Hash(): genesis},
 		drops:   make(map[string]bool),
 	}
+	// 构建fetcher
 	tester.fetcher = NewBlockFetcher(light, tester.getHeader, tester.getBlock, tester.verifyHeader, tester.broadcastBlock, tester.chainHeight, tester.insertHeaders, tester.insertChain, tester.dropPeer)
 	tester.fetcher.Start()
 
@@ -139,20 +148,24 @@ func (f *fetcherTester) chainHeight() uint64 {
 }
 
 // insertChain injects a new headers into the simulated chain.
+// insertChain注入一个新的headers到simulated chain
 func (f *fetcherTester) insertHeaders(headers []*types.Header) (int, error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
 	for i, header := range headers {
 		// Make sure the parent in known
+		// 确保parenet已知
 		if _, ok := f.headers[header.ParentHash]; !ok {
 			return i, errors.New("unknown parent")
 		}
 		// Discard any new blocks if the same height already exists
+		// 丢弃任何新的blocks，如果同样的height已经存在
 		if header.Number.Uint64() <= f.headers[f.hashes[len(f.hashes)-1]].Number.Uint64() {
 			return i, nil
 		}
 		// Otherwise build our current chain
+		// 否则，构建我们自己的current chain
 		f.hashes = append(f.hashes, header.Hash())
 		f.headers[header.Hash()] = header
 	}
@@ -190,6 +203,7 @@ func (f *fetcherTester) dropPeer(peer string) {
 }
 
 // makeHeaderFetcher retrieves a block header fetcher associated with a simulated peer.
+// makeHeaderFetcher获取一个block header fetcher，和一个模拟的peer相关联
 func (f *fetcherTester) makeHeaderFetcher(peer string, blocks map[common.Hash]*types.Block, drift time.Duration) headerRequesterFn {
 	closure := make(map[common.Hash]*types.Block)
 	for hash, block := range blocks {
@@ -198,11 +212,13 @@ func (f *fetcherTester) makeHeaderFetcher(peer string, blocks map[common.Hash]*t
 	// Create a function that return a header from the closure
 	return func(hash common.Hash, sink chan *eth.Response) (*eth.Request, error) {
 		// Gather the blocks to return
+		// 收集blocks用于返回
 		headers := make([]*types.Header, 0, 1)
 		if block, ok := closure[hash]; ok {
 			headers = append(headers, block.Header())
 		}
 		// Return on a new thread
+		// 在一个新的thread中返回
 		req := &eth.Request{
 			Peer: peer,
 		}
@@ -300,6 +316,7 @@ func verifyCompletingEvent(t *testing.T, completing chan []common.Hash, arrive b
 }
 
 // verifyImportEvent verifies that one single event arrive on an import channel.
+// verifyImportEvent校验在import channel会来单个的event
 func verifyImportEvent(t *testing.T, imported chan interface{}, arrive bool) {
 	t.Helper()
 
@@ -345,6 +362,7 @@ func verifyImportDone(t *testing.T, imported chan interface{}) {
 }
 
 // verifyChainHeight verifies the chain height is as expected.
+// verifyChainHeight校验chain height是符合预期的
 func verifyChainHeight(t *testing.T, fetcher *fetcherTester, height uint64) {
 	t.Helper()
 
@@ -355,11 +373,14 @@ func verifyChainHeight(t *testing.T, fetcher *fetcherTester, height uint64) {
 
 // Tests that a fetcher accepts block/header announcements and initiates retrievals
 // for them, successfully importing into the local chain.
+// 测试一个fetcher接收block/header announcements并且开始对他们的获取，成功导入到
+// local chain
 func TestFullSequentialAnnouncements(t *testing.T)  { testSequentialAnnouncements(t, false) }
 func TestLightSequentialAnnouncements(t *testing.T) { testSequentialAnnouncements(t, true) }
 
 func testSequentialAnnouncements(t *testing.T, light bool) {
 	// Create a chain of blocks to import
+	// 创建a chain of blocks用于导入
 	targetBlocks := 4 * hashLimit
 	hashes, blocks := makeChain(targetBlocks, 0, genesis)
 
@@ -369,6 +390,7 @@ func testSequentialAnnouncements(t *testing.T, light bool) {
 	bodyFetcher := tester.makeBodyFetcher("valid", blocks, 0)
 
 	// Iteratively announce blocks until all are imported
+	// 迭代地声明blocks，直到他们全部被导入
 	imported := make(chan interface{})
 	tester.fetcher.importedHook = func(header *types.Header, block *types.Block) {
 		if light {
@@ -380,6 +402,7 @@ func testSequentialAnnouncements(t *testing.T, light bool) {
 			if block == nil {
 				t.Fatalf("Fetcher try to import empty block")
 			}
+			// 当导入block的时候被调用
 			imported <- block
 		}
 	}
@@ -393,6 +416,7 @@ func testSequentialAnnouncements(t *testing.T, light bool) {
 
 // Tests that if blocks are announced by multiple peers (or even the same buggy
 // peer), they will only get downloaded at most once.
+// 测试如果blocks由多个peers宣布（甚至是同一个buggy peer），它们最多只会被下载一次
 func TestFullConcurrentAnnouncements(t *testing.T)  { testConcurrentAnnouncements(t, false) }
 func TestLightConcurrentAnnouncements(t *testing.T) { testConcurrentAnnouncements(t, true) }
 
@@ -418,6 +442,7 @@ func testConcurrentAnnouncements(t *testing.T, light bool) {
 		return secondHeaderFetcher(hash, sink)
 	}
 	// Iteratively announce blocks until all are imported
+	// 遍历announce blocks，直到所有都被导入
 	imported := make(chan interface{})
 	tester.fetcher.importedHook = func(header *types.Header, block *types.Block) {
 		if light {
@@ -495,6 +520,7 @@ func testOverlappingAnnouncements(t *testing.T, light bool) {
 }
 
 // Tests that announces already being retrieved will not be duplicated.
+// 测试已经获取的announces不会重复
 func TestFullPendingDeduplication(t *testing.T)  { testPendingDeduplication(t, false) }
 func TestLightPendingDeduplication(t *testing.T) { testPendingDeduplication(t, true) }
 
@@ -548,6 +574,7 @@ func testPendingDeduplication(t *testing.T, light bool) {
 
 // Tests that announcements retrieved in a random order are cached and eventually
 // imported when all the gaps are filled in.
+// 测试按照随机顺序获取的announcments会被缓存并且最终被导入，当所有的gaps都被填充的话
 func TestFullRandomArrivalImport(t *testing.T)  { testRandomArrivalImport(t, false) }
 func TestLightRandomArrivalImport(t *testing.T) { testRandomArrivalImport(t, true) }
 
@@ -562,6 +589,7 @@ func testRandomArrivalImport(t *testing.T, light bool) {
 	bodyFetcher := tester.makeBodyFetcher("valid", blocks, 0)
 
 	// Iteratively announce blocks, skipping one entry
+	// 遍历announce blocks，跳过一个entry
 	imported := make(chan interface{}, len(hashes)-1)
 	tester.fetcher.importedHook = func(header *types.Header, block *types.Block) {
 		if light {
@@ -583,6 +611,7 @@ func testRandomArrivalImport(t *testing.T, light bool) {
 		}
 	}
 	// Finally announce the skipped entry and check full import
+	// 最后通知skipped entry并且检查full import
 	tester.fetcher.Notify("valid", hashes[skip], uint64(len(hashes)-skip-1), time.Now().Add(-arriveTimeout), headerFetcher, bodyFetcher)
 	verifyImportCount(t, imported, len(hashes)-1)
 	verifyChainHeight(t, tester, uint64(len(hashes)-1))
@@ -657,6 +686,8 @@ func TestImportDeduplication(t *testing.T) {
 
 // Tests that blocks with numbers much lower or higher than out current head get
 // discarded to prevent wasting resources on useless blocks from faulty peers.
+// 测试当blocks远远高于或者低于我们当前的head，会被丢弃，从而防止从faulty peers来的
+// useless blocks浪费资源
 func TestDistantPropagationDiscarding(t *testing.T) {
 	// Create a long chain to import and define the discard boundaries
 	hashes, blocks := makeChain(3*maxQueueDist, 0, genesis)
@@ -665,6 +696,7 @@ func TestDistantPropagationDiscarding(t *testing.T) {
 	low, high := len(hashes)/2+maxUncleDist+1, len(hashes)/2-maxQueueDist-1
 
 	// Create a tester and simulate a head block being the middle of the above chain
+	// 创建一个tester并且模拟一个head block，在上述的chain的中间位置
 	tester := newTester(false)
 
 	tester.lock.Lock()
@@ -802,6 +834,8 @@ func testInvalidNumberAnnouncement(t *testing.T, light bool) {
 
 // Tests that if a block is empty (i.e. header only), no body request should be
 // made, and instead the header should be assembled into a whole block in itself.
+// 测试如果一个block为空（例如，只有header），不应该有body request，并且反而header应该自己组装
+// 成一个block
 func TestEmptyBlockShortCircuit(t *testing.T) {
 	// Create a chain of blocks to import
 	hashes, blocks := makeChain(32, 0, genesis)
@@ -844,6 +878,8 @@ func TestEmptyBlockShortCircuit(t *testing.T) {
 // Tests that a peer is unable to use unbounded memory with sending infinite
 // block announcements to a node, but that even in the face of such an attack,
 // the fetcher remains operational.
+// 测试一个peer不能使用无限量的memory，通过发送无限的block announcements到一个node
+// 但是即使遇到这种情况，fetcher也能正常处理
 func TestHashMemoryExhaustionAttack(t *testing.T) {
 	// Create a tester with instrumented import hooks
 	tester := newTester(false)

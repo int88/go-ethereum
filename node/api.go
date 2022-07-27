@@ -298,6 +298,8 @@ func (api *privateAdminAPI) StopWS() (bool, error) {
 
 // publicAdminAPI is the collection of administrative API methods exposed over
 // both secure and unsecure RPC channels.
+// publicAdminAPI是一系列的administrative API方法，同时通过secure以及unsecure RPC
+// channels进行暴露
 type publicAdminAPI struct {
 	node *Node // Node interfaced by this API
 }

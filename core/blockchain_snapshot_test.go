@@ -38,10 +38,13 @@ import (
 )
 
 // snapshotTestBasic wraps the common testing fields in the snapshot tests.
+// snapshotTestBasic封装了在snapshot测试中的通用字段
 type snapshotTestBasic struct {
-	chainBlocks   int    // Number of blocks to generate for the canonical chain
+	chainBlocks int // Number of blocks to generate for the canonical chain
+	// snapshot disk layer相关的block number
 	snapshotBlock uint64 // Block number of the relevant snapshot disk layer
-	commitBlock   uint64 // Block number for which to commit the state to disk
+	// 提交state到磁盘的block number
+	commitBlock uint64 // Block number for which to commit the state to disk
 
 	expCanonicalBlocks int    // Number of canonical blocks expected to remain in the database (excl. genesis)
 	expHeadHeader      uint64 // Block number of the expected head header
@@ -65,6 +68,7 @@ func (basic *snapshotTestBasic) prepare(t *testing.T) (*BlockChain, []*types.Blo
 		t.Fatalf("Failed to create persistent database: %v", err)
 	}
 	// Initialize a fresh chain
+	// 初始化一个fresh chain
 	var (
 		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
 		engine  = ethash.NewFullFaker()
@@ -82,6 +86,7 @@ func (basic *snapshotTestBasic) prepare(t *testing.T) (*BlockChain, []*types.Blo
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, gendb, basic.chainBlocks, func(i int, b *BlockGen) {})
 
 	// Insert the blocks with configured settings.
+	// 用配置的settings插入blocks
 	var breakpoints []uint64
 	if basic.commitBlock > basic.snapshotBlock {
 		breakpoints = append(breakpoints, basic.snapshotBlock, basic.commitBlock)
@@ -102,6 +107,8 @@ func (basic *snapshotTestBasic) prepare(t *testing.T) (*BlockChain, []*types.Blo
 			// Flushing the entire snap tree into the disk, the
 			// relevant (a) snapshot root and (b) snapshot generator
 			// will be persisted atomically.
+			// 刷整个snap tree到磁盘中，相关的snapshot root和snapshot generator
+			// 会自动持久化
 			chain.snaps.Cap(blocks[point-1].Root(), 0)
 			diskRoot, blockRoot := chain.snaps.DiskRoot(), blocks[point-1].Root()
 			if !bytes.Equal(diskRoot.Bytes(), blockRoot.Bytes()) {
@@ -123,6 +130,7 @@ func (basic *snapshotTestBasic) prepare(t *testing.T) (*BlockChain, []*types.Blo
 
 func (basic *snapshotTestBasic) verify(t *testing.T, chain *BlockChain, blocks []*types.Block) {
 	// Iterate over all the remaining blocks and ensure there are no gaps
+	// 遍历所有的remaining blocks并且确保没有gaps
 	verifyNoGaps(t, chain, true, blocks)
 	verifyCutoff(t, chain, true, blocks, basic.expCanonicalBlocks)
 
@@ -137,6 +145,7 @@ func (basic *snapshotTestBasic) verify(t *testing.T, chain *BlockChain, blocks [
 	}
 
 	// Check the disk layer, ensure they are matched
+	// 检查disk layer，确保它们匹配
 	block := chain.GetBlockByNumber(basic.expSnapshotBottom)
 	if block == nil {
 		t.Errorf("The correspnding block[%d] of snapshot disk layer is missing", basic.expSnapshotBottom)
@@ -217,6 +226,7 @@ func (snaptest *snapshotTest) test(t *testing.T) {
 	chain, blocks := snaptest.prepare(t)
 
 	// Restart the chain normally
+	// 正常重启chain
 	chain.Stop()
 	newchain, err := NewBlockChain(snaptest.db, nil, params.AllEthashProtocolChanges, snaptest.engine, vm.Config{}, nil, nil)
 	if err != nil {

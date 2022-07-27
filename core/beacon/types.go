@@ -174,6 +174,8 @@ func ExecutableDataToBlock(params ExecutableDataV1) (*types.Block, error) {
 
 // BlockToExecutableData constructs the executableDataV1 structure by filling the
 // fields from the given block. It assumes the given block is post-merge block.
+// BlockToExecutableData构建executableDataV1结构，通过填充给定block的字段
+// 它假设给定的block是post-merge block
 func BlockToExecutableData(block *types.Block) *ExecutableDataV1 {
 	return &ExecutableDataV1{
 		BlockHash:     block.Hash(),

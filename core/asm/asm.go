@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package asm provides support for dealing with EVM assembly instructions (e.g., disassembling them).
+// asm包提供了对于处理EVM汇编指令的支持
 package asm
 
 import (

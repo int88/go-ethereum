@@ -35,15 +35,17 @@ import (
 const (
 	lightTimeout  = time.Millisecond       // Time allowance before an announced header is explicitly requested
 	arriveTimeout = 500 * time.Millisecond // Time allowance before an announced block/transaction is explicitly requested
-	gatherSlack   = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
-	fetchTimeout  = 5 * time.Second        // Maximum allotted time to return an explicitly requested block/transaction
+	// 整理fetches的快要过期的announces的时间间隔
+	gatherSlack  = 100 * time.Millisecond // Interval used to collate almost-expired announces with fetches
+	fetchTimeout = 5 * time.Second        // Maximum allotted time to return an explicitly requested block/transaction
 )
 
 const (
-	maxUncleDist = 7   // Maximum allowed backward distance from the chain head
-	maxQueueDist = 32  // Maximum allowed distance from the chain head to queue
-	hashLimit    = 256 // Maximum number of unique blocks or headers a peer may have announced
-	blockLimit   = 64  // Maximum number of unique blocks a peer may have delivered
+	maxUncleDist = 7  // Maximum allowed backward distance from the chain head
+	maxQueueDist = 32 // Maximum allowed distance from the chain head to queue
+	// 一个peer能announce的最多的unique blocks或者headers的数目
+	hashLimit  = 256 // Maximum number of unique blocks or headers a peer may have announced
+	blockLimit = 64  // Maximum number of unique blocks a peer may have delivered
 )
 
 var (
@@ -75,9 +77,11 @@ type HeaderRetrievalFn func(common.Hash) *types.Header
 type blockRetrievalFn func(common.Hash) *types.Block
 
 // headerRequesterFn is a callback type for sending a header retrieval request.
+// headerRequesterFn是一个callback类型用于发送一个header retrieval request
 type headerRequesterFn func(common.Hash, chan *eth.Response) (*eth.Request, error)
 
 // bodyRequesterFn is a callback type for sending a body retrieval request.
+// bodyRequesterFn是一个callback类型用于发送一个body retrieval request
 type bodyRequesterFn func([]common.Hash, chan *eth.Response) (*eth.Request, error)
 
 // headerVerifierFn is a callback type to verify a block's header for fast propagation.
@@ -100,7 +104,9 @@ type peerDropFn func(id string)
 
 // blockAnnounce is the hash notification of the availability of a new block in the
 // network.
+// blockAnnounce是hash notification，通知在网络中一个新的block可用
 type blockAnnounce struct {
+	// 被announce的block的哈希值
 	hash   common.Hash   // Hash of the block being announced
 	number uint64        // Number of the block being announced (0 = unknown | old protocol)
 	header *types.Header // Header of the block partially reassembled (new protocol)
@@ -108,8 +114,10 @@ type blockAnnounce struct {
 
 	origin string // Identifier of the peer originating the notification
 
+	// Fetcher函数用于获取一个announced block的header
 	fetchHeader headerRequesterFn // Fetcher function to retrieve the header of an announced block
-	fetchBodies bodyRequesterFn   // Fetcher function to retrieve the body of an announced block
+	// Fetcher函数用于获取一个announced block的body
+	fetchBodies bodyRequesterFn // Fetcher function to retrieve the body of an announced block
 }
 
 // headerFilterTask represents a batch of headers needing fetcher filtering.
@@ -169,26 +177,33 @@ type BlockFetcher struct {
 	quit chan struct{}
 
 	// Announce states
-	announces  map[string]int                   // Per peer blockAnnounce counts to prevent memory exhaustion
-	announced  map[common.Hash][]*blockAnnounce // Announced blocks, scheduled for fetching
-	fetching   map[common.Hash]*blockAnnounce   // Announced blocks, currently fetching
-	fetched    map[common.Hash][]*blockAnnounce // Blocks with headers fetched, scheduled for body retrieval
-	completing map[common.Hash]*blockAnnounce   // Blocks with headers, currently body-completing
+	announces map[string]int // Per peer blockAnnounce counts to prevent memory exhaustion
+	// 已经announced blocks，调度用于fetching
+	announced map[common.Hash][]*blockAnnounce // Announced blocks, scheduled for fetching
+	// 当前正在fetcing的blocks
+	fetching map[common.Hash]*blockAnnounce // Announced blocks, currently fetching
+	// header已经fetched的blocks，等待用于body retreival
+	fetched map[common.Hash][]*blockAnnounce // Blocks with headers fetched, scheduled for body retrieval
+	// 有着headers的Blocks，当前正在body-completing
+	completing map[common.Hash]*blockAnnounce // Blocks with headers, currently body-completing
 
 	// Block cache
+	// Block的缓存
+	// Queue包含了导入操作（按照block number进行排序）
 	queue  *prque.Prque                         // Queue containing the import operations (block number sorted)
 	queues map[string]int                       // Per peer block counts to prevent memory exhaustion
 	queued map[common.Hash]*blockOrHeaderInject // Set of already queued blocks (to dedup imports)
 
 	// Callbacks
-	getHeader      HeaderRetrievalFn  // Retrieves a header from the local chain
-	getBlock       blockRetrievalFn   // Retrieves a block from the local chain
-	verifyHeader   headerVerifierFn   // Checks if a block's headers have a valid proof of work
-	broadcastBlock blockBroadcasterFn // Broadcasts a block to connected peers
-	chainHeight    chainHeightFn      // Retrieves the current chain's height
-	insertHeaders  headersInsertFn    // Injects a batch of headers into the chain
-	insertChain    chainInsertFn      // Injects a batch of blocks into the chain
-	dropPeer       peerDropFn         // Drops a peer for misbehaving
+	// 回调函数
+	getHeader      HeaderRetrievalFn  // Retrieves a header from the local chain	// 从local chain获取一个header
+	getBlock       blockRetrievalFn   // Retrieves a block from the local chain		// 从local chain获取一个block
+	verifyHeader   headerVerifierFn   // Checks if a block's headers have a valid proof of work	// 检查一个block的headers是否有正确的pow
+	broadcastBlock blockBroadcasterFn // Broadcasts a block to connected peers	// 广播一个block到连接的peers
+	chainHeight    chainHeightFn      // Retrieves the current chain's height	// 获取当前chain的height
+	insertHeaders  headersInsertFn    // Injects a batch of headers into the chain	// 注入一系列的headers到chain
+	insertChain    chainInsertFn      // Injects a batch of blocks into the chain	// 注入一系列的blocks到chain
+	dropPeer       peerDropFn         // Drops a peer for misbehaving	// 丢弃misbehaving的peer
 
 	// Testing hooks
 	announceChangeHook func(common.Hash, bool)           // Method to call upon adding or deleting a hash from the blockAnnounce list
@@ -199,6 +214,8 @@ type BlockFetcher struct {
 }
 
 // NewBlockFetcher creates a block fetcher to retrieve blocks based on hash announcements.
+// NewBlockFetcher创建一个block fetcher用于获取blocks，基于hash announcements
+// 其中一些hook函数都通过命令行参数指定
 func NewBlockFetcher(light bool, getHeader HeaderRetrievalFn, getBlock blockRetrievalFn, verifyHeader headerVerifierFn, broadcastBlock blockBroadcasterFn, chainHeight chainHeightFn, insertHeaders headersInsertFn, insertChain chainInsertFn, dropPeer peerDropFn) *BlockFetcher {
 	return &BlockFetcher{
 		light:          light,
@@ -243,6 +260,7 @@ func (f *BlockFetcher) Stop() {
 
 // Notify announces the fetcher of the potential availability of a new block in
 // the network.
+// Notify通知fetcher在network中一个新的block潜在可用
 func (f *BlockFetcher) Notify(peer string, hash common.Hash, number uint64, time time.Time,
 	headerFetcher headerRequesterFn, bodyFetcher bodyRequesterFn) error {
 	block := &blockAnnounce{
@@ -254,6 +272,7 @@ func (f *BlockFetcher) Notify(peer string, hash common.Hash, number uint64, time
 		fetchBodies: bodyFetcher,
 	}
 	select {
+	// 通知block到f.notify
 	case f.notify <- block:
 		return nil
 	case <-f.quit:
@@ -336,6 +355,7 @@ func (f *BlockFetcher) FilterBodies(peer string, transactions [][]*types.Transac
 // Loop是主要的fetcher loop，检查并且处理各种notification events
 func (f *BlockFetcher) loop() {
 	// Iterate the block fetching until a quit is requested
+	// 遍历block fetching，直到请求一个quit
 	var (
 		fetchTimer    = time.NewTimer(0)
 		completeTimer = time.NewTimer(0)
@@ -388,6 +408,7 @@ func (f *BlockFetcher) loop() {
 
 		case notification := <-f.notify:
 			// A block was announced, make sure the peer isn't DOSing us
+			// 一个block已经被announced，确保peer不是在DOSing我们
 			blockAnnounceInMeter.Mark(1)
 
 			count := f.announces[notification.origin] + 1
@@ -406,6 +427,7 @@ func (f *BlockFetcher) loop() {
 				break
 			}
 			// All is well, schedule the announce if block's not yet downloading
+			// 都准备好了，调度announce，如果block还没有下载
 			if _, ok := f.fetching[notification.hash]; ok {
 				break
 			}
@@ -423,6 +445,7 @@ func (f *BlockFetcher) loop() {
 
 		case op := <-f.inject:
 			// A direct block insertion was requested, try and fill any pending gaps
+			// 一个直接的block insertion已经被请求了，试着填充任何的pending gaps
 			blockBroadcastInMeter.Mark(1)
 
 			// Now only direct block injection is allowed, drop the header injection
@@ -434,6 +457,7 @@ func (f *BlockFetcher) loop() {
 
 		case hash := <-f.done:
 			// A pending import finished, remove all traces of the notification
+			// 一个pending import已经结束了，移除所有的traces of the notification
 			f.forgetHash(hash)
 			f.forgetBlock(hash)
 
@@ -841,46 +865,57 @@ func (f *BlockFetcher) importHeaders(peer string, header *types.Header) {
 // importBlocks spawns a new goroutine to run a block insertion into the chain. If the
 // block's number is at the same height as the current import phase, it updates
 // the phase states accordingly.
+// importBlocks生成一个新的goroutine用于运行插入一个block到chain，如果block的number和当前的import phase
+// 处于同样的height，它相应地更新phase state
 func (f *BlockFetcher) importBlocks(peer string, block *types.Block) {
 	hash := block.Hash()
 
 	// Run the import on a new thread
+	// 在一个新的thread运行import
 	log.Debug("Importing propagated block", "peer", peer, "number", block.Number(), "hash", hash)
 	go func() {
 		defer func() { f.done <- hash }()
 
 		// If the parent's unknown, abort insertion
+		// 如果parent是unknown，则停止插入
 		parent := f.getBlock(block.ParentHash())
 		if parent == nil {
 			log.Debug("Unknown parent of propagated block", "peer", peer, "number", block.Number(), "hash", hash, "parent", block.ParentHash())
 			return
 		}
 		// Quickly validate the header and propagate the block if it passes
+		// 快速校验header并且传播block，如果通过的话
 		switch err := f.verifyHeader(block.Header()); err {
 		case nil:
 			// All ok, quickly propagate to our peers
+			// 所有校验都ok，快速传播到我们的peers
 			blockBroadcastOutTimer.UpdateSince(block.ReceivedAt)
 			go f.broadcastBlock(block, true)
 
 		case consensus.ErrFutureBlock:
 			// Weird future block, don't fail, but neither propagate
+			// 奇怪的future block，不失败，但是也不传播
 
 		default:
 			// Something went very wrong, drop the peer
+			// 出现了一些问题，丢弃peer
 			log.Debug("Propagated block verification failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			f.dropPeer(peer)
 			return
 		}
 		// Run the actual import and log any issues
+		// 运行真正的import并且log任何的问题
 		if _, err := f.insertChain(types.Blocks{block}); err != nil {
 			log.Debug("Propagated block import failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			return
 		}
 		// If import succeeded, broadcast the block
+		// 如果导入成功，广播block
 		blockAnnounceOutTimer.UpdateSince(block.ReceivedAt)
 		go f.broadcastBlock(block, false)
 
 		// Invoke the testing hook if needed
+		// 调用testing hook，如果需要的话
 		if f.importedHook != nil {
 			f.importedHook(nil, block)
 		}

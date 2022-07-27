@@ -48,6 +48,7 @@ type Backend interface {
 }
 
 // Filter can be used to retrieve and filter logs.
+// Filter可以用来获取以及过滤logs
 type Filter struct {
 	backend Backend
 

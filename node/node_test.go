@@ -122,6 +122,7 @@ func TestLifecycleRegistry_Successful(t *testing.T) {
 }
 
 // Tests whether a service's protocols can be registered properly on the node's p2p server.
+// 测试是否一个service的protocols可以被正确地注册到node的p2p server
 func TestRegisterProtocols(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	if err != nil {

@@ -49,6 +49,8 @@ func newStatePrefetcher(config *params.ChainConfig, bc *BlockChain, engine conse
 // Prefetch processes the state changes according to the Ethereum rules by running
 // the transaction messages using the statedb, but any changes are discarded. The
 // only goal is to pre-cache transaction signatures and state trie nodes.
+// Prefetch运行state changes，根据Ethereum的rules，通过运行transaction messages，使用statedb
+// 但是任何的变更都会被丢弃，唯一的目标是提前缓存transaction signatrue以及state trie nodes
 func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, cfg vm.Config, interrupt *uint32) {
 	var (
 		header       = block.Header()

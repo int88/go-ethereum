@@ -270,11 +270,13 @@ func TestStartRPC(t *testing.T) {
 			}
 
 			// Run the API call hook.
+			// 运行API的call hook
 			if test.fn != nil {
 				test.fn(t, stack, &privateAdminAPI{stack})
 			}
 
 			// Check if the HTTP endpoints are available.
+			// 检查HTTP endpoint是否可用
 			baseURL := stack.HTTPEndpoint()
 			reachable := checkReachable(baseURL)
 			handlersAvailable := checkBodyOK(baseURL + "/test")
