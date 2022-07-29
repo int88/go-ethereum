@@ -79,13 +79,19 @@ type StateDB interface {
 
 // CallContext provides a basic interface for the EVM calling conventions. The EVM
 // depends on this context being implemented for doing subcalls and initialising new EVM contracts.
+// CallContext提供了一个基础的接口用于EVM的执行，EVM依赖于这个context的山西爱你，来调用subcalls
+// 并且初始化新的EVM协议
 type CallContext interface {
 	// Call another contract
+	// 调用另一个contract
 	Call(env *EVM, me ContractRef, addr common.Address, data []byte, gas, value *big.Int) ([]byte, error)
 	// Take another's contract code and execute within our own context
+	// 获取另一个contract的地址并且在我们的context中执行
 	CallCode(env *EVM, me ContractRef, addr common.Address, data []byte, gas, value *big.Int) ([]byte, error)
 	// Same as CallCode except sender and value is propagated from parent to child scope
+	// 和CallCode相同，除了sender和value从parent传递到child
 	DelegateCall(env *EVM, me ContractRef, addr common.Address, data []byte, gas *big.Int) ([]byte, error)
 	// Create a new contract
+	// 创建一个新的contract
 	Create(env *EVM, me ContractRef, data []byte, gas, value *big.Int) ([]byte, common.Address, error)
 }

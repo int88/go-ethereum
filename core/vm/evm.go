@@ -107,17 +107,21 @@ type TxContext struct {
 // EVM不应该被重用并且不是thread safe
 type EVM struct {
 	// Context provides auxiliary blockchain related information
+	// Context提供辅助的blockchain相关的啥信息
 	Context BlockContext
 	TxContext
 	// StateDB gives access to the underlying state
 	// StateDB提供权限用于访问底层的state
 	StateDB StateDB
 	// Depth is the current call stack
+	// Dept是当前调用栈的深度
 	depth int
 
 	// chainConfig contains information about the current chain
+	// chainConfig包含了当前的chain的信息
 	chainConfig *params.ChainConfig
 	// chain rules contains the chain rules for the current epoch
+	// chain rules包含了当前epoch的chain rules
 	chainRules params.Rules
 	// virtual machine configuration options used to initialise the
 	// evm.
@@ -196,6 +200,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	p, isPrecompile := evm.precompile(addr)
 
 	if !evm.StateDB.Exist(addr) {
+		// 如果地址在statedb中不存在
 		if !isPrecompile && evm.chainRules.IsEIP158 && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			// 调用一个不存在的account，不要做任何事，只是ping the tracer
@@ -251,6 +256,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			// The depth-check is already done, and precompiles handled above
 			// depth-check已经完成，并且precompiles在上面已经被处理了
 			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
+			// 设置调用代码
 			contract.SetCallCode(&addrCopy, evm.StateDB.GetCodeHash(addrCopy), code)
 			// evm的interpereter运行
 			ret, err = evm.interpreter.Run(contract, input, false)
@@ -281,6 +287,7 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 //
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
+// CallCode和Call不同的是，它执行给定地址的代码，将caller作为context
 func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -329,6 +336,7 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 //
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
+// caller被设置为caller的caller
 func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -366,8 +374,10 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 
 // StaticCall executes the contract associated with the addr with the given input
 // as parameters while disallowing any modifications to the state during the call.
+// StaticCall不允许修改任何的state，在调用过程中
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
+// Opcodes如果试着执行任何的修改回导致异常
 func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	// Fail if we're trying to execute above the call depth limit
 	if evm.depth > int(params.CallCreateDepth) {
@@ -453,11 +463,13 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		evm.StateDB.AddAddressToAccessList(address)
 	}
 	// Ensure there's no existing contract already at the designated address
+	// 确保对于给定的地址，没有已经存在的contract
 	contractHash := evm.StateDB.GetCodeHash(address)
 	if evm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state
+	// 在state上创建一个新的account
 	snapshot := evm.StateDB.Snapshot()
 	evm.StateDB.CreateAccount(address)
 	if evm.chainRules.IsEIP158 {
@@ -467,6 +479,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	// Initialise a new contract and set the code that is to be used by the EVM.
 	// The contract is a scoped environment for this execution context only.
+	// 初始化一个新的contract并且设置EVM使用的code，contract是一个scoped environment
+	// 只用于这个执行上下文
 	contract := NewContract(caller, AccountRef(address), value, gas)
 	contract.SetCodeOptionalHash(&address, codeAndHash)
 
@@ -496,6 +510,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
 	// by the error checking condition below.
+	// 如果contract创建成功并且没有错误返回，在计算存储code所需的gas的时候
+	// 如果code不能存储，因为没有足够的gas，让他被下面的error checking condition处理
 	if err == nil {
 		createDataGas := uint64(len(ret)) * params.CreateDataGas
 		if contract.UseGas(createDataGas) {
@@ -526,6 +542,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 }
 
 // Create creates a new contract using code as deployment code.
+// Create创建一个新的contract，使用code作为deployment code
 func (evm *EVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	contractAddr = crypto.CreateAddress(caller.Address(), evm.StateDB.GetNonce(caller.Address()))
 	return evm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr, CREATE)

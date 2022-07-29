@@ -22,6 +22,7 @@ import (
 
 // Gas costs
 const (
+	// 各种操作所需要的gas值
 	GasQuickStep   uint64 = 2
 	GasFastestStep uint64 = 3
 	GasFastStep    uint64 = 5

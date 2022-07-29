@@ -20,5 +20,7 @@ Package vm implements the Ethereum Virtual Machine.
 The vm package implements one EVM, a byte code VM. The BC (Byte Code) VM loops
 over a set of bytes and executes them according to the set of rules defined
 in the Ethereum yellow paper.
+vm包实现了一个EVM，一个byte code VM，BC VM遍历一系列的bytes并且根据黄皮书中指定的一系列
+规则执行它们
 */
 package vm

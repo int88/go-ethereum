@@ -68,8 +68,10 @@ type EVMInterpreter struct {
 }
 
 // NewEVMInterpreter returns a new instance of the Interpreter.
+// NewEVMInterpreter返回Interpreter的一个新的实例
 func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 	// If jump table was not initialised we set the default one.
+	// 如果jump table还没有被初始化，我设置默认值
 	if cfg.JumpTable == nil {
 		switch {
 		case evm.chainRules.IsMerge:
@@ -122,6 +124,7 @@ func NewEVMInterpreter(evm *EVM, cfg Config) *EVMInterpreter {
 func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 
 	// Increment the call depth which is restricted to 1024
+	// 增加call depth，它被限制为1024
 	in.evm.depth++
 	defer func() { in.evm.depth-- }()
 
@@ -197,6 +200,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		// 从jump table获取operation并且检测stack有足够的stack items能执行操作
 		op = contract.GetOp(pc)
 		operation := in.cfg.JumpTable[op]
+		// 获取执行operation的gas cost
 		cost = operation.constantGas // For tracing
 		// Validate stack
 		// 检查stack
@@ -214,8 +218,10 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 			var memorySize uint64
 			// calculate the new memory size and expand the memory to fit
 			// the operation
+			// 计算新的memory size并且扩展memory来适应操作
 			// Memory check needs to be done prior to evaluating the dynamic gas portion,
 			// to detect calculation overflows
+			// Memory chekc需要在评估dynamic gas portion之前完成来检测calculation overflows
 			if operation.memorySize != nil {
 				memSize, overflow := operation.memorySize(stack)
 				if overflow {
@@ -243,6 +249,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 				logged = true
 			}
 			if memorySize > 0 {
+				// 扩展memory
 				mem.Resize(memorySize)
 			}
 		} else if in.cfg.Debug {
@@ -255,6 +262,7 @@ func (in *EVMInterpreter) Run(contract *Contract, input []byte, readOnly bool) (
 		if err != nil {
 			break
 		}
+		// 增加pc
 		pc++
 	}
 

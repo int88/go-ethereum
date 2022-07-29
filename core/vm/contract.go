@@ -48,6 +48,8 @@ type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
 	// contract. However when the "call method" is delegated this value
 	// needs to be initialised to that of the caller's caller.
+	// CallerAddress是调用者的地址，它初始化这个contract，然而，当"call method"
+	// 被委托，这个值需要被初始化为调用者的调用者
 	CallerAddress common.Address
 	caller        ContractRef
 	self          ContractRef

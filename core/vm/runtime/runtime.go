@@ -51,6 +51,7 @@ type Config struct {
 }
 
 // sets defaults on the config
+// 在config中设置默认值
 func setDefaults(cfg *Config) {
 	if cfg.ChainConfig == nil {
 		cfg.ChainConfig = &params.ChainConfig{
@@ -101,10 +102,13 @@ func setDefaults(cfg *Config) {
 }
 
 // Execute executes the code using the input as call data during the execution.
+// Execute执行代码，使用input作为调用数据，在执行过程中
 // It returns the EVM's return value, the new state and an error if it failed.
+// 它返回EVM的返回值，新的state以及一个error，如果失败的话
 //
 // Execute sets up an in-memory, temporary, environment for the execution of
 // the given code. It makes sure that it's restored to its original state afterwards.
+// Execute建立起一个内存中的，临时的环境用于执行给定代码，它确保之后恢复到original state
 func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	if cfg == nil {
 		cfg = new(Config)
@@ -112,6 +116,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
+		// 构建state
 		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	}
 	var (
@@ -122,10 +127,13 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	if rules := cfg.ChainConfig.Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil); rules.IsBerlin {
 		cfg.State.PrepareAccessList(cfg.Origin, &address, vm.ActivePrecompiles(rules), nil)
 	}
+	// 创建account
 	cfg.State.CreateAccount(address)
 	// set the receiver's (the executing contract) code for execution.
+	// 设置receiver的代码用于执行
 	cfg.State.SetCode(address, code)
 	// Call the code with the given configuration.
+	// 用给定的配置调用代码
 	ret, _, err := vmenv.Call(
 		sender,
 		common.BytesToAddress([]byte("contract")),
@@ -138,6 +146,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 }
 
 // Create executes the code using the EVM create method
+// Create执行代码，使用EVM的create方法
 func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	if cfg == nil {
 		cfg = new(Config)
@@ -166,9 +175,11 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 
 // Call executes the code given by the contract's address. It will return the
 // EVM's return value or an error if it failed.
+// Call执行给定的contract地址的代码，它返回EVM的返回值以及一个error，如果失败的话
 //
 // Call, unlike Execute, requires a config and also requires the State field to
 // be set.
+// Call，和Execute不同，需要一个config并且State字段被设置
 func Call(address common.Address, input []byte, cfg *Config) ([]byte, uint64, error) {
 	setDefaults(cfg)
 

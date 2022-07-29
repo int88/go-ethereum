@@ -674,9 +674,11 @@ func (err *ConfigCompatError) Error() string {
 
 // Rules wraps ChainConfig and is merely syntactic sugar or can be used for functions
 // that do not have or require information about the block.
+// Rules封装了ChainConfig并且只是语法糖，可以用于那些没有或者需要关于block的信息的函数
 //
 // Rules is a one time interface meaning that it shouldn't be used in between transition
 // phases.
+// Rules是一个一次性的接口，意味着它不应该在transition phases之间使用
 type Rules struct {
 	ChainID                                                 *big.Int
 	IsHomestead, IsEIP150, IsEIP155, IsEIP158               bool
@@ -686,6 +688,7 @@ type Rules struct {
 }
 
 // Rules ensures c's ChainID is not nil.
+// Rules确保c的ChainID不为nil
 func (c *ChainConfig) Rules(num *big.Int, isMerge bool) Rules {
 	chainID := c.ChainID
 	if chainID == nil {
