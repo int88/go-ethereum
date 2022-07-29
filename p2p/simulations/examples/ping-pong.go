@@ -37,6 +37,7 @@ var adapterType = flag.String("adapter", "sim", `node adapter to use (one of "si
 
 // main() starts a simulation network which contains nodes running a simple
 // ping-pong protocol
+// main()启动一个simulation network，它包含节点，运行一个简单的ping-pong协议
 func main() {
 	flag.Parse()
 
@@ -44,6 +45,7 @@ func main() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// register a single ping-pong service
+	// 注册单个的ping-pong service
 	services := map[string]adapters.LifecycleConstructor{
 		"ping-pong": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 			pps := newPingPongService(ctx.Config.ID)
@@ -76,6 +78,7 @@ func main() {
 	}
 
 	// start the HTTP API
+	// 启动HTTP API
 	log.Info("starting simulation server on 0.0.0.0:8888...")
 	network := simulations.NewNetwork(adapter, &simulations.NetworkConfig{
 		DefaultService: "ping-pong",
@@ -88,6 +91,8 @@ func main() {
 // pingPongService runs a ping-pong protocol between nodes where each node
 // sends a ping to all its connected peers every 10s and receives a pong in
 // return
+// pingPongService在nodes之间 运行一个ping-pong协议，每个node发送一个ping到所有连接的peer
+// 每十秒钟并且接受一个pong作为返回
 type pingPongService struct {
 	id       enode.ID
 	log      log.Logger
@@ -136,6 +141,8 @@ const (
 
 // Run implements the ping-pong protocol which sends ping messages to the peer
 // at 10s intervals, and responds to pings with pong messages.
+// Run实现了ping-pong协议，它发送ping messages到peer，每10s一次，并且用pong messages
+// 对它进行回复
 func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	log := p.log.New("peer.id", peer.ID())
 
@@ -143,6 +150,7 @@ func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			log.Info("sending ping")
+			// 发送ping
 			if err := p2p.Send(rw, pingMsgCode, "PING"); err != nil {
 				errC <- err
 				return
@@ -151,6 +159,7 @@ func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	}()
 	go func() {
 		for {
+			// 从MsgReadWriter中读取message
 			msg, err := rw.ReadMsg()
 			if err != nil {
 				errC <- err
@@ -165,6 +174,7 @@ func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 			atomic.AddInt64(&p.received, 1)
 			if msg.Code == pingMsgCode {
 				log.Info("sending pong")
+				// 发送PONG
 				go p2p.Send(rw, pongMsgCode, "PONG")
 			}
 		}

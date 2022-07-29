@@ -36,6 +36,8 @@ import (
 
 // SimAdapter is a NodeAdapter which creates in-memory simulation nodes and
 // connects them using net.Pipe
+// SimAdapter是一个NodeAdapter，它创建in-memory simulation nodes并且使用net.Pipe
+// 连接他们
 type SimAdapter struct {
 	pipe       func() (net.Conn, net.Conn, error)
 	mtx        sync.RWMutex
@@ -47,6 +49,9 @@ type SimAdapter struct {
 // simulation nodes running any of the given services (the services to run on a
 // particular node are passed to the NewNode function in the NodeConfig)
 // the adapter uses a net.Pipe for in-memory simulated network connections
+// NewSimAdapter创建一个SimAdapter，它能够运行内存中的simulation nodes，运行任何给定的services
+// (运行在特定节点上的services，会通过NodeConfig中的NewNode函数传递)，adapter使用一个net.Pipe
+// 来模拟network connections
 func NewSimAdapter(services LifecycleConstructors) *SimAdapter {
 	return &SimAdapter{
 		pipe:       pipes.NetPipe,
@@ -61,12 +66,14 @@ func (s *SimAdapter) Name() string {
 }
 
 // NewNode returns a new SimNode using the given config
+// NewNode返回一个新的SimNode，用给定的配置
 func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	id := config.ID
 	// verify that the node has a private key in the config
+	// 确保node在config中有一个private key
 	if config.PrivateKey == nil {
 		return nil, fmt.Errorf("node is missing private key: %s", id)
 	}
@@ -91,6 +98,7 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 		return nil, err
 	}
 
+	// 构建一个新的node
 	n, err := node.New(&node.Config{
 		P2P: p2p.Config{
 			PrivateKey:      config.PrivateKey,
@@ -106,6 +114,7 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 		return nil, err
 	}
 
+	// 构建simNode
 	simNode := &SimNode{
 		ID:      id,
 		config:  config,
@@ -161,6 +170,8 @@ func (s *SimAdapter) GetNode(id enode.ID) (*SimNode, bool) {
 // SimNode is an in-memory simulation node which connects to other nodes using
 // net.Pipe (see SimAdapter.Dial), running devp2p protocols directly over that
 // pipe
+// SimNode是一个内存中的simulation node，使用net.Pipe连接其他nodes，直接在pipe之上
+// 运行devp2p2 protocols
 type SimNode struct {
 	lock         sync.RWMutex
 	ID           enode.ID
@@ -239,9 +250,11 @@ func (sn *SimNode) Snapshots() (map[string][]byte, error) {
 }
 
 // Start registers the services and starts the underlying devp2p node
+// Start注册services并且启动底层的devp2p node
 func (sn *SimNode) Start(snapshots map[string][]byte) error {
 	// ensure we only register the services once in the case of the node
 	// being stopped and then started again
+	// 确保我们只注册services，一旦node被停止并且之后再启动
 	var regErr error
 	sn.registerOnce.Do(func() {
 		for _, name := range sn.config.Lifecycles {
@@ -274,6 +287,7 @@ func (sn *SimNode) Start(snapshots map[string][]byte) error {
 	}
 
 	// create an in-process RPC client
+	// 创建一个进程中的RPC client
 	client, err := sn.node.Attach()
 	if err != nil {
 		return err

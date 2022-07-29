@@ -1,6 +1,7 @@
 #!/bin/bash
 #
 # Boot a ping-pong network simulation using the HTTP API started by ping-pong.go
+# 启动一个ping-pong network的模拟，使用HTTP API，由ping-pong.go启动
 
 set -e
 

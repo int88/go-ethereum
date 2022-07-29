@@ -122,6 +122,7 @@ OUTER:
 	}
 
 	// create snapshot of current network
+	// 创建当前network的snapshot
 	snap, err := network.Snapshot()
 	if err != nil {
 		t.Fatal(err)
@@ -138,11 +139,13 @@ OUTER:
 	}
 
 	// shut down sim network
+	// 关闭sim network
 	runningOne = false
 	sub.Unsubscribe()
 	network.Shutdown()
 
 	// check that we have all the expected connections in the snapshot
+	// 检查在snapshot中我们有所有期望的连接
 	for nodid, nodConns := range checkIds {
 		for _, nodConn := range nodConns {
 			var match bool
@@ -186,12 +189,14 @@ OUTER:
 
 	// load the snapshot
 	// spawn separate thread to avoid deadlock in the event listeners
+	// 加载snapshot，生成另外的thread来避免deadlock，在event listeners
 	err = network.Load(snap)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// collect connection events up to expected number
+	// 收集期望数目的连接事件
 	ctx, cancel = context.WithTimeout(context.TODO(), time.Second*3)
 	defer cancel()
 

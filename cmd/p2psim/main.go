@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // p2psim provides a command-line client for a simulation HTTP API.
+// p2psim提供了一个命令行客户端用于一个模拟的HTTP API
 //
 // Here is an example of creating a 2 node network with the first node
 // connected to the second:

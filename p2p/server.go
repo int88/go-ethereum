@@ -67,6 +67,7 @@ const (
 var errServerStopped = errors.New("server stopped")
 
 // Config holds Server options.
+// Config维护Server options
 type Config struct {
 	// This field must be set to a valid secp256k1 private key.
 	PrivateKey *ecdsa.PrivateKey `toml:"-"`
@@ -79,6 +80,8 @@ type Config struct {
 	// MaxPendingPeers is the maximum number of peers that can be pending in the
 	// handshake phase, counted separately for inbound and outbound connections.
 	// Zero defaults to preset values.
+	// MaxPendingPeers是在握手阶段可以处于pending状态的最大的peers的数目，对于inbound连接
+	// 和outbound连接分布统计
 	MaxPendingPeers int `toml:",omitempty"`
 
 	// DialRatio controls the ratio of inbound to dialed connections.
@@ -100,6 +103,7 @@ type Config struct {
 
 	// BootstrapNodes are used to establish connectivity
 	// with the rest of the network.
+	// BootstrapNodes用于和网络的剩余部分建立连接
 	BootstrapNodes []*enode.Node
 
 	// BootstrapNodesV5 are used to establish connectivity
@@ -109,10 +113,12 @@ type Config struct {
 
 	// Static nodes are used as pre-configured connections which are always
 	// maintained and re-connected on disconnects.
+	// Static nodes作为提前配置的连接，它总是被维护并且在断开连接的时候重新进行连接
 	StaticNodes []*enode.Node
 
 	// Trusted nodes are used as pre-configured connections which are always
 	// allowed to connect, even above the peer limit.
+	// Trusted nodes是提前配置的连接，它总是被允许进行连接，即使超过peer limit
 	TrustedNodes []*enode.Node
 
 	// Connectivity can be restricted to certain IP networks.
@@ -127,6 +133,7 @@ type Config struct {
 	// Protocols should contain the protocols supported
 	// by the server. Matching protocols are launched for
 	// each peer.
+	// Protocols应该包含server支持的协议，匹配的protocols在每个peer上启动
 	Protocols []Protocol `toml:"-"`
 
 	// If ListenAddr is set to a non-nil address, the server

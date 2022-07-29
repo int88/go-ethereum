@@ -263,6 +263,7 @@ func (c *Client) Send(method, path string, in, out interface{}) error {
 }
 
 // Server is an HTTP server providing an API to manage a simulation network
+// Server是一个HTTP server，提供一个API用于管理simulation network
 type Server struct {
 	router     *httprouter.Router
 	network    *Network
@@ -271,6 +272,7 @@ type Server struct {
 }
 
 // NewServer returns a new simulation API server
+// NewServer返回一个模拟的API server
 func NewServer(network *Network) *Server {
 	s := &Server{
 		router:  httprouter.New(),
@@ -288,6 +290,7 @@ func NewServer(network *Network) *Server {
 	s.GET("/events", s.StreamNetworkEvents)
 	s.GET("/snapshot", s.CreateSnapshot)
 	s.POST("/snapshot", s.LoadSnapshot)
+	// 创建nodes
 	s.POST("/nodes", s.CreateNode)
 	s.GET("/nodes", s.GetNodes)
 	s.GET("/nodes/:nodeid", s.GetNode)
@@ -306,6 +309,7 @@ func (s *Server) GetNetwork(w http.ResponseWriter, req *http.Request) {
 }
 
 // StartNetwork starts all nodes in the network
+// StartNetwork启动network中的所有nodes
 func (s *Server) StartNetwork(w http.ResponseWriter, req *http.Request) {
 	if err := s.network.StartAll(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -555,6 +559,7 @@ func (s *Server) LoadSnapshot(w http.ResponseWriter, req *http.Request) {
 }
 
 // CreateNode creates a node in the network using the given configuration
+// CreateNode使用给定配置在network中创建一个node
 func (s *Server) CreateNode(w http.ResponseWriter, req *http.Request) {
 	config := &adapters.NodeConfig{}
 

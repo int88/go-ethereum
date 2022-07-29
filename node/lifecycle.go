@@ -20,6 +20,9 @@ package node
 // on the node. Lifecycle management is delegated to the node, but it is the
 // responsibility of the service-specific package to configure and register the
 // service on the node using the `RegisterLifecycle` method.
+// Lifecycle包括services的行为，可以在node之上启动以及停止，Lifecycle的管理被委托给node
+// 但是是service-specific package的责任，来配置以及注册service到node，使用`RegisterLifecycle`
+// 方法
 type Lifecycle interface {
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.

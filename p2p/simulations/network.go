@@ -36,6 +36,7 @@ import (
 var DialBanTimeout = 200 * time.Millisecond
 
 // NetworkConfig defines configuration options for starting a Network
+// NetworkConfig定义了启动一个Network的配置
 type NetworkConfig struct {
 	ID             string `json:"id"`
 	DefaultService string `json:"default_service,omitempty"`
@@ -43,12 +44,15 @@ type NetworkConfig struct {
 
 // Network models a p2p simulation network which consists of a collection of
 // simulated nodes and the connections which exist between them.
+// Network是一个p2p simulation network，它由一系列的simulated nodes以及它们之间的连接组成
 //
 // The Network has a single NodeAdapter which is responsible for actually
 // starting nodes and connecting them together.
+// Network有单个的Node Adapter，它负责真正启动nodes并且将它们连在一起
 //
 // The Network emits events when nodes are started and stopped, when they are
 // connected and disconnected, and also when messages are sent between nodes.
+// Network会发送事件，当nodes启动以及停止，连接或者断开连接，以及messages在nodes间移动的时候
 type Network struct {
 	NetworkConfig
 
@@ -68,6 +72,7 @@ type Network struct {
 }
 
 // NewNetwork returns a Network which uses the given NodeAdapter and NetworkConfig
+// NewNetwork返回一个Network，使用给定的NodeAdapter以及NetworkConfig
 func NewNetwork(nodeAdapter adapters.NodeAdapter, conf *NetworkConfig) *Network {
 	return &Network{
 		NetworkConfig: *conf,
@@ -86,6 +91,8 @@ func (net *Network) Events() *event.Feed {
 
 // NewNodeWithConfig adds a new node to the network with the given config,
 // returning an error if a node with the same ID or name already exists
+// NewNodeWithConfig添加一个新的node到network，用给定的配置 ，返回一个error
+// 如果一个node有着同样的ID或者name已经存在
 func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -109,11 +116,13 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// if no services are configured, use the default service
+	// 如果没有配置services，使用默认的
 	if len(conf.Lifecycles) == 0 {
 		conf.Lifecycles = []string{net.DefaultService}
 	}
 
 	// use the NodeAdapter to create the node
+	// 使用NodeAdapter创建node
 	adapterNode, err := net.nodeAdapter.NewNode(conf)
 	if err != nil {
 		return nil, err
@@ -131,6 +140,7 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// emit a "control" event
+	// 发送一个"control"事件
 	net.events.Send(ControlEvent(node))
 
 	return node, nil
@@ -142,6 +152,7 @@ func (net *Network) Config() *NetworkConfig {
 }
 
 // StartAll starts all nodes in the network
+// StartAll启动network中的所有nodes
 func (net *Network) StartAll() error {
 	for _, node := range net.Nodes {
 		if node.Up() {
@@ -168,12 +179,14 @@ func (net *Network) StopAll() error {
 }
 
 // Start starts the node with the given ID
+// Start启动给定ID的node
 func (net *Network) Start(id enode.ID) error {
 	return net.startWithSnapshots(id, nil)
 }
 
 // startWithSnapshots starts the node with the given ID using the give
 // snapshots
+// startWithSnapshots启动node，用给定的ID，使用给定的snapshots
 func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -196,11 +209,13 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 	net.events.Send(ev)
 
 	// subscribe to peer events
+	// 订阅peer events
 	client, err := node.Client()
 	if err != nil {
 		return fmt.Errorf("error getting rpc client  for node %v: %s", id, err)
 	}
 	events := make(chan *p2p.PeerEvent)
+	// 对event进行订阅
 	sub, err := client.Subscribe(context.Background(), "admin", events, "peerEvents")
 	if err != nil {
 		return fmt.Errorf("error getting peer events for node %v: %s", id, err)
@@ -211,6 +226,7 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 
 // watchPeerEvents reads peer events from the given channel and emits
 // corresponding network events
+// watchPeerEvents从给定的channel读取peer events并且发射对应的network events
 func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub event.Subscription) {
 	defer func() {
 		sub.Unsubscribe()
@@ -715,6 +731,7 @@ func (net *Network) Reset() {
 
 // Node is a wrapper around adapters.Node which is used to track the status
 // of a node in the network
+// Node是一个wrapper，对于adapters.Node，用于追踪network中一个node的status
 type Node struct {
 	adapters.Node `json:"-"`
 

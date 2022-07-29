@@ -25,11 +25,14 @@ import (
 
 // Simulation provides a framework for running actions in a simulated network
 // and then waiting for expectations to be met
+// Simulation提供了一个framework用于在simulated network中运行actions并且等待
+// 期望的事件发生
 type Simulation struct {
 	network *Network
 }
 
 // NewSimulation returns a new simulation which runs in the given network
+// NewSimulation返回一个新的simulation，运行给定的network
 func NewSimulation(network *Network) *Simulation {
 	return &Simulation{
 		network: network,
@@ -38,6 +41,7 @@ func NewSimulation(network *Network) *Simulation {
 
 // Run performs a step of the simulation by performing the step's action and
 // then waiting for the step's expectation to be met
+// Run执行一个step of the simulation，通过执行step的action并且只有等待step的expection被满足
 func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 	result = newStepResult()
 
@@ -45,16 +49,19 @@ func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 	defer func() { result.FinishedAt = time.Now() }()
 
 	// watch network events for the duration of the step
+	// 在step期间等待network events
 	stop := s.watchNetwork(result)
 	defer stop()
 
 	// perform the action
+	// 执行action
 	if err := step.Action(ctx); err != nil {
 		result.Error = err
 		return
 	}
 
 	// wait for all node expectations to either pass, error or timeout
+	// 等待所有的node expectations，不管是pass, error或者超时
 	nodes := make(map[enode.ID]struct{}, len(step.Expect.Nodes))
 	for _, id := range step.Expect.Nodes {
 		nodes[id] = struct{}{}
@@ -73,6 +80,7 @@ func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 			}
 
 			// run the node expectation check
+			// 运行node expectation check
 			pass, err := step.Expect.Check(ctx, id)
 			if err != nil {
 				result.Error = err
@@ -115,21 +123,26 @@ func (s *Simulation) watchNetwork(result *StepResult) func() {
 
 type Step struct {
 	// Action is the action to perform for this step
+	// Action是这个step中执行的行动
 	Action func(context.Context) error
 
 	// Trigger is a channel which receives node ids and triggers an
 	// expectation check for that node
+	// Trigger是一个channel，它接收node ids并且触发这个节点的expection check
 	Trigger chan enode.ID
 
 	// Expect is the expectation to wait for when performing this step
+	// 当执行这个step时，期望的expectation
 	Expect *Expectation
 }
 
 type Expectation struct {
 	// Nodes is a list of nodes to check
+	// 一系列检查的Nodes
 	Nodes []enode.ID
 
 	// Check checks whether a given node meets the expectation
+	// Check检查给定的node是否满足期望
 	Check func(context.Context, enode.ID) (bool, error)
 }
 
