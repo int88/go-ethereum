@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package ethdb defines the interfaces for an Ethereum data store.
+// ethdb包定义了接口用于一个Ethereum data store
 package ethdb
 
 import "io"
@@ -151,6 +152,7 @@ type AncientStater interface {
 
 // Reader contains the methods required to read data from both key-value as well as
 // immutable ancient data.
+// Reader包含了所需的方法能够同时从key-value以及immutable ancient data中读取数据
 type Reader interface {
 	KeyValueReader
 	AncientReader

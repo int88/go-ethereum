@@ -33,6 +33,7 @@ import (
 )
 
 // freezerdb is a database wrapper that enabled freezer data retrievals.
+// freezerdb是一个database wrapper，能够使能freezer data retrievals
 type freezerdb struct {
 	ethdb.KeyValueStore
 	ethdb.AncientStore
@@ -158,6 +159,8 @@ func (db *nofreezedb) AncientDatadir() (string, error) {
 
 // NewDatabase creates a high level database on top of a given key-value data
 // store without a freezer moving immutable chain segments into cold storage.
+// NewDatabase在一个给定的key-value data store上创建一个high level database
+// 没有freezer将不可变的chain segments移动到cold storage
 func NewDatabase(db ethdb.KeyValueStore) ethdb.Database {
 	return &nofreezedb{KeyValueStore: db}
 }
@@ -196,6 +199,8 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, freezer string, namespace st
 	// If the genesis hash is empty, we have a new key-value store, so nothing to
 	// validate in this method. If, however, the genesis hash is not nil, compare
 	// it to the freezer content.
+	// 如果genesis hash为空，我们有一个新的key-value store，这样在这个方法内不需要校验
+	// 如果genesis为非空，和freezer content进行对比
 	if kvgenesis, _ := db.Get(headerHashKey(0)); len(kvgenesis) > 0 {
 		if frozen, _ := frdb.Ancients(); frozen > 0 {
 			// If the freezer already contains something, ensure that the genesis blocks

@@ -30,6 +30,7 @@ import (
 const freezerBatchBufferLimit = 2 * 1024 * 1024
 
 // freezerBatch is a write operation of multiple items on a freezer.
+// freezerBatch是一个write operation对于一个freezer中的多个items
 type freezerBatch struct {
 	tables map[string]*freezerTableBatch
 }

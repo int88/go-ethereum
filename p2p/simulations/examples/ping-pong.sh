@@ -11,12 +11,14 @@ main() {
   fi
 
   info "creating 10 nodes"
+  # 先创建10个nodes
   for i in $(seq 1 10); do
     p2psim node create --name "$(node_name $i)"
     p2psim node start "$(node_name $i)"
   done
 
   info "connecting node01 to all other nodes"
+  # 让node01和其他nodes相连
   for i in $(seq 2 10); do
     p2psim node connect "node01" "$(node_name $i)"
   done

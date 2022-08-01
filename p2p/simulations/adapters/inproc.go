@@ -101,8 +101,9 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 	// 构建一个新的node
 	n, err := node.New(&node.Config{
 		P2P: p2p.Config{
-			PrivateKey:      config.PrivateKey,
-			MaxPeers:        math.MaxInt32,
+			PrivateKey: config.PrivateKey,
+			MaxPeers:   math.MaxInt32,
+			// 不配置discovery
 			NoDiscovery:     true,
 			Dialer:          s,
 			EnableMsgEvents: config.EnableMsgEvents,

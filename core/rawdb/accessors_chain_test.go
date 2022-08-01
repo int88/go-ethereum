@@ -39,10 +39,12 @@ func TestHeaderStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a test header to move around the database and make sure it's really new
+	// 创建一个test header，在database间移动，并且确保它们是新的
 	header := &types.Header{Number: big.NewInt(42), Extra: []byte("test header")}
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
+	t.Errorf("header.Hash() is %v", header.Hash())
 	// Write and verify the header in the database
 	WriteHeader(db, header)
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry == nil {
@@ -156,6 +158,7 @@ func TestBlockStorage(t *testing.T) {
 }
 
 // Tests that partial block contents don't get reassembled into full blocks.
+// 测试partical block contents，没有部分写入full blocks
 func TestPartialBlockStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 	block := types.NewBlockWithHeader(&types.Header{

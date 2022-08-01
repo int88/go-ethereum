@@ -38,6 +38,7 @@ func TestFreezerModify(t *testing.T) {
 	t.Parallel()
 
 	// Create test data.
+	// 创建test data
 	var valuesRaw [][]byte
 	var valuesRLP []*big.Int
 	for x := 0; x < 100; x++ {
@@ -55,6 +56,7 @@ func TestFreezerModify(t *testing.T) {
 	// Commit test data.
 	_, err := f.ModifyAncients(func(op ethdb.AncientWriteOp) error {
 		for i := range valuesRaw {
+			// 扩展各个key
 			if err := op.AppendRaw("raw", uint64(i), valuesRaw[i]); err != nil {
 				return err
 			}
@@ -74,6 +76,7 @@ func TestFreezerModify(t *testing.T) {
 	}
 
 	// Read back test data.
+	// 读回test data
 	checkAncientCount(t, f, "raw", uint64(len(valuesRaw)))
 	checkAncientCount(t, f, "rlp", uint64(len(valuesRLP)))
 	for i := range valuesRaw {
@@ -297,6 +300,7 @@ func newFreezerForTesting(t *testing.T, tables map[string]bool) (*Freezer, strin
 }
 
 // checkAncientCount verifies that the freezer contains n items.
+// checkAncientCount校验freezer包含n个items
 func checkAncientCount(t *testing.T, f *Freezer, kind string, n uint64) {
 	t.Helper()
 

@@ -135,6 +135,7 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	net.Nodes = append(net.Nodes, node)
 
 	// Register any node properties with the network-level propertyMap
+	// 用network级别的propertyMap注册任何的node properties
 	for _, property := range conf.Properties {
 		net.propertyMap[property] = append(net.propertyMap[property], nodeIndex)
 	}
@@ -199,6 +200,7 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 		return fmt.Errorf("node %v already up", id)
 	}
 	log.Trace("Starting node", "id", id, "adapter", net.nodeAdapter.Name())
+	// 启动node
 	if err := node.Start(snapshots); err != nil {
 		log.Warn("Node startup failed", "id", id, "err", err)
 		return err
@@ -251,7 +253,7 @@ func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub
 			}
 			peer := event.Peer
 			switch event.Type {
-
+			// 一系列peer事件
 			case p2p.PeerEventTypeAdd:
 				net.DidConnect(id, peer)
 
@@ -319,6 +321,8 @@ func (net *Network) Stop(id enode.ID) error {
 
 // Connect connects two nodes together by calling the "admin_addPeer" RPC
 // method on the "one" node so that it connects to the "other" node
+// Connect将两个nodes连接在一起，通过调用一个节点的"admin_addPeer" RPC方法，
+// 这样它就能连接到另一个node
 func (net *Network) Connect(oneID, otherID enode.ID) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -358,6 +362,7 @@ func (net *Network) Disconnect(oneID, otherID enode.ID) error {
 }
 
 // DidConnect tracks the fact that the "one" node connected to the "other" node
+// DidConnect追踪一个node可以连接另外的node
 func (net *Network) DidConnect(one, other enode.ID) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -739,6 +744,7 @@ type Node struct {
 	Config *adapters.NodeConfig `json:"config"`
 
 	// up tracks whether or not the node is running
+	// up追踪是否node处于running
 	up   bool
 	upMu *sync.RWMutex
 }
@@ -818,6 +824,7 @@ func (n *Node) UnmarshalJSON(raw []byte) error {
 }
 
 // Conn represents a connection between two nodes in the network
+// Conn代表了network中两个节点的一个连接
 type Conn struct {
 	// One is the node which initiated the connection
 	One enode.ID `json:"one"`

@@ -63,11 +63,13 @@ const freezerTableSize = 2 * 1000 * 1000 * 1000
 // - The memory mapping ensures we can max out system memory for caching without
 //   reserving it for go-ethereum. This would also reduce the memory requirements
 //   of Geth, and thus also GC overhead.
+// - memory mapping确保我们可以最大化system memory用于缓存，而不是go-ethereum保存
+// - 它也能减小Geth的memory requirements，因此降低GC的overhead
 type Freezer struct {
 	// WARNING: The `frozen` and `tail` fields are accessed atomically. On 32 bit platforms, only
 	// 64-bit aligned fields can be atomic. The struct is guaranteed to be so aligned,
 	// so take advantage of that (https://golang.org/pkg/sync/atomic/#pkg-note-BUG).
-	frozen uint64 // Number of blocks already frozen
+	frozen uint64 // Number of blocks already frozen	// frozen的blocks的数目
 	tail   uint64 // Number of the first stored item in the freezer
 
 	datadir string // Path of root directory of ancient store
@@ -78,7 +80,7 @@ type Freezer struct {
 	writeBatch *freezerBatch
 
 	readonly     bool
-	tables       map[string]*freezerTable // Data tables for storing everything
+	tables       map[string]*freezerTable // Data tables for storing everything	// Data table用于存储everything
 	instanceLock fileutil.Releaser        // File-system lock to prevent double opens
 	closeOnce    sync.Once
 }
@@ -111,6 +113,7 @@ func NewFreezer(datadir string, namespace string, readonly bool, maxTableSize ui
 		return nil, err
 	}
 	// Open all the supported data tables
+	// 打开所有支持的data tables
 	freezer := &Freezer{
 		readonly:     readonly,
 		tables:       make(map[string]*freezerTable),
@@ -148,6 +151,7 @@ func NewFreezer(datadir string, namespace string, readonly bool, maxTableSize ui
 	}
 
 	// Create the write batch.
+	// 创建write batch
 	freezer.writeBatch = newFreezerBatch(freezer)
 
 	log.Info("", "database", datadir, "readonly", readonly)
@@ -178,6 +182,7 @@ func (f *Freezer) Close() error {
 
 // HasAncient returns an indicator whether the specified ancient data exists
 // in the freezer.
+// HasAncient返回一个indicator，表明特定的ancient data是否在freezer存在
 func (f *Freezer) HasAncient(kind string, number uint64) (bool, error) {
 	if table := f.tables[kind]; table != nil {
 		return table.has(number), nil
@@ -186,6 +191,7 @@ func (f *Freezer) HasAncient(kind string, number uint64) (bool, error) {
 }
 
 // Ancient retrieves an ancient binary blob from the append-only immutable files.
+// Ancient从append-only的immutable文件中获取一个ancient binary blob
 func (f *Freezer) Ancient(kind string, number uint64) ([]byte, error) {
 	if table := f.tables[kind]; table != nil {
 		return table.Retrieve(number)
@@ -238,6 +244,7 @@ func (f *Freezer) ReadAncients(fn func(ethdb.AncientReaderOp) error) (err error)
 }
 
 // ModifyAncients runs the given write operation.
+// ModifyAncients运行给定的写操作
 func (f *Freezer) ModifyAncients(fn func(ethdb.AncientWriteOp) error) (writeSize int64, err error) {
 	if f.readonly {
 		return 0, errReadOnly

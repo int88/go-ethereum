@@ -309,6 +309,7 @@ func createNode(ctx *cli.Context) error {
 	if services := ctx.String(servicesFlag.Name); services != "" {
 		config.Lifecycles = strings.Split(services, ",")
 	}
+	// 创建node
 	node, err := client.CreateNode(config)
 	if err != nil {
 		return err

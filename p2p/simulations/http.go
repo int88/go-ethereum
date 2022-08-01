@@ -174,6 +174,7 @@ func (c *Client) GetNodes() ([]*p2p.NodeInfo, error) {
 }
 
 // CreateNode creates a node in the network using the given configuration
+// CreateNode在network中创建一个node，用给定的配置
 func (c *Client) CreateNode(config *adapters.NodeConfig) (*p2p.NodeInfo, error) {
 	node := &p2p.NodeInfo{}
 	return node, c.Post("/nodes", config, node)
@@ -196,6 +197,7 @@ func (c *Client) StopNode(nodeID string) error {
 }
 
 // ConnectNode connects a node to a peer node
+// ConnectNode连接一个node到一个peer node
 func (c *Client) ConnectNode(nodeID, peerID string) error {
 	return c.Post(fmt.Sprintf("/nodes/%s/conn/%s", nodeID, peerID), nil, nil)
 }

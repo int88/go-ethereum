@@ -39,6 +39,7 @@ const (
 )
 
 // Event is an event emitted by a simulation network
+// Event是由simulation network发射的event
 type Event struct {
 	// Type is the type of the event
 	Type EventType `json:"type"`

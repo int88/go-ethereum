@@ -94,6 +94,7 @@ type NodeConfig struct {
 
 	// PrivateKey is the node's private key which is used by the devp2p
 	// stack to encrypt communications
+	// PrivateKey是node的私钥，由devp2p stack使用用于加密通信
 	PrivateKey *ecdsa.PrivateKey
 
 	// Enable peer events for Msgs

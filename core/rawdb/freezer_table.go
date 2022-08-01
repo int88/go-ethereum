@@ -87,6 +87,7 @@ func (i *indexEntry) bounds(end *indexEntry) (startOffset, endOffset, fileId uin
 // freezerTable represents a single chained data table within the freezer (e.g. blocks).
 // It consists of a data file (snappy encoded arbitrary data blobs) and an indexEntry
 // file (uncompressed 64 bit indices into the data file).
+// freezerTable代表一个单个的chained data table，在freezer内
 type freezerTable struct {
 	// WARNING: The `items` field is accessed atomically. On 32 bit platforms, only
 	// 64-bit aligned fields can be atomic. The struct is guaranteed to be so aligned,
@@ -823,6 +824,7 @@ func (t *freezerTable) retrieveItems(start, count, maxBytes uint64) ([]byte, []i
 
 // has returns an indicator whether the specified number data is still accessible
 // in the freezer table.
+// has返回一个indicator表示特定number的data是否依然在freezer table中可访问
 func (t *freezerTable) has(number uint64) bool {
 	return atomic.LoadUint64(&t.items) > number && atomic.LoadUint64(&t.itemHidden) <= number
 }
