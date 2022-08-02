@@ -505,6 +505,7 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
+// Dereference移出一个root node中一个已经存在的应用
 func (db *Database) Dereference(root common.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
 	if root == (common.Hash{}) {
@@ -694,10 +695,14 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
 	// by only uncaching existing data when the database write finalizes.
+	// 创建一个database batch，来将persistent data刷出，重要的是outside code不会看到一个
+	// inconsistent state（在commit期间从memory cache移出，但是没有到persistent storage）
+	// 它确保在database的写结束但是嘿嘿，只有existing data被uncaching
 	start := time.Now()
 	batch := db.diskdb.NewBatch()
 
 	// Move all of the accumulated preimages into a write batch
+	// 移动所有的accumulated preimages到一个write batch
 	if db.preimages != nil {
 		rawdb.WritePreimages(batch, db.preimages)
 		// Since we're going to replay trie node writes into the clean cache, flush out
@@ -739,6 +744,7 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 	if !report {
 		logger = log.Debug
 	}
+	// 将memory database中的trie持久化
 	logger("Persisted trie from memory database", "nodes", nodes-len(db.dirties)+int(db.flushnodes), "size", storage-db.dirtiesSize+db.flushsize, "time", time.Since(start)+db.flushtime,
 		"gcnodes", db.gcnodes, "gcsize", db.gcsize, "gctime", db.gctime, "livenodes", len(db.dirties), "livesize", db.dirtiesSize)
 

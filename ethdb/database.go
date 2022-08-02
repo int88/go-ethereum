@@ -109,6 +109,7 @@ type AncientReader interface {
 }
 
 // AncientWriter contains the methods required to write to immutable ancient data.
+// AncientWriter包含了所需的方法用于写入immutable ancient data
 type AncientWriter interface {
 	// ModifyAncients runs a write operation on the ancient store.
 	// If the function returns an error, any changes to the underlying store are reverted.
@@ -127,6 +128,7 @@ type AncientWriter interface {
 	TruncateTail(n uint64) error
 
 	// Sync flushes all in-memory ancient store data to disk.
+	// Sync刷新所有内存中的ancient store data到磁盘中
 	Sync() error
 
 	// MigrateTable processes and migrates entries of a given table to a new format.

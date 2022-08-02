@@ -101,6 +101,7 @@ func (b *Bloom) UnmarshalText(input []byte) error {
 }
 
 // CreateBloom creates a bloom filter out of the give Receipts (+Logs)
+// CreateBloom创建一个bloom filter基于给定的Receipts（+Logs）
 func CreateBloom(receipts Receipts) Bloom {
 	buf := make([]byte, 6)
 	var bin Bloom

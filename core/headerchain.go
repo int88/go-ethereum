@@ -670,8 +670,10 @@ func (hc *HeaderChain) SetHead(head uint64, updateFn UpdateHeadBlocksCallback, d
 		nums = append(nums, num)
 
 		// Remove the related data from the database on all sidechains
+		// 从database中移除相关的数据，在所有sidechains中
 		for _, num := range nums {
 			// Gather all the side fork hashes
+			// 收集所有的side fork hashes
 			hashes := rawdb.ReadAllHashes(hc.chainDb, num)
 			if len(hashes) == 0 {
 				// No hashes in the database whatsoever, probably frozen already
@@ -681,13 +683,16 @@ func (hc *HeaderChain) SetHead(head uint64, updateFn UpdateHeadBlocksCallback, d
 				if delFn != nil {
 					delFn(batch, hash, num)
 				}
+				// 从数据库中删除对应的header以及td
 				rawdb.DeleteHeader(batch, hash, num)
 				rawdb.DeleteTd(batch, hash, num)
 			}
+			// 删除canonical hash
 			rawdb.DeleteCanonicalHash(batch, num)
 		}
 	}
 	// Flush all accumulated deletions.
+	// 清理所有累计的deletions
 	if err := batch.Write(); err != nil {
 		log.Crit("Failed to rewind block", "error", err)
 	}

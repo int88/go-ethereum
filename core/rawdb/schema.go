@@ -32,6 +32,7 @@ var (
 	databaseVersionKey = []byte("DatabaseVersion")
 
 	// headHeaderKey tracks the latest known header's hash.
+	// headHeaderKey追踪最新的已知的header的hash
 	headHeaderKey = []byte("LastHeader")
 
 	// headBlockKey tracks the latest known full block's hash.
@@ -39,12 +40,14 @@ var (
 	headBlockKey = []byte("LastBlock")
 
 	// headFastBlockKey tracks the latest known incomplete block's hash during fast sync.
+	// headFastBlockKey追踪在fast sync中，最新已知的incomplete block的hash
 	headFastBlockKey = []byte("LastFast")
 
 	// headFinalizedBlockKey tracks the latest known finalized block hash.
 	headFinalizedBlockKey = []byte("LastFinalized")
 
 	// lastPivotKey tracks the last pivot block used by fast sync (to reenable on sethead).
+	// lastPivotKey追踪在fast sync中使用的最新的pivot block（用来在sethead中重新使能）
 	lastPivotKey = []byte("LastPivot")
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
@@ -156,11 +159,13 @@ func encodeBlockNumber(number uint64) []byte {
 }
 
 // headerKeyPrefix = headerPrefix + num (uint64 big endian)
+// headerKeyPrefix是headerPrefix加上num
 func headerKeyPrefix(number uint64) []byte {
 	return append(headerPrefix, encodeBlockNumber(number)...)
 }
 
 // headerKey = headerPrefix + num (uint64 big endian) + hash
+// headerKey是headerPrefxi加上num加上hash
 func headerKey(number uint64, hash common.Hash) []byte {
 	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }

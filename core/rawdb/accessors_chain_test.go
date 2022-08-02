@@ -63,6 +63,7 @@ func TestHeaderStorage(t *testing.T) {
 		}
 	}
 	// Delete the header and verify the execution
+	// 删除header并且确认执行
 	DeleteHeader(db, header.Hash(), header.Number.Uint64())
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
@@ -84,6 +85,7 @@ func TestBodyStorage(t *testing.T) {
 		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the body in the database
+	// 写入并且确认数据库中的body
 	WriteBody(db, hash, 0, body)
 	if entry := ReadBody(db, hash, 0); entry == nil {
 		t.Fatalf("Stored body not found")
@@ -128,6 +130,7 @@ func TestBlockStorage(t *testing.T) {
 		t.Fatalf("Non existent body returned: %v", entry)
 	}
 	// Write and verify the block in the database
+	// 写入并且确认block在db中
 	WriteBlock(db, block)
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry == nil {
 		t.Fatalf("Stored block not found")
@@ -168,6 +171,7 @@ func TestPartialBlockStorage(t *testing.T) {
 		ReceiptHash: types.EmptyRootHash,
 	})
 	// Store a header and check that it's not recognized as a block
+	// 存入一个header并且检查它不会被识别为一个block
 	WriteHeader(db, block.Header())
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
@@ -175,6 +179,7 @@ func TestPartialBlockStorage(t *testing.T) {
 	DeleteHeader(db, block.Hash(), block.NumberU64())
 
 	// Store a body and check that it's not recognized as a block
+	// 存入一个body并且检查它不会被识别为一个block
 	WriteBody(db, block.Hash(), block.NumberU64(), block.Body())
 	if entry := ReadBlock(db, block.Hash(), block.NumberU64()); entry != nil {
 		t.Fatalf("Non existent block returned: %v", entry)
@@ -182,6 +187,7 @@ func TestPartialBlockStorage(t *testing.T) {
 	DeleteBody(db, block.Hash(), block.NumberU64())
 
 	// Store a header and a body separately and check reassembly
+	// 分开写入一个header以及一个body并且检查重新组装
 	WriteHeader(db, block.Header())
 	WriteBody(db, block.Hash(), block.NumberU64(), block.Body())
 
@@ -215,6 +221,7 @@ func TestBadBlockStorage(t *testing.T) {
 		t.Fatalf("Retrieved block mismatch: have %v, want %v", entry, block)
 	}
 	// Write one more bad block
+	// 写入更多的bad block
 	blockTwo := types.NewBlockWithHeader(&types.Header{
 		Number:      big.NewInt(2),
 		Extra:       []byte("bad block two"),
@@ -233,6 +240,8 @@ func TestBadBlockStorage(t *testing.T) {
 
 	// Write a bunch of bad blocks, all the blocks are should sorted
 	// in reverse order. The extra blocks should be truncated.
+	// 写入一系列的bad blocks，所有的blocks都应该按照reverse oreder排序
+	// 额外的blocks应该被截断
 	for _, n := range rand.Perm(100) {
 		block := types.NewBlockWithHeader(&types.Header{
 			Number:      big.NewInt(int64(n)),
@@ -248,12 +257,14 @@ func TestBadBlockStorage(t *testing.T) {
 		t.Fatalf("The number of persised bad blocks in incorrect %d", len(badBlocks))
 	}
 	for i := 0; i < len(badBlocks)-1; i++ {
+		// 确保number有序
 		if badBlocks[i].NumberU64() < badBlocks[i+1].NumberU64() {
 			t.Fatalf("The bad blocks are not sorted #[%d](%d) < #[%d](%d)", i, i+1, badBlocks[i].NumberU64(), badBlocks[i+1].NumberU64())
 		}
 	}
 
 	// Delete all bad blocks
+	// 删除所有的bad blocks
 	DeleteBadBlocks(db)
 	badBlocks = ReadAllBadBlocks(db)
 	if len(badBlocks) != 0 {
@@ -271,6 +282,7 @@ func TestTdStorage(t *testing.T) {
 		t.Fatalf("Non existent TD returned: %v", entry)
 	}
 	// Write and verify the TD in the database
+	// 写入并且确认TD到数据库中
 	WriteTd(db, hash, 0, td)
 	if entry := ReadTd(db, hash, 0); entry == nil {
 		t.Fatalf("Stored TD not found")
@@ -278,6 +290,7 @@ func TestTdStorage(t *testing.T) {
 		t.Fatalf("Retrieved TD mismatch: have %v, want %v", entry, td)
 	}
 	// Delete the TD and verify the execution
+	// 删除TD并且确认执行
 	DeleteTd(db, hash, 0)
 	if entry := ReadTd(db, hash, 0); entry != nil {
 		t.Fatalf("Deleted TD returned: %v", entry)
@@ -289,11 +302,13 @@ func TestCanonicalMappingStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a test canonical number and assinged hash to move around
+	// 创建一个test canonical number并且赋值一个hash用于移动
 	hash, number := common.Hash{0: 0xff}, uint64(314)
 	if entry := ReadCanonicalHash(db, number); entry != (common.Hash{}) {
 		t.Fatalf("Non existent canonical mapping returned: %v", entry)
 	}
 	// Write and verify the TD in the database
+	// 确认canonical mapping能写入并且验证
 	WriteCanonicalHash(db, hash, number)
 	if entry := ReadCanonicalHash(db, number); entry == (common.Hash{}) {
 		t.Fatalf("Stored canonical mapping not found")
@@ -308,6 +323,7 @@ func TestCanonicalMappingStorage(t *testing.T) {
 }
 
 // Tests that head headers and head blocks can be assigned, individually.
+// 测试head headers以及head blocks可以被单独赋值
 func TestHeadStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
@@ -326,11 +342,13 @@ func TestHeadStorage(t *testing.T) {
 		t.Fatalf("Non fast head block entry returned: %v", entry)
 	}
 	// Assign separate entries for the head header and block
+	// 对head header以及block分别赋值不同的entries
 	WriteHeadHeaderHash(db, blockHead.Hash())
 	WriteHeadBlockHash(db, blockFull.Hash())
 	WriteHeadFastBlockHash(db, blockFast.Hash())
 
 	// Check that both heads are present, and different (i.e. two heads maintained)
+	// 检查heads都存在并且不同
 	if entry := ReadHeadHeaderHash(db); entry != blockHead.Hash() {
 		t.Fatalf("Head header hash mismatch: have %v, want %v", entry, blockHead.Hash())
 	}
@@ -353,6 +371,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 	body := &types.Body{Transactions: types.Transactions{tx1, tx2}}
 
 	// Create the two receipts to manage afterwards
+	// 创建两个receipts用于管理
 	receipt1 := &types.Receipt{
 		Status:            types.ReceiptStatusFailed,
 		CumulativeGasUsed: 1,
@@ -381,6 +400,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 	receipts := []*types.Receipt{receipt1, receipt2}
 
 	// Check that no receipt entries are in a pristine database
+	// 检查没有receipt entries位于pristine数据库中
 	hash := common.BytesToHash([]byte{0x03, 0x14})
 	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); len(rs) != 0 {
 		t.Fatalf("non existent receipts returned: %v", rs)
@@ -389,6 +409,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 	WriteBody(db, hash, 0, body)
 
 	// Insert the receipt slice into the database and check presence
+	// 插入receipt slice到db并且检查是否存在
 	WriteReceipts(db, hash, 0, receipts)
 	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); len(rs) == 0 {
 		t.Fatalf("no receipts returned")
@@ -398,11 +419,14 @@ func TestBlockReceiptStorage(t *testing.T) {
 		}
 	}
 	// Delete the body and ensure that the receipts are no longer returned (metadata can't be recomputed)
+	// 删除body并且确保receipts不再返回（metadata不能被重新计算）
 	DeleteBody(db, hash, 0)
 	if rs := ReadReceipts(db, hash, 0, params.TestChainConfig); rs != nil {
+		// body被删除的时候receipts应该不存在了
 		t.Fatalf("receipts returned when body was deleted: %v", rs)
 	}
 	// Ensure that receipts without metadata can be returned without the block body too
+	// 确认没有metadata的receipts可以被返回，在没有block body的情
 	if err := checkReceiptsRLP(ReadRawReceipts(db, hash, 0), receipts); err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -437,6 +461,7 @@ func checkReceiptsRLP(have, want types.Receipts) error {
 
 func TestAncientStorage(t *testing.T) {
 	// Freezer style fast import the chain.
+	// Freezer style，快速导入chain
 	frdir := t.TempDir()
 
 	db, err := NewDatabaseWithFreezer(NewMemoryDatabase(), frdir, "", false)
@@ -468,6 +493,7 @@ func TestAncientStorage(t *testing.T) {
 	}
 
 	// Write and verify the header in the database
+	// 写入并且确认header在database中
 	WriteAncientBlocks(db, []*types.Block{block}, []types.Receipts{nil}, big.NewInt(100))
 
 	if blob := ReadHeaderRLP(db, hash, number); len(blob) == 0 {
@@ -484,6 +510,7 @@ func TestAncientStorage(t *testing.T) {
 	}
 
 	// Use a fake hash for data retrieval, nothing should be returned.
+	// 使用一个fake hash用于获取data，什么都不应该返回
 	fakeHash := common.BytesToHash([]byte{0x01, 0x02, 0x03})
 	if blob := ReadHeaderRLP(db, fakeHash, number); len(blob) != 0 {
 		t.Fatalf("invalid header returned")
@@ -691,10 +718,12 @@ func newFullLogRLP(l *types.Log) *fullLogRLP {
 }
 
 // Tests that logs associated with a single block can be retrieved.
+// 测试和单个的block相关的logs可以被获取
 func TestReadLogs(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a live block since we need metadata to reconstruct the receipt
+	// 创建一个live block，因为我们需要metadata来重新构建receipt
 	tx1 := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
 	tx2 := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
 
@@ -754,6 +783,7 @@ func TestReadLogs(t *testing.T) {
 	}
 
 	// Fill in log fields so we can compare their rlp encoding
+	// 填充log fields，这样我们可以比较他们的rlp encoding
 	if err := types.Receipts(receipts).DeriveFields(params.TestChainConfig, hash, 0, body.Transactions); err != nil {
 		t.Fatal(err)
 	}

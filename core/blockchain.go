@@ -518,6 +518,8 @@ func (bc *BlockChain) loadLastState() error {
 // SetHead rewinds the local chain to a new head. Depending on whether the node
 // was fast synced or full synced and in which state, the method will try to
 // delete minimal data from disk whilst retaining chain consistency.
+// SetHead重置local chain到新的head，基于是否节点是fast synced或者full synced，位于哪种状态
+// 这个方法会试着从磁盘删除最少的数据，同时保持chain consistency
 func (bc *BlockChain) SetHead(head uint64) error {
 	_, err := bc.setHeadBeyondRoot(head, common.Hash{}, false)
 	return err
@@ -645,6 +647,7 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, root common.Hash, repair bo
 		return head, wipe // Only force wipe if full synced
 	}
 	// Rewind the header chain, deleting all block bodies until then
+	// 重置Head chain，删除所有的block bodies
 	delFn := func(db ethdb.KeyValueWriter, hash common.Hash, num uint64) {
 		// Ignore the error here since light client won't hit this path
 		frozen, _ := bc.db.Ancients()
@@ -678,6 +681,7 @@ func (bc *BlockChain) setHeadBeyondRoot(head uint64, root common.Hash, repair bo
 		bc.hc.SetHead(head, updateFn, delFn)
 	}
 	// Clear out any stale content from the caches
+	// 从缓存中清理所有的stale content
 	bc.bodyCache.Purge()
 	bc.bodyRLPCache.Purge()
 	bc.receiptsCache.Purge()

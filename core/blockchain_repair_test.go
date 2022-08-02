@@ -37,6 +37,9 @@ import (
 // committed to disk and then the process crashed. In this case we expect the full
 // chain to be rolled back to the committed block, but the chain data itself left
 // in the database for replaying.
+// 测试对于一个short canonical chain的恢复，其中recent block已经被提交到了磁盘，之后进程crash了
+// 在这种情况下，我们期望full chain能回滚到committed block，但是chain data自己留在数据库中
+// 用于replaying
 func TestShortRepair(t *testing.T)              { testShortRepair(t, false) }
 func TestShortRepairWithSnapshots(t *testing.T) { testShortRepair(t, true) }
 
@@ -1822,9 +1825,11 @@ func testRepair(t *testing.T, tt *rewindTest, snapshots bool) {
 		rawdb.WriteLastPivotNumber(db, *tt.pivotBlock)
 	}
 	// Pull the plug on the database, simulating a hard crash
+	// 拔掉数据库的插头，模拟一个hard crash
 	db.Close()
 
 	// Start a new blockchain back up and see where the repair leads us
+	// 启动一个新的block chain back up并且看能恢复到哪里
 	db, err = rawdb.NewLevelDBDatabaseWithFreezer(datadir, 0, 0, datadir, "", false)
 	if err != nil {
 		t.Fatalf("Failed to reopen persistent database: %v", err)

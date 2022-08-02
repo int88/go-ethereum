@@ -209,14 +209,17 @@ func (bc *BlockChain) GetBlocksFromHash(hash common.Hash, n int) (blocks []*type
 }
 
 // GetReceiptsByHash retrieves the receipts for all transactions in a given block.
+// GetReceiptsByHash获取一个给定的block的所有transactions的receipts
 func (bc *BlockChain) GetReceiptsByHash(hash common.Hash) types.Receipts {
 	if receipts, ok := bc.receiptsCache.Get(hash); ok {
 		return receipts.(types.Receipts)
 	}
+	// 通过哈希获取head number
 	number := rawdb.ReadHeaderNumber(bc.db, hash)
 	if number == nil {
 		return nil
 	}
+	// 读取receipts
 	receipts := rawdb.ReadReceipts(bc.db, hash, *number, bc.chainConfig)
 	if receipts == nil {
 		return nil

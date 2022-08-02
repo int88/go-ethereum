@@ -86,6 +86,8 @@ func (f *chainFreezer) Close() error {
 
 // freeze is a background thread that periodically checks the blockchain for any
 // import progress and moves ancient data from the fast database into the freezer.
+// freeze是以后background thread，阶段性地检查blockchain，对于任何的import progress
+// 并且移动ancient data从fast database到freezer
 //
 // This functionality is deliberately broken off from block importing to avoid
 // incurring additional data shuffling delays on block propagation.

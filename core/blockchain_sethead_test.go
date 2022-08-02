@@ -35,12 +35,15 @@ import (
 )
 
 // rewindTest is a test case for chain rollback upon user request.
+// rewindTest是一个测试用例，用于在user request的时候进行rollback
 type rewindTest struct {
-	canonicalBlocks int     // Number of blocks to generate for the canonical chain (heavier)
-	sidechainBlocks int     // Number of blocks to generate for the side chain (lighter)
-	freezeThreshold uint64  // Block number until which to move things into the freezer
-	commitBlock     uint64  // Block number for which to commit the state to disk
-	pivotBlock      *uint64 // Pivot block number in case of fast sync
+	canonicalBlocks int // Number of blocks to generate for the canonical chain (heavier)
+	sidechainBlocks int // Number of blocks to generate for the side chain (lighter)
+	// freezeThreshold之前的block都移动到freezer
+	freezeThreshold uint64 // Block number until which to move things into the freezer
+	// commitBlock将state提交到disk
+	commitBlock uint64  // Block number for which to commit the state to disk
+	pivotBlock  *uint64 // Pivot block number in case of fast sync
 
 	setheadBlock       uint64 // Block number to set head back to
 	expCanonicalBlocks int    // Number of canonical blocks expected to remain in the database (excl. genesis)
@@ -149,6 +152,8 @@ func (tt *rewindTest) dump(crash bool) string {
 // chain to be rolled back to the committed block. Everything above the sethead
 // point should be deleted. In between the committed block and the requested head
 // the data can remain as "fast sync" data to avoid redownloading it.
+// 测试sethead，对于一个short canonical chain，当一个recent block已经被提交到disk之后sethead
+// 被调用
 func TestShortSetHead(t *testing.T)              { testShortSetHead(t, false) }
 func TestShortSetHeadWithSnapshots(t *testing.T) { testShortSetHead(t, true) }
 
@@ -192,6 +197,10 @@ func testShortSetHead(t *testing.T, snapshots bool) {
 // Everything above the sethead point should be deleted. In between the committed
 // block and the requested head the data can remain as "fast sync" data to avoid
 // redownloading it.
+// 测试一个short canonical chain的sethead，其中fasy sync pivot point已经提交了
+// 之后sethead被调用，这种情况下，我们期望chain像在full sync mode一样，回滚到committed block
+// 任何sethead point之上的都应该被删除，任何committed block和请求的hea data之间的都能保持
+// "fast sync" data，来避免重新下载
 func TestShortSnapSyncedSetHead(t *testing.T)              { testShortSnapSyncedSetHead(t, false) }
 func TestShortSnapSyncedSetHeadWithSnapshots(t *testing.T) { testShortSnapSyncedSetHead(t, true) }
 
@@ -234,6 +243,9 @@ func testShortSnapSyncedSetHead(t *testing.T, snapshots bool) {
 // detect that it was fast syncing and delete everything from the new head, since
 // we can just pick up fast syncing from there. The head full block should be set
 // to the genesis.
+// 测试对于short canonical chain的sethead，其中fast sync pivot point还没有被committed
+// 但是sethead已经被调用，这种情况下，我们期望chain能检测到他在fast syncing并且删除新的head
+// 之后的所有，因为我们可以从这里开始可以fast syncing，head full block应该设置到genesis
 func TestShortSnapSyncingSetHead(t *testing.T)              { testShortSnapSyncingSetHead(t, false) }
 func TestShortSnapSyncingSetHeadWithSnapshots(t *testing.T) { testShortSnapSyncingSetHead(t, true) }
 
@@ -278,6 +290,7 @@ func testShortSnapSyncingSetHead(t *testing.T, snapshots bool) {
 // above the sethead point should be deleted. In between the committed block and
 // the requested head the data can remain as "fast sync" data to avoid redownloading
 // it. The side chain should be left alone as it was shorter.
+// side chain应该被保留，因为它更短
 func TestShortOldForkedSetHead(t *testing.T)              { testShortOldForkedSetHead(t, false) }
 func TestShortOldForkedSetHeadWithSnapshots(t *testing.T) { testShortOldForkedSetHead(t, true) }
 
@@ -1962,6 +1975,7 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 	defer db.Close()
 
 	// Initialize a fresh chain
+	// 初始化一个fresh chain
 	var (
 		genesis = (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
 		engine  = ethash.NewFullFaker()
@@ -1981,6 +1995,7 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 		t.Fatalf("Failed to create chain: %v", err)
 	}
 	// If sidechain blocks are needed, make a light chain and import it
+	// 如果需要sidechain blocks，构建一个light chain并且导入它
 	var sideblocks types.Blocks
 	if tt.sidechainBlocks > 0 {
 		sideblocks, _ = GenerateChain(params.TestChainConfig, genesis, engine, rawdb.NewMemoryDatabase(), tt.sidechainBlocks, func(i int, b *BlockGen) {
@@ -1994,12 +2009,15 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 		b.SetCoinbase(common.Address{0x02})
 		b.SetDifficulty(big.NewInt(1000000))
 	})
+	// 插入chains，commitBlock个blocks
 	if _, err := chain.InsertChain(canonblocks[:tt.commitBlock]); err != nil {
 		t.Fatalf("Failed to import canonical chain start: %v", err)
 	}
 	if tt.commitBlock > 0 {
+		// 提交blocks
 		chain.stateCache.TrieDB().Commit(canonblocks[tt.commitBlock-1].Root(), true, nil)
 		if snapshots {
+			// 构建snapshot
 			if err := chain.snaps.Cap(canonblocks[tt.commitBlock-1].Root(), 0); err != nil {
 				t.Fatalf("Failed to flatten snapshots: %v", err)
 			}
@@ -2016,6 +2034,7 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 		chain.stateCache.TrieDB().Dereference(block.Root())
 	}
 	// Force run a freeze cycle
+	// 强制执行一个freeze cycle
 	type freezer interface {
 		Freeze(threshold uint64) error
 		Ancients() (uint64, error)
@@ -2023,13 +2042,16 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 	db.(freezer).Freeze(tt.freezeThreshold)
 
 	// Set the simulated pivot block
+	// 设置模拟的pivot block
 	if tt.pivotBlock != nil {
 		rawdb.WriteLastPivotNumber(db, *tt.pivotBlock)
 	}
 	// Set the head of the chain back to the requested number
+	// 重新将head of the chain设置为requested number
 	chain.SetHead(tt.setheadBlock)
 
 	// Iterate over all the remaining blocks and ensure there are no gaps
+	// 遍历所有剩余的blocks并且确保没有gaps
 	verifyNoGaps(t, chain, true, canonblocks)
 	verifyNoGaps(t, chain, false, sideblocks)
 	verifyCutoff(t, chain, true, canonblocks, tt.expCanonicalBlocks)
@@ -2053,10 +2075,12 @@ func testSetHead(t *testing.T, tt *rewindTest, snapshots bool) {
 
 // verifyNoGaps checks that there are no gaps after the initial set of blocks in
 // the database and errors if found.
+// verifyNoGaps检查在初始的blocks在db中只有，没有gaps
 func verifyNoGaps(t *testing.T, chain *BlockChain, canonical bool, inserted types.Blocks) {
 	t.Helper()
 
 	var end uint64
+	// 确保header以及block都在
 	for i := uint64(0); i <= uint64(len(inserted)); i++ {
 		header := chain.GetHeaderByNumber(i)
 		if header == nil && end == 0 {
@@ -2088,6 +2112,7 @@ func verifyNoGaps(t *testing.T, chain *BlockChain, canonical bool, inserted type
 	}
 	end = 0
 	for i := uint64(1); i <= uint64(len(inserted)); i++ {
+		// 根据block的哈希获取对应的receipts
 		receipts := chain.GetReceiptsByHash(inserted[i-1].Hash())
 		if receipts == nil && end == 0 {
 			end = i

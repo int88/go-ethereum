@@ -172,6 +172,7 @@ func DeleteHeaderNumber(db ethdb.KeyValueWriter, hash common.Hash) {
 }
 
 // ReadHeadHeaderHash retrieves the hash of the current canonical head header.
+// ReadHeadHeaderHash读取当前的canonical head header的hash
 func ReadHeadHeaderHash(db ethdb.KeyValueReader) common.Hash {
 	data, _ := db.Get(headHeaderKey)
 	if len(data) == 0 {
@@ -251,6 +252,7 @@ func ReadLastPivotNumber(db ethdb.KeyValueReader) *uint64 {
 }
 
 // WriteLastPivotNumber stores the number of the last pivot block.
+// WriteLastPivotNumber存储最后一个pivot block的数字
 func WriteLastPivotNumber(db ethdb.KeyValueWriter, pivot uint64) {
 	enc, err := rlp.EncodeToBytes(pivot)
 	if err != nil {
@@ -349,6 +351,7 @@ func ReadHeaderRange(db ethdb.Reader, number uint64, count uint64) []rlp.RawValu
 }
 
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+// ReadHeaderRLP获取一个block header，以raw RLP数据库的编码
 func ReadHeaderRLP(db ethdb.Reader, hash common.Hash, number uint64) rlp.RawValue {
 	var data []byte
 	db.ReadAncients(func(reader ethdb.AncientReaderOp) error {
@@ -734,8 +737,11 @@ func deriveLogFields(receipts []*receiptLogs, hash common.Hash, number uint64, t
 // ReadLogs retrieves the logs for all transactions in a block. The log fields
 // are populated with metadata. In case the receipts or the block body
 // are not found, a nil is returned.
+// ReadLogs获取一个block中的所有transactions的logs，log fields用metadata填充
+// 如果receipts活着block body没有找到，则返回一个nil
 func ReadLogs(db ethdb.Reader, hash common.Hash, number uint64, config *params.ChainConfig) [][]*types.Log {
 	// Retrieve the flattened receipt slice
+	// 获取扁平化的receipt slice
 	data := ReadReceiptsRLP(db, hash, number)
 	if len(data) == 0 {
 		return nil
@@ -753,6 +759,7 @@ func ReadLogs(db ethdb.Reader, hash common.Hash, number uint64, config *params.C
 
 	body := ReadBody(db, hash, number)
 	if body == nil {
+		// 没有body，但是有receipt，是错误的
 		log.Error("Missing body but have receipt", "hash", hash, "number", number)
 		return nil
 	}
@@ -762,6 +769,7 @@ func ReadLogs(db ethdb.Reader, hash common.Hash, number uint64, config *params.C
 	}
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
+		// 读取receipt中的日志
 		logs[i] = receipt.Logs
 	}
 	return logs
@@ -785,9 +793,13 @@ func readLegacyLogs(db ethdb.Reader, hash common.Hash, number uint64, config *pa
 // ReadBlock retrieves an entire block corresponding to the hash, assembling it
 // back from the stored header and body. If either the header or body could not
 // be retrieved nil is returned.
+// ReadBlock根据hash获取整个block，从存储的header以及body重新组装，如果header或者body
+// 不能获取，则返回nil
 //
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
+// 注意，因为header以及block body的并行下载，因此canonical hash可以存储在db中
+// 但是body data不行s
 func ReadBlock(db ethdb.Reader, hash common.Hash, number uint64) *types.Block {
 	header := ReadHeader(db, hash, number)
 	if header == nil {
@@ -808,6 +820,7 @@ func WriteBlock(db ethdb.KeyValueWriter, block *types.Block) {
 }
 
 // WriteAncientBlocks writes entire block data into ancient store and returns the total written size.
+// WriteAncientBlocks写入整个block data到ancient store中并且返回totoal written size
 func WriteAncientBlocks(db ethdb.AncientWriter, blocks []*types.Block, receipts []types.Receipts, td *big.Int) (int64, error) {
 	var (
 		tdSum      = new(big.Int).Set(td)
@@ -924,6 +937,7 @@ func ReadAllBadBlocks(db ethdb.Reader) []*types.Block {
 
 // WriteBadBlock serializes the bad block into the database. If the cumulated
 // bad blocks exceeds the limitation, the oldest will be dropped.
+// WriteBadBlock序列化bad block到db中，如果累计的bad block超过了限制，最老的会被删除
 func WriteBadBlock(db ethdb.KeyValueStore, block *types.Block) {
 	blob, err := db.Get(badBlockKey)
 	if err != nil {
@@ -941,6 +955,7 @@ func WriteBadBlock(db ethdb.KeyValueStore, block *types.Block) {
 			return
 		}
 	}
+	// 扩展bad blocks
 	badBlocks = append(badBlocks, &badBlock{
 		Header: block.Header(),
 		Body:   block.Body(),
@@ -949,6 +964,7 @@ func WriteBadBlock(db ethdb.KeyValueStore, block *types.Block) {
 	if len(badBlocks) > badBlockToKeep {
 		badBlocks = badBlocks[:badBlockToKeep]
 	}
+	// 先对bad blocks进行编码
 	data, err := rlp.EncodeToBytes(badBlocks)
 	if err != nil {
 		log.Crit("Failed to encode bad blocks", "err", err)

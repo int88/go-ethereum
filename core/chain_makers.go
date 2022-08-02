@@ -76,6 +76,8 @@ func (b *BlockGen) SetNonce(nonce types.BlockNonce) {
 // SetDifficulty sets the difficulty field of the generated block. This method is
 // useful for Clique tests where the difficulty does not depend on time. For the
 // ethash tests, please use OffsetTime, which implicitly recalculates the diff.
+// SetDifficulty设置了生成的block的difficulty字段，这个方法在Clique测试中是有用的
+// 因为difficulty不依赖时间，对于ethash测试，请使用OffsetTime，它隐式地重计算diff
 func (b *BlockGen) SetDifficulty(diff *big.Int) {
 	b.header.Difficulty = diff
 }
