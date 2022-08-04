@@ -255,6 +255,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 			hash = header.Hash()
 		}
 		number := header.Number.Uint64()
+		// 加上header的TD
 		newTD.Add(newTD, header.Difficulty)
 
 		// If the parent was not present, store it
@@ -266,6 +267,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 			rawdb.WriteTd(batch, hash, number, newTD)
 			hc.tdCache.Add(hash, new(big.Int).Set(newTD))
 
+			// 写入header
 			rawdb.WriteHeader(batch, header)
 			inserted = append(inserted, rawdb.NumberHash{Number: number, Hash: hash})
 			hc.headerCache.Add(hash, header)
@@ -299,6 +301,7 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 // 直接写入headers应该在以下两种场景：纯header模式的操作（light clients），或者合理地分开
 // header/block阶段（non-archive clients）
 func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header, forker *ForkChoice) (*headerWriteResult, error) {
+	// 写入headers
 	inserted, err := hc.WriteHeaders(headers)
 	if err != nil {
 		return nil, err
@@ -341,6 +344,7 @@ func (hc *HeaderChain) writeHeadersAndSetHead(headers []*types.Header, forker *F
 
 func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
 	// Do a sanity check that the provided chain is actually ordered and linked
+	// 做一个健全性检查，提供的chain是真正有序并且互相连接的
 	for i := 1; i < len(chain); i++ {
 		if chain[i].Number.Uint64() != chain[i-1].Number.Uint64()+1 {
 			hash := chain[i].Hash()
@@ -363,6 +367,7 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 	}
 
 	// Generate the list of seal verification requests, and start the parallel verifier
+	// 生成一系列的seal verification requests，并且开始并行地确认
 	seals := make([]bool, len(chain))
 	if checkFreq != 0 {
 		// In case of checkFreq == 0 all seals are left false.
@@ -381,13 +386,16 @@ func (hc *HeaderChain) ValidateHeaderChain(chain []*types.Header, checkFreq int)
 	defer close(abort)
 
 	// Iterate over the headers and ensure they all check out
+	// 遍历headers并且确保它们全都已经check out
 	for i := range chain {
 		// If the chain is terminating, stop processing blocks
+		// 如果chain正在终止，停止处理blocks
 		if hc.procInterrupt() {
 			log.Debug("Premature abort during headers verification")
 			return 0, errors.New("aborted")
 		}
 		// Otherwise wait for headers checks and ensure they pass
+		// 否则等待headers checks并且确保它们通过
 		if err := <-results; err != nil {
 			return i, err
 		}

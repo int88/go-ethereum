@@ -801,6 +801,7 @@ func TestFastVsFullChains(t *testing.T) {
 		block.SetCoinbase(common.Address{0x00})
 
 		// If the block number is multiple of 3, send a few bonus transactions to the miner
+		// 如果block number是3的倍数，添加一个bonus transactions到miner
 		if i%3 == 2 {
 			for j := 0; j < i%4+1; j++ {
 				tx, err := types.SignTx(types.NewTransaction(block.TxNonce(address), common.Address{0x00}, big.NewInt(1000), params.TxGas, block.header.BaseFee, nil), signer, key)
@@ -811,11 +812,13 @@ func TestFastVsFullChains(t *testing.T) {
 			}
 		}
 		// If the block number is a multiple of 5, add a few bonus uncles to the block
-		if i%5 == 5 {
+		// 如果block number是5的倍数，添加一个bonus uncles到block中
+		if i > 0 && i%5 == 0 {
 			block.AddUncle(&types.Header{ParentHash: block.PrevBlock(i - 1).Hash(), Number: big.NewInt(int64(i - 1))})
 		}
 	})
 	// Import the chain as an archive node for the comparison baseline
+	// 导入chain作为一个archive node，用于比较的基线
 	archiveDb := rawdb.NewMemoryDatabase()
 	gspec.MustCommit(archiveDb)
 	archive, _ := NewBlockChain(archiveDb, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -825,6 +828,7 @@ func TestFastVsFullChains(t *testing.T) {
 		t.Fatalf("failed to process block %d: %v", n, err)
 	}
 	// Fast import the chain as a non-archive node to test
+	// 快速导入chain，作为一个non-archive node来测试
 	fastDb := rawdb.NewMemoryDatabase()
 	gspec.MustCommit(fastDb)
 	fast, _ := NewBlockChain(fastDb, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -841,6 +845,7 @@ func TestFastVsFullChains(t *testing.T) {
 		t.Fatalf("failed to insert receipt %d: %v", n, err)
 	}
 	// Freezer style fast import the chain.
+	// Freezer风格的快速导入chain
 	frdir := t.TempDir()
 	ancientDb, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), frdir, "", false)
 	if err != nil {
@@ -859,6 +864,7 @@ func TestFastVsFullChains(t *testing.T) {
 	}
 
 	// Iterate over all chain data components, and cross reference
+	// 遍历所有的chain data components，并且交叉引用
 	for i := 0; i < len(blocks); i++ {
 		num, hash := blocks[i].NumberU64(), blocks[i].Hash()
 
@@ -903,6 +909,7 @@ func TestFastVsFullChains(t *testing.T) {
 	}
 
 	// Check that the canonical chains are the same between the databases
+	// 确认canonical chains在databases之间是一样的
 	for i := 0; i < len(blocks)+1; i++ {
 		if fhash, ahash := rawdb.ReadCanonicalHash(fastDb, uint64(i)), rawdb.ReadCanonicalHash(archiveDb, uint64(i)); fhash != ahash {
 			t.Errorf("block #%d: canonical hash mismatch: fastdb %v, archivedb %v", i, fhash, ahash)

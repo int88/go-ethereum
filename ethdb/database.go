@@ -30,6 +30,7 @@ type KeyValueReader interface {
 }
 
 // KeyValueWriter wraps the Put method of a backing data store.
+// KeyValueWriter封装了后端数据存储的Put方法
 type KeyValueWriter interface {
 	// Put inserts the given value into the key-value data store.
 	Put(key []byte, value []byte) error

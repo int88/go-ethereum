@@ -205,6 +205,7 @@ func WriteHeadBlockHash(db ethdb.KeyValueWriter, hash common.Hash) {
 }
 
 // ReadHeadFastBlockHash retrieves the hash of the current fast-sync head block.
+// ReadHeadFastBlockHash获取当前的fast-sync的head block的哈希值
 func ReadHeadFastBlockHash(db ethdb.KeyValueReader) common.Hash {
 	data, _ := db.Get(headFastBlockKey)
 	if len(data) == 0 {
@@ -214,6 +215,7 @@ func ReadHeadFastBlockHash(db ethdb.KeyValueReader) common.Hash {
 }
 
 // WriteHeadFastBlockHash stores the hash of the current fast-sync head block.
+// WriteHeadFastBlockHash存储当前的fast-sync的head block
 func WriteHeadFastBlockHash(db ethdb.KeyValueWriter, hash common.Hash) {
 	if err := db.Put(headFastBlockKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last fast block's hash", "err", err)
@@ -221,6 +223,7 @@ func WriteHeadFastBlockHash(db ethdb.KeyValueWriter, hash common.Hash) {
 }
 
 // ReadFinalizedBlockHash retrieves the hash of the finalized block.
+// ReadFinalizedBlockHash获取finalized block的哈希值
 func ReadFinalizedBlockHash(db ethdb.KeyValueReader) common.Hash {
 	data, _ := db.Get(headFinalizedBlockKey)
 	if len(data) == 0 {
@@ -238,6 +241,8 @@ func WriteFinalizedBlockHash(db ethdb.KeyValueWriter, hash common.Hash) {
 
 // ReadLastPivotNumber retrieves the number of the last pivot block. If the node
 // full synced, the last pivot will always be nil.
+// ReadLastPivotNumber获取最后的pivot block的number，如果节点是full synced模式，
+// 则最后的pivot总是为nil
 func ReadLastPivotNumber(db ethdb.KeyValueReader) *uint64 {
 	data, _ := db.Get(lastPivotKey)
 	if len(data) == 0 {
@@ -664,6 +669,7 @@ func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *para
 // WriteReceipts存储所有属于一个block的transaction receipts
 func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
+	// 将receipts转换为storage form并且序列化他们
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	for i, receipt := range receipts {
 		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
@@ -673,6 +679,7 @@ func WriteReceipts(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rec
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
 	// Store the flattened receipt slice
+	// 存储扁平的receipt slice
 	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
@@ -829,6 +836,7 @@ func WriteAncientBlocks(db ethdb.AncientWriter, blocks []*types.Block, receipts 
 	return db.ModifyAncients(func(op ethdb.AncientWriteOp) error {
 		for i, block := range blocks {
 			// Convert receipts to storage format and sum up total difficulty.
+			// 转换receipts到storage format并且加上所有的td
 			stReceipts = stReceipts[:0]
 			for _, receipt := range receipts[i] {
 				stReceipts = append(stReceipts, (*types.ReceiptForStorage)(receipt))

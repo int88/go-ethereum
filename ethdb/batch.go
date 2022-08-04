@@ -39,9 +39,11 @@ type Batch interface {
 }
 
 // Batcher wraps the NewBatch method of a backing data store.
+// Batcher封装了后端的data store的NewBatch方法
 type Batcher interface {
 	// NewBatch creates a write-only database that buffers changes to its host db
 	// until a final write is called.
+	// NewBatch创建一个只写的数据库，缓存了host db的变更，直到一个final write被调用
 	NewBatch() Batch
 
 	// NewBatchWithSize creates a write-only database batch with pre-allocated buffer.

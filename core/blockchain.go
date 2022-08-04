@@ -176,6 +176,7 @@ type BlockChain struct {
 
 	// txLookupLimit is the maximum number of blocks from head whose tx indices
 	// are reserved:
+	// txLookupLimit是最大的从head开始的blocks数目，它们的tx indices会被保留
 	//  * 0:   means no limit and regenerate any missing indexes
 	//  * N:   means N block limit [HEAD-N+1, HEAD] and delete extra indexes
 	//  * nil: disable tx reindexer/deleter, but still index new blocks
@@ -202,9 +203,9 @@ type BlockChain struct {
 
 	// State database在导入之间重用
 	stateCache    state.Database // State database to reuse between imports (contains state cache)	// 在imports之间重用的State database（包含state缓存）
-	bodyCache     *lru.Cache     // Cache for the most recent block bodies
+	bodyCache     *lru.Cache     // Cache for the most recent block bodies	// 用于最近的block bodies的缓存
 	bodyRLPCache  *lru.Cache     // Cache for the most recent block bodies in RLP encoded format
-	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
+	receiptsCache *lru.Cache     // Cache for the most recent receipts per block	// 用于最近的每个block的receipts的缓存
 	blockCache    *lru.Cache     // Cache for the most recent entire blocks
 	txLookupCache *lru.Cache     // Cache for the most recent transaction lookup data.
 	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing	// future blocks是后续用于添加处理的blocks
@@ -267,6 +268,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.processor = NewStateProcessor(chainConfig, bc, engine)
 
 	var err error
+	// 构建Header chain
 	bc.hc, err = NewHeaderChain(db, chainConfig, engine, bc.insertStopped)
 	if err != nil {
 		return nil, err
@@ -282,6 +284,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	bc.currentFinalizedBlock.Store(nilBlock)
 
 	// Initialize the chain with ancient data if it isn't empty.
+	// 用ancient data初始化chain，如果它不为空的话
 	var txIndexBlock uint64
 
 	if bc.empty() {
@@ -294,6 +297,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 			txIndexBlock = frozen
 		}
 	}
+	// 用于chain recovery?
 	if err := bc.loadLastState(); err != nil {
 		return nil, err
 	}
@@ -346,6 +350,8 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 		// In fast sync, it may happen that ancient data has been written to the
 		// ancient store, but the LastFastBlock has not been updated, truncate the
 		// extra data here.
+		// 在fast sync中，可能会发生ancient data已经被写入到ancient store，但是LastFastBlock
+		// 还没有更新，在这里截断额外的数据
 		fastBlock := bc.CurrentFastBlock()
 		if fastBlock != nil && fastBlock.NumberU64() < frozen-1 {
 			needRewind = true
@@ -415,6 +421,7 @@ func NewBlockChain(db ethdb.Database, cacheConfig *CacheConfig, chainConfig *par
 	}
 
 	// If periodic cache journal is required, spin it up.
+	// 如果需要阶段性的cache journal，启动它
 	if bc.cacheConfig.TrieCleanRejournal > 0 {
 		if bc.cacheConfig.TrieCleanRejournal < time.Minute {
 			log.Warn("Sanitizing invalid trie cache journal time", "provided", bc.cacheConfig.TrieCleanRejournal, "updated", time.Minute)
@@ -449,13 +456,16 @@ func (bc *BlockChain) empty() bool {
 // loadLastState从database加载最后一致的chain state
 func (bc *BlockChain) loadLastState() error {
 	// Restore the last known head block
+	// 恢复最后已知的head block
 	head := rawdb.ReadHeadBlockHash(bc.db)
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
+		// 被破坏或者是空的数据库，直接从头开始初始化
 		log.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
 	// Make sure the entire head block is available
+	// 确认整个head block存在
 	currentBlock := bc.GetBlockByHash(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
@@ -467,6 +477,7 @@ func (bc *BlockChain) loadLastState() error {
 	headBlockGauge.Update(int64(currentBlock.NumberU64()))
 
 	// Restore the last known head header
+	// 设置最后已知的head header
 	currentHeader := currentBlock.Header()
 	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
 		if header := bc.GetHeaderByHash(head); header != nil {
@@ -476,6 +487,7 @@ func (bc *BlockChain) loadLastState() error {
 	bc.hc.SetCurrentHeader(currentHeader)
 
 	// Restore the last known head fast block
+	// 恢复最后已知的head fast block
 	bc.currentFastBlock.Store(currentBlock)
 	headFastBlockGauge.Update(int64(currentBlock.NumberU64()))
 
@@ -487,6 +499,7 @@ func (bc *BlockChain) loadLastState() error {
 	}
 
 	// Restore the last known finalized block
+	// 存储最后已知的finalized blcok
 	if head := rawdb.ReadFinalizedBlockHash(bc.db); head != (common.Hash{}) {
 		if block := bc.GetBlockByHash(head); block != nil {
 			bc.currentFinalizedBlock.Store(block)
@@ -494,6 +507,7 @@ func (bc *BlockChain) loadLastState() error {
 		}
 	}
 	// Issue a status log for the user
+	// 为用户发出一个status log
 	currentFastBlock := bc.CurrentFastBlock()
 	currentFinalizedBlock := bc.CurrentFinalizedBlock()
 
@@ -943,6 +957,7 @@ const (
 
 // InsertReceiptChain attempts to complete an already existing header chain with
 // transaction and receipt data.
+// InsertReceiptChain试着用transaction和receipt data完成一个已经存在的header
 func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain []types.Receipts, ancientLimit uint64) (int, error) {
 	// We don't require the chainMu here since we want to maximize the
 	// concurrency of header insertion and receipt insertion.
@@ -978,6 +993,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 
 	// updateHead updates the head fast sync block if the inserted blocks are better
 	// and returns an indicator whether the inserted blocks are canonical.
+	// updateHead用于更新canonical header
 	updateHead := func(head *types.Block) bool {
 		if !bc.chainmu.TryLock() {
 			return false
@@ -985,7 +1001,9 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		defer bc.chainmu.Unlock()
 
 		// Rewind may have occurred, skip in that case.
+		// 可能会发生rewind，跳过这种情况
 		if bc.CurrentHeader().Number.Cmp(head.Number()) >= 0 {
+			// 需要进行reorg
 			reorg, err := bc.forker.ReorgNeeded(bc.CurrentFastBlock().Header(), head.Header())
 			if err != nil {
 				log.Warn("Reorg failed", "err", err)
@@ -993,6 +1011,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			} else if !reorg {
 				return false
 			}
+			// 写入head fast block
 			rawdb.WriteHeadFastBlockHash(bc.db, head.Hash())
 			bc.currentFastBlock.Store(head)
 			headFastBlockGauge.Update(int64(head.NumberU64()))
@@ -1002,14 +1021,17 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	}
 
 	// writeAncient writes blockchain and corresponding receipt chain into ancient store.
+	// writeAncient写入blockchain以及相应的receipt chain到ancient store
 	//
 	// this function only accepts canonical chain data. All side chain will be reverted
 	// eventually.
+	// 这个函数只接受canonical chain data，所有的side chain最后会被恢复
 	writeAncient := func(blockChain types.Blocks, receiptChain []types.Receipts) (int, error) {
 		first := blockChain[0]
 		last := blockChain[len(blockChain)-1]
 
 		// Ensure genesis is in ancients.
+		// 确保genesis在ancients中
 		if first.NumberU64() == 1 {
 			if frozen, _ := bc.db.Ancients(); frozen == 0 {
 				b := bc.genesisBlock
@@ -1040,6 +1062,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		}
 
 		// Write tx indices if any condition is satisfied:
+		// 写入tx indices，如果以下任何条件满足：
 		// * If user requires to reserve all tx indices(txlookuplimit=0)
 		// * If all ancient tx indices are required to be reserved(txlookuplimit is even higher than ancientlimit)
 		// * If block number is large enough to be regarded as a recent block
@@ -1073,6 +1096,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		}
 
 		// Sync the ancient store explicitly to ensure all data has been flushed to disk.
+		// 显式地同步ancient store来确保所有的数据都被刷如磁盘
 		if err := bc.db.Sync(); err != nil {
 			return 0, err
 		}
@@ -1088,6 +1112,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 		}
 
 		// Delete block data from the main database.
+		// 从main database中删除所有的block data
 		batch.Reset()
 		canonHashes := make(map[common.Hash]struct{})
 		for _, block := range blockChain {
@@ -1099,6 +1124,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			rawdb.DeleteBlockWithoutNumber(batch, block.Hash(), block.NumberU64())
 		}
 		// Delete side chain hash-to-number mappings.
+		// 删除side chain的hash到number的映射
 		for _, nh := range rawdb.ReadAllHashesInRange(bc.db, first.NumberU64(), last.NumberU64()) {
 			if _, canon := canonHashes[nh.Hash]; !canon {
 				rawdb.DeleteHeader(batch, nh.Hash, nh.Number)
@@ -1111,6 +1137,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	}
 
 	// writeLive writes blockchain and corresponding receipt chain into active store.
+	// writeLive写入blockchain以及相应的receipt chain到active store中
 	writeLive := func(blockChain types.Blocks, receiptChain []types.Receipts) (int, error) {
 		skipPresenceCheck := false
 		batch := bc.db.NewBatch()
@@ -1136,6 +1163,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 				}
 			}
 			// Write all the data out into the database
+			// 将所有数据写入到数据库中
 			rawdb.WriteBody(batch, block.Hash(), block.NumberU64(), block.Body())
 			rawdb.WriteReceipts(batch, block.Hash(), block.NumberU64(), receiptChain[i])
 			rawdb.WriteTxLookupEntriesByBlock(batch, block) // Always write tx indices for live blocks, we assume they are needed
@@ -1143,6 +1171,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 			// Write everything belongs to the blocks into the database. So that
 			// we can ensure all components of body is completed(body, receipts,
 			// tx indexes)
+			// 将所有属于blocks的东西写入数据库中，这样我们能确保body的所有组件有已经完成了
 			if batch.ValueSize() >= ethdb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
 					return 0, err
@@ -1205,6 +1234,7 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 	if stats.ignored > 0 {
 		context = append(context, []interface{}{"ignored", stats.ignored}...)
 	}
+	// 导入了新的block receipts
 	log.Info("Imported new block receipts", context...)
 
 	return 0, nil
@@ -1427,6 +1457,7 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 // 所有累计的事件都会触发
 func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	// Sanity check that we have something meaningful to import
+	// 完整性检查，保证我们有something meaningful进行导入
 	if len(chain) == 0 {
 		return 0, nil
 	}
@@ -2484,6 +2515,7 @@ Error: %v
 // should be done or not. The reason behind the optional check is because some
 // of the header retrieval mechanisms already need to verify nonces, as well as
 // because nonces can be verified sparsely, not needing to check each.
+// verify参数可以用于很好地调整是否应该进行nonce verification
 func (bc *BlockChain) InsertHeaderChain(chain []*types.Header, checkFreq int) (int, error) {
 	if len(chain) == 0 {
 		return 0, nil

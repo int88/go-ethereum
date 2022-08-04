@@ -199,12 +199,14 @@ func (ethash *Ethash) verifyHeaderWorker(chain consensus.ChainHeaderReader, head
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of the stock Ethereum ethash engine.
+// VerifyUncles确认给定的block的uncles遵循stock Ethereum ethash engine的共识规则
 func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
 	// If we're running a full engine faking, accept any input as valid
 	if ethash.config.PowMode == ModeFullFake {
 		return nil
 	}
 	// Verify that there are at most 2 uncles included in this block
+	// 确认至多有2个uncles包含在block中
 	if len(block.Uncles()) > maxUncles {
 		return errTooManyUncles
 	}
@@ -212,6 +214,7 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 		return nil
 	}
 	// Gather the set of past uncles and ancestors
+	// 收集一系列的past uncles以及ancestors
 	uncles, ancestors := mapset.NewSet(), make(map[common.Hash]*types.Header)
 
 	number, parent := block.NumberU64()-1, block.ParentHash()
@@ -238,8 +241,10 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 	uncles.Add(block.Hash())
 
 	// Verify each of the uncles that it's recent, but not an ancestor
+	// 确认每个uncles都是recent不是一个ancestor
 	for _, uncle := range block.Uncles() {
 		// Make sure every uncle is rewarded only once
+		// 确保每个uncle只被奖励一次
 		hash := uncle.Hash()
 		if uncles.Contains(hash) {
 			return errDuplicateUncle
@@ -247,10 +252,12 @@ func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 		uncles.Add(hash)
 
 		// Make sure the uncle has a valid ancestry
+		// 确保uncle有一个合法的祖先
 		if ancestors[hash] != nil {
 			return errUncleIsAncestor
 		}
 		if ancestors[uncle.ParentHash] == nil || uncle.ParentHash == block.ParentHash() {
+			// uncle的parent hash不在ancestors中，或者uncle的ParentHash和block的Parent Hash一致
 			return errDanglingUncle
 		}
 		if err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], true, true, time.Now().Unix()); err != nil {

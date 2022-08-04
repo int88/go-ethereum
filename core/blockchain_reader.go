@@ -57,6 +57,7 @@ func (bc *BlockChain) CurrentFastBlock() *types.Block {
 
 // CurrentFinalizedBlock retrieves the current finalized block of the canonical
 // chain. The block is retrieved from the blockchain's internal cache.
+// block获取自block的internal cache
 func (bc *BlockChain) CurrentFinalizedBlock() *types.Block {
 	return bc.currentFinalizedBlock.Load().(*types.Block)
 }

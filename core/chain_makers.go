@@ -167,6 +167,7 @@ func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 }
 
 // AddUncle adds an uncle header to the generated block.
+// AddUncle添加一个uncle header到生成的block中
 func (b *BlockGen) AddUncle(h *types.Header) {
 	// The uncle will have the same timestamp and auto-generated difficulty
 	// uncle有着同样的时间戳和自动生成的difficulty
@@ -198,6 +199,8 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 // PrevBlock returns a previously generated block by number. It panics if
 // num is greater or equal to the number of the block being generated.
 // For index -1, PrevBlock returns the parent block given to GenerateChain.
+// PrevBlock通过number返回一个之前生成的block，它会panic如果number大于等于已经生成的block的number
+// 对于index为-1，PrevBlock返回给定GenerateChain的parent block
 func (b *BlockGen) PrevBlock(index int) *types.Block {
 	if index >= b.i {
 		panic(fmt.Errorf("block index %d out of range (%d,%d)", index, -1, b.i))

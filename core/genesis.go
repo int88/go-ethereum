@@ -425,11 +425,16 @@ func (g *Genesis) Commit(db ethdb.Database) (*types.Block, error) {
 	}
 	// 写入TD, BLock,Receipts等等
 	rawdb.WriteTd(db, block.Hash(), block.NumberU64(), block.Difficulty())
+	// 写入block
 	rawdb.WriteBlock(db, block)
 	rawdb.WriteReceipts(db, block.Hash(), block.NumberU64(), nil)
+	// 写入canonical hash
 	rawdb.WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+	// 写入head block的哈希值
 	rawdb.WriteHeadBlockHash(db, block.Hash())
+	// 写入head fast block的哈希值
 	rawdb.WriteHeadFastBlockHash(db, block.Hash())
+	// 写入当前的canonical head header的哈希值
 	rawdb.WriteHeadHeaderHash(db, block.Hash())
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 	return block, nil
