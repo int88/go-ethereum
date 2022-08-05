@@ -28,6 +28,7 @@ import (
 // download-progress and delivering (finished) results.
 // resultStore实现了一个结构用于维护fetchResults，追踪download-progress以及delivering results
 type resultStore struct {
+	// 下载但是没有传递的fetch results
 	items        []*fetchResult // Downloaded but not yet delivered fetch results
 	resultOffset uint64         // Offset of the first cached fetch result in the block chain
 
@@ -185,6 +186,7 @@ func (r *resultStore) GetCompleted(limit int) []*fetchResult {
 }
 
 // Prepare initialises the offset with the given block number
+// Prepare初始化offset，用给定的block number
 func (r *resultStore) Prepare(offset uint64) {
 	r.lock.Lock()
 	defer r.lock.Unlock()

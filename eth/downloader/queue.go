@@ -295,6 +295,7 @@ func (q *queue) RetrieveHeaders() ([]*types.Header, []common.Hash, int) {
 
 // Schedule adds a set of headers for the download queue for scheduling, returning
 // the new headers encountered.
+// Schedule添加一系列的headers用于download queue的调度，返回遇到的新的headers
 func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uint64) []*types.Header {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -900,6 +901,7 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 
 // Prepare configures the result cache to allow accepting and caching inbound
 // fetch results.
+// Prepare配置result cache来允许接收并且缓存inbound fetch results
 func (q *queue) Prepare(offset uint64, mode SyncMode) {
 	q.lock.Lock()
 	defer q.lock.Unlock()

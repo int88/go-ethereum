@@ -282,6 +282,7 @@ func (ps *peerSet) Unregister(id string) error {
 }
 
 // Peer retrieves the registered peer with the given id.
+// Peer用给定的id获取注册的peer
 func (ps *peerSet) Peer(id string) *peerConnection {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()

@@ -153,10 +153,15 @@ type snapshot interface {
 // diff layers are topped. The memory diffs can form a tree with branching, but
 // the disk layer is singleton and common to all. If a reorg goes deeper than the
 // disk layer, everything needs to be deleted.
+// Tree是一个Ethereum state snapshot tree，它由一个persistent base layer组成，背后是一个key-value store
+// 在它之上是任意的in-memory diff layers，memory diffs可以构成一个有着branching的tree
+// 但是disk layer是单例并且对所有都是一样的，如果一个reorg比disk layer更深，所有都需要被删除
 //
 // The goal of a state snapshot is twofold: to allow direct access to account and
 // storage data to avoid expensive multi-level trie lookups; and to allow sorted,
 // cheap iteration of the account/storage tries for sync aid.
+// state snapshot的目标是双重的：允许对于account以及storage data的直接读取，来避免昂贵的
+// multi-level trie查找，并且运行排序的，廉价的对于account/storage tries的遍历，对于sync aid
 type Tree struct {
 	diskdb ethdb.KeyValueStore      // Persistent database to store the snapshot
 	triedb *trie.Database           // In-memory cache to access the trie through

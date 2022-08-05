@@ -26,6 +26,7 @@ import (
 
 // receiptQueue implements typedQueue and is a type adapter between the generic
 // concurrent fetcher and the downloader.
+// receiptQueue实现了typedQueeu并且是generic concurrent fetcher和downloader之间的type adapter
 type receiptQueue Downloader
 
 // waker returns a notification channel that gets pinged in case more reecipt

@@ -79,9 +79,10 @@ type typedQueue interface {
 // peers, reserving a chunk of fetch requests for each and waiting for delivery
 // or timeouts.
 // concurrentFetch迭代的下载调度的block parts，按照可用的peers，为每个保留一系列的fetch requests
-// 等待被传送或者超时
+// 等待被传送或者超时，这个函数不仅下载blocks，还下载receipts等等
 func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 	// Create a delivery channel to accept responses from all peers
+	// 创建一个delivery channel，用来从所有peers接收responses
 	responses := make(chan *eth.Response)
 
 	// Track the currently active requests and their timeout order
@@ -183,6 +184,8 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 				// Reserve a chunk of fetches for a peer. A nil can mean either that
 				// no more headers are available, or that the peer is known not to
 				// have them.
+				// 为一个Peer保留chunk of fetches，一个nil意味着没有更多的headers可用
+				// 或者那个peer已知没有这些header
 				request, progress, throttle := queue.reserve(peer, queue.capacity(peer, d.peers.rates.TargetRoundTrip()))
 				if progress {
 					progressed = true

@@ -39,7 +39,7 @@ import (
 
 var (
 	// 每个retrieval request请求的blocks的数目
-	MaxBlockFetch   = 128 // Amount of blocks to be fetched per retrieval request
+	MaxBlockFetch = 128 // Amount of blocks to be fetched per retrieval request
 	// 每个rerieval request请求的block headers的数目
 	MaxHeaderFetch  = 192 // Amount of block headers to be fetched per retrieval request
 	MaxSkeletonSize = 128 // Number of header fetches to need for a skeleton assembly
@@ -99,6 +99,7 @@ type Downloader struct {
 	mode uint32         // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode // strategy定义的Synchronisation mode，使用d.getMode()来获取SyncMode
 	mux  *event.TypeMux // Event multiplexer to announce sync operation events  // 事件的multiplexer用于宣布同步操作的时间
 
+	// 用于对比head的Checkpoint block number
 	checkpoint uint64   // Checkpoint block number to enforce head against (e.g. snap sync)
 	genesis    uint64   // Genesis block number to limit sync to (e.g. light client CHT)
 	queue      *queue   // Scheduler for selecting the hashes to download // 调度器用于选择下载的hash
@@ -132,14 +133,17 @@ type Downloader struct {
 	skeleton *skeleton // Header skeleton to backfill the chain with (eth2 mode)
 
 	// State sync
+	// Pivot block header用来动态推送同步的state root
 	pivotHeader *types.Header // Pivot block header to dynamically push the syncing state root
 	pivotLock   sync.RWMutex  // Lock protecting pivot header reads from updates
 
+	// 是否在snap protocol之上运行state sync
 	snapSync       bool         // Whether to run state sync over the snap protocol
 	SnapSyncer     *snap.Syncer // TODO(karalabe): make private! hack for now
 	stateSyncStart chan *stateSync
 
 	// Cancellation and termination
+	// 当前作为master使用的peer的标识符
 	cancelPeer string         // Identifier of the peer currently being used as the master (cancel on drop)
 	cancelCh   chan struct{}  // Channel to cancel mid-flight syncs
 	cancelLock sync.RWMutex   // Lock to protect the cancel channel and peer in delivers
@@ -186,6 +190,7 @@ type BlockChain interface {
 	HasBlock(common.Hash, uint64) bool
 
 	// HasFastBlock verifies a snap block's presence in the local chain.
+	// HasFastBlock确认一个snap block是否在local chain存在
 	HasFastBlock(common.Hash, uint64) bool
 
 	// GetBlockByHash retrieves a block from the local chain.
@@ -199,15 +204,18 @@ type BlockChain interface {
 	CurrentFastBlock() *types.Block
 
 	// SnapSyncCommitHead directly commits the head block to a certain entity.
+	// SnapSyncCommitHead直接提交head block到一个certain entity
 	SnapSyncCommitHead(common.Hash) error
 
 	// InsertChain inserts a batch of blocks into the local chain.
 	InsertChain(types.Blocks) (int, error)
 
 	// InsertReceiptChain inserts a batch of receipts into the local chain.
+	// InsertReceiptChain插入一系列的receipts到local chain
 	InsertReceiptChain(types.Blocks, []types.Receipts, uint64) (int, error)
 
 	// Snapshots returns the blockchain snapshot tree to paused it during sync.
+	// Snapshots返回block chain snapshot tree用于在同步时候停止
 	Snapshots() *snapshot.Tree
 }
 
@@ -375,6 +383,9 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 	// cancelled, the syncer needs to know if we reached the startup point (and
 	// inited the cancel cannel) or not yet. Make sure that we'll signal even in
 	// case of a failure.
+	// beacon header sync是异步的，它会启动这个synchronization并且会接着做其他的tasks
+	// 然后如果synchoronization需要被取消，syncer需要知道是否我们到达了startup point
+	// (并且初始化cancel channel)，确保我们通知，即使在失败的情况下
 	if beaconPing != nil {
 		defer func() {
 			select {
@@ -448,7 +459,7 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		if p == nil {
 			return errUnknownPeer
 		}
-	}1
+	}
 	if beaconPing != nil {
 		close(beaconPing)
 	}
@@ -534,6 +545,9 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	// threshold (i.e. new chain). In that case we won't really snap sync
 	// anyway, but still need a valid pivot block to avoid some code hitting
 	// nil panics on access.
+	// 如果没有返回pivot block，head在min full block threshold（例如，新的chain）之下
+	// 这种情况下，我们不会真正进行snap sync，但是依然需要一个合法的pivot block，来避免
+	// 代码会在访问时出现nil panic
 	if mode == SnapSync && pivot == nil {
 		pivot = d.blockchain.CurrentBlock().Header()
 	}
@@ -544,6 +558,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	if !beaconMode {
 		// In legacy mode, reach out to the network and find the ancestor
 		// 对于legacy mode，获取ancestor
+		// 找到local chain和remote chain的一个公共的祖先
 		origin, err = d.findAncestor(p, latest)
 		if err != nil {
 			return err
@@ -633,7 +648,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		headerFetcher = func() error { return d.fetchHeaders(p, origin+1, latest.Number.Uint64()) }
 	} else {
 		// In beacon mode, headers are served by the skeleton syncer
-		// 在beacon mode，headers来自skeleton syncer
+		// 在beacon mode，headers来自skeleton syncer，beacon headers和正常的header不同
 		headerFetcher = func() error { return d.fetchBeaconHeaders(origin + 1) }
 	}
 	fetchers := []func() error{
@@ -746,6 +761,7 @@ func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *ty
 	latest, _ := p.peer.Head()
 	fetch := 1
 	if mode == SnapSync {
+		// 对于snap sync，获取head和pivot
 		fetch = 2 // head + pivot headers
 	}
 	headers, hashes, err := d.fetchHeadersByHash(p, latest, fetch, fsMinFullBlocks-1, true)
@@ -854,6 +870,7 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 	mode := d.getMode()
 	switch mode {
 	case FullSync:
+		// 获取当前的height
 		localHeight = d.blockchain.CurrentBlock().NumberU64()
 	case SnapSync:
 		localHeight = d.blockchain.CurrentFastBlock().NumberU64()
@@ -1053,6 +1070,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 	defer p.log.Debug("Header download terminated")
 
 	// Start pulling the header chain skeleton until all is done
+	// 开始拉取header chain skeleton，直到所有都结束
 	var (
 		skeleton = true  // Skeleton assembly phase or finishing up
 		pivoting = false // Whether the next request is pivot verification
@@ -1080,6 +1098,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 
 		case skeleton:
 			p.log.Trace("Fetching skeleton headers", "count", MaxHeaderFetch, "from", from)
+			// 获取skeleton header
 			headers, hashes, err = d.fetchHeadersByNumber(p, from+uint64(MaxHeaderFetch)-1, MaxSkeletonSize, MaxHeaderFetch-1, false)
 
 		default:
@@ -1089,6 +1108,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		switch err {
 		case nil:
 			// Headers retrieved, continue with processing
+			// 获取到了headers，继续进行处理
 
 		case errCanceled:
 			// Sync cancelled, no issue, propagate up
@@ -1163,6 +1183,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		// If no more headers are inbound, notify the content fetchers and return
 		if len(headers) == 0 {
 			// Don't abort header fetches while the pivot is downloading
+			// 停止退出header fetches，当pivot仍然在下载
 			if atomic.LoadInt32(&d.committed) == 0 && pivot <= from {
 				p.log.Debug("No headers, waiting for pivot commit")
 				select {
@@ -1375,6 +1396,8 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				// If we're in legacy sync mode, we need to check total difficulty
 				// violations from malicious peers. That is not needed in beacon
 				// mode and we can skip to terminating sync.
+				// 如果我们处于legacy sync mode，我们需要检查td violations，来自malicious peers
+				// 这在beacon mode不需要，并且我们可以跳过terminating sync
 				if !beaconMode {
 					// If no headers were retrieved at all, the peer violated its TD promise that it had a
 					// better chain compared to ours. The only exception is if its promised blocks were
@@ -1435,6 +1458,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				chunkHashes := hashes[:limit]
 
 				// In case of header only syncing, validate the chunk immediately
+				// 对于header only syncing，立即检查chunk
 				if mode == SnapSync || mode == LightSync {
 					// If we're importing pure headers, verify based on their recentness
 					var pivot uint64
@@ -1554,6 +1578,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 }
 
 // processFullSyncContent takes fetch results from the queue and imports them into the chain.
+// processFullSyncContent从队列中获取results并且将他们导入chain
 func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error {
 	for {
 		results := d.queue.Results(true)
@@ -1566,6 +1591,8 @@ func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error
 		// Although the received blocks might be all valid, a legacy PoW/PoA sync
 		// must not accept post-merge blocks. Make sure that pre-merge blocks are
 		// imported, but post-merge ones are rejected.
+		// 尽管接收的blocks可能都是合法的，一个legacy PoW/PoA的同步，必须不接收post-merge blocks
+		// 确保pre-merge blocks被导入，但是post-merge的blocks被拒绝
 		var (
 			rejected []*fetchResult
 			td       *big.Int
@@ -1615,6 +1642,7 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	default:
 	}
 	// Retrieve the a batch of results to import
+	// 获取一系列的results来导入
 	first, last := results[0].Header, results[len(results)-1].Header
 	log.Debug("Inserting downloaded chain", "items", len(results),
 		"firstnum", first.Number, "firsthash", first.Hash(),
@@ -1627,6 +1655,8 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	// Downloaded blocks are always regarded as trusted after the
 	// transition. Because the downloaded chain is guided by the
 	// consensus-layer.
+	// 下载的blocks总是被认为是可信的，在transition之后，因为下载的chain由共识层
+	// 指导
 	if index, err := d.blockchain.InsertChain(blocks); err != nil {
 		if index < len(results) {
 			log.Debug("Downloaded item processing failed", "number", results[index].Header.Number, "hash", results[index].Header.Hash(), "err", err)

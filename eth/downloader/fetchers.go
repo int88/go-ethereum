@@ -60,6 +60,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 
 		return nil, nil, errTimeout
 
+	// 同步获取header
 	case res := <-resCh:
 		// Headers successfully retrieved, update the metrics
 		// 成功获取了headers，更新metric
