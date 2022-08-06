@@ -51,9 +51,13 @@ var (
 )
 
 // fetchRequest is a currently running data retrieval operation.
+// fetchRequest是当前正在运行的data retrieval操作
 type fetchRequest struct {
-	Peer    *peerConnection // Peer to which the request was sent
-	From    uint64          // Requested chain element index (used for skeleton fills only)
+	// 发送请求的Peer
+	Peer *peerConnection // Peer to which the request was sent
+	// 请求的chain element的索引
+	From uint64 // Requested chain element index (used for skeleton fills only)
+	// 请求的headers，按照request order排序
 	Headers []*types.Header // Requested headers, sorted by request order
 	Time    time.Time       // Time when the request was made
 }
@@ -130,15 +134,18 @@ type queue struct {
 
 	// All data retrievals below are based on an already assembles header chain
 	// 所有下面获取的data，都是基于已经组装的header chain
-	blockTaskPool  map[common.Hash]*types.Header // Pending block (body) retrieval tasks, mapping hashes to headers
-	blockTaskQueue *prque.Prque                  // Priority queue of the headers to fetch the blocks (bodies) for
-	blockPendPool  map[string]*fetchRequest      // Currently pending block (body) retrieval operations
-	blockWakeCh    chan bool                     // Channel to notify the block fetcher of new tasks	// 用于通知block fetcher有新的tasks的channel
+	blockTaskPool map[common.Hash]*types.Header // Pending block (body) retrieval tasks, mapping hashes to headers
+	// header的优先队列用于获取blocks bodies
+	blockTaskQueue *prque.Prque             // Priority queue of the headers to fetch the blocks (bodies) for
+	blockPendPool  map[string]*fetchRequest // Currently pending block (body) retrieval operations
+	blockWakeCh    chan bool                // Channel to notify the block fetcher of new tasks	// 用于通知block fetcher有新的tasks的channel
 
-	receiptTaskPool  map[common.Hash]*types.Header // Pending receipt retrieval tasks, mapping hashes to headers
-	receiptTaskQueue *prque.Prque                  // Priority queue of the headers to fetch the receipts for
-	receiptPendPool  map[string]*fetchRequest      // Currently pending receipt retrieval operations
-	receiptWakeCh    chan bool                     // Channel to notify when receipt fetcher of new tasks	// 用于通知receipt fetcher有新的tasks的channel
+	// Pending receipt的retrieval tasks，映射哈希到headers
+	receiptTaskPool map[common.Hash]*types.Header // Pending receipt retrieval tasks, mapping hashes to headers
+	// headers的Priority queue用于获取receipts
+	receiptTaskQueue *prque.Prque             // Priority queue of the headers to fetch the receipts for
+	receiptPendPool  map[string]*fetchRequest // Currently pending receipt retrieval operations
+	receiptWakeCh    chan bool                // Channel to notify when receipt fetcher of new tasks	// 用于通知receipt fetcher有新的tasks的channel
 
 	// 已经下载但是没有分发的fetch results
 	resultCache *resultStore       // Downloaded but not yet delivered fetch results
@@ -169,6 +176,7 @@ func newQueue(blockCacheLimit int, thresholdInitialSize int) *queue {
 }
 
 // Reset clears out the queue contents.
+// Reset清除队列的内容
 func (q *queue) Reset(blockCacheLimit int, thresholdInitialSize int) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -209,6 +217,7 @@ func (q *queue) PendingHeaders() int {
 }
 
 // PendingBodies retrieves the number of block body requests pending for retrieval.
+// PendingBodies获取等待获取的block body requests的数目
 func (q *queue) PendingBodies() int {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -301,9 +310,11 @@ func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uin
 	defer q.lock.Unlock()
 
 	// Insert all the headers prioritised by the contained block number
+	// 插入所有的headers，根据包含的block number排优先级
 	inserts := make([]*types.Header, 0, len(headers))
 	for i, header := range headers {
 		// Make sure chain order is honoured and preserved throughout
+		// 确保考虑chain order并且保留
 		hash := hashes[i]
 		if header.Number == nil || header.Number.Uint64() != from {
 			log.Warn("Header broke chain ordering", "number", header.Number, "hash", hash, "expected", from)
@@ -314,15 +325,20 @@ func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uin
 			break
 		}
 		// Make sure no duplicate requests are executed
+		// 确保没有重复的requests被执行
 		// We cannot skip this, even if the block is empty, since this is
 		// what triggers the fetchResult creation.
+		// 我们不能跳过它，即使block为空，因为是他触发了fetchResult creation
 		if _, ok := q.blockTaskPool[hash]; ok {
+			// Header已经被调度用于block fetch
 			log.Warn("Header already scheduled for block fetch", "number", header.Number, "hash", hash)
 		} else {
 			q.blockTaskPool[hash] = header
+			// 插入blockTaskQueue
 			q.blockTaskQueue.Push(header, -int64(header.Number.Uint64()))
 		}
 		// Queue for receipt retrieval
+		// 队列用于receipt retreival
 		if q.mode == SnapSync && !header.EmptyReceipts() {
 			if _, ok := q.receiptTaskPool[hash]; ok {
 				log.Warn("Header already scheduled for receipt fetch", "number", header.Number, "hash", hash)
@@ -340,8 +356,11 @@ func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uin
 
 // Results retrieves and permanently removes a batch of fetch results from
 // the cache. the result slice will be empty if the queue has been closed.
+// Results获取并且永远从cache中移除一系列的fetch results，如果queue被关闭的话
+// result slice会为空
 // Results can be called concurrently with Deliver and Schedule,
 // but assumes that there are not two simultaneous callers to Results
+// Results可以和Deliver以及Schedule并行调用，但是假设不会同时调用Results
 func (q *queue) Results(block bool) []*fetchResult {
 	// Abort early if there are no items and non-blocking requested
 	if !block && !q.resultCache.HasCompletedItems() {
@@ -463,6 +482,8 @@ func (q *queue) ReserveHeaders(p *peerConnection, count int) *fetchRequest {
 // ReserveBodies reserves a set of body fetches for the given peer, skipping any
 // previously failed downloads. Beside the next batch of needed fetches, it also
 // returns a flag whether empty blocks were queued requiring processing.
+// ReserveBodies为给定的peer保留一系列的body fetches，跳过任何之前失败的下载，除了下一批needed fetches
+// 它也会返回一个flag，表示empty blocks是否排队需要处理
 func (q *queue) ReserveBodies(p *peerConnection, count int) (*fetchRequest, bool, bool) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -483,6 +504,7 @@ func (q *queue) ReserveReceipts(p *peerConnection, count int) (*fetchRequest, bo
 // reserveHeaders reserves a set of data download operations for a given peer,
 // skipping any previously failed ones. This method is a generic version used
 // by the individual special reservation functions.
+// reserveHeaders为一个给定的peer保留一系列的data download操作，跳过任何之前已经失败的
 //
 // Note, this method expects the queue lock to be already held for writing. The
 // reason the lock is not obtained in here is because the parameters already need
@@ -503,6 +525,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		return nil, false, false
 	}
 	// Retrieve a batch of tasks, skipping previously failed ones
+	// 获取一系列tasks，跳过之前失败的那些
 	send := make([]*types.Header, 0, count)
 	skip := make([]*types.Header, 0)
 	progress := false
@@ -519,6 +542,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		if stale {
 			// Don't put back in the task queue, this item has already been
 			// delivered upstream
+			// 不要重新放回task queue，这个item已经被传送到upstream
 			taskQueue.PopItem()
 			progress = true
 			delete(taskPool, header.Hash())
@@ -662,10 +686,14 @@ func (q *queue) expire(peer string, pendPool map[string]*fetchRequest, taskQueue
 // DeliverHeaders injects a header retrieval response into the header results
 // cache. This method either accepts all headers it received, or none of them
 // if they do not map correctly to the skeleton.
+// DeliverHeaders注入一个header retrieval response到header results cache，这个方法要么
+// 接收所有它接收的headers，或者一个都不接收，如果它们不匹配skeleton
 //
 // If the headers are accepted, the method makes an attempt to deliver the set
 // of ready headers to the processor to keep the pipeline full. However, it will
 // not block to prevent stalling other pending deliveries.
+// 如果headers被接受，这个方法试着传输一系列的ready headers到processor来保持pipeline满载
+// 然而，它不会阻塞来防止延迟其他的pending deliveries
 func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []common.Hash, headerProcCh chan *headerTask) (int, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -678,6 +706,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 		logger = log.New("peer", id[:16])
 	}
 	// Short circuit if the data was never requested
+	// 直接短路，如果数据从未被请求
 	request := q.headerPendPool[id]
 	if request == nil {
 		headerDropMeter.Mark(int64(len(headers)))
@@ -753,6 +782,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 		copy(processHashes, q.headerHashes[q.headerProced:q.headerProced+ready])
 
 		select {
+		// 发送header task到headerProcCh
 		case headerProcCh <- &headerTask{
 			headers: processHeaders,
 			hashes:  processHashes,

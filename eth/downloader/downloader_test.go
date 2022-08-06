@@ -205,6 +205,7 @@ func (dlp *downloadTesterPeer) RequestHeadersByHash(origin common.Hash, amount i
 	for hash := range dlp.withholdHeaders {
 		for i, header := range headers {
 			if header.Hash() == hash {
+				// 将预扣的headers剔除
 				headers = append(headers[:i], headers[i+1:]...)
 				break
 			}
@@ -220,8 +221,9 @@ func (dlp *downloadTesterPeer) RequestHeadersByHash(origin common.Hash, amount i
 		Peer: dlp.id,
 	}
 	res := &eth.Response{
-		Req:  req,
-		Res:  (*eth.BlockHeadersPacket)(&headers),
+		Req: req,
+		Res: (*eth.BlockHeadersPacket)(&headers),
+		// 返回除了暂扣的headers以外的其他headers
 		Meta: hashes,
 		Time: 1,
 		Done: make(chan error, 1), // Ignore the returned status
@@ -782,10 +784,12 @@ func testEmptyShortCircuit(t *testing.T, protocol uint, mode SyncMode) {
 	defer tester.terminate()
 
 	// Create a block chain to download
+	// 创建一个block chain用于下载
 	chain := testChainBase
 	tester.newPeer("peer", protocol, chain.blocks[1:])
 
 	// Instrument the downloader to signal body requests
+	// 检测downloader以发出正确的body requets信号
 	bodiesHave, receiptsHave := int32(0), int32(0)
 	tester.downloader.bodyFetchHook = func(headers []*types.Header) {
 		atomic.AddInt32(&bodiesHave, int32(len(headers)))
@@ -794,12 +798,14 @@ func testEmptyShortCircuit(t *testing.T, protocol uint, mode SyncMode) {
 		atomic.AddInt32(&receiptsHave, int32(len(headers)))
 	}
 	// Synchronise with the peer and make sure all blocks were retrieved
+	// 和peer进行同步并且确保所有blocks都被获取了
 	if err := tester.sync("peer", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
 	assertOwnChain(t, tester, len(chain.blocks))
 
 	// Validate the number of block bodies that should have been requested
+	// 确认应该请求的block bodies的数目
 	bodiesNeeded, receiptsNeeded := 0, 0
 	for _, block := range chain.blocks[1:] {
 		if mode != LightSync && (len(block.Transactions()) > 0 || len(block.Uncles()) > 0) {
@@ -833,13 +839,13 @@ func testMissingHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 	chain := testChainBase.shorten(blockCacheMaxItems - 15)
 
 	attacker := tester.newPeer("attack", protocol, chain.blocks[1:])
+	// 将第len(chain.blocks)/2 - 1个block设置为withhold header
 	attacker.withholdHeaders[chain.blocks[len(chain.blocks)/2-1].Hash()] = struct{}{}
 
 	if err := tester.sync("attack", nil, mode); err == nil {
 		t.Fatalf("succeeded attacker synchronisation")
-	} else {
-		t.Fatalf("error is: %v", err)
 	}
+
 	// Synchronise with the valid peer and make sure sync succeeds
 	// 和合法的peer进行同步并且确保sync成功，第一个参数是peer的id
 	tester.newPeer("valid", protocol, chain.blocks[1:])
@@ -889,11 +895,13 @@ func testInvalidHeaderRollback(t *testing.T, protocol uint, mode SyncMode) {
 	defer tester.terminate()
 
 	// Create a small enough block chain to download
+	// 3 * 2048 + 256 + 64
 	targetBlocks := 3*fsHeaderSafetyNet + 256 + fsMinFullBlocks
 	chain := testChainBase.shorten(targetBlocks)
 
 	// Attempt to sync with an attacker that feeds junk during the fast sync phase.
 	// This should result in the last fsHeaderSafetyNet headers being rolled back.
+	// 2048 + 192 + 1
 	missing := fsHeaderSafetyNet + MaxHeaderFetch + 1
 
 	fastAttacker := tester.newPeer("fast-attack", protocol, chain.blocks[1:])

@@ -43,6 +43,8 @@ var (
 // the returned hash chain is ordered head->parent. In addition, every 3rd block
 // contains a transaction and every 5th an uncle to allow testing correct block
 // reassembly.
+// makeChain创建一个n个blocks的chain，从parent开始并且包含它，返回的hash chain的顺序是head->parent
+// 另外，每3个block包含一个transaction并且每5个一个uncle来允许测试正确的block reassembly
 func makeChain(n int, seed byte, parent *types.Block, empty bool) ([]*types.Block, []types.Receipts) {
 	blocks, receipts := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testdb, n, func(i int, block *core.BlockGen) {
 		block.SetCoinbase(common.Address{seed})
@@ -69,10 +71,12 @@ var emptyChain *chainData
 
 func init() {
 	// Create a chain of blocks to import
+	// 创建一个chain of blocks用于导入
 	targetBlocks := 128
 	blocks, _ := makeChain(targetBlocks, 0, genesis, false)
 	chain = &chainData{blocks, 0}
 
+	// 构建empty block chain
 	blocks, _ = makeChain(targetBlocks, 0, genesis, true)
 	emptyChain = &chainData{blocks, 0}
 }
@@ -101,16 +105,20 @@ func TestBasics(t *testing.T) {
 	numOfBlocks := len(emptyChain.blocks)
 	numOfReceipts := len(emptyChain.blocks) / 2
 
+	// 构建一个新的queue
 	q := newQueue(10, 10)
 	if !q.Idle() {
 		t.Errorf("new queue should be idle")
 	}
+	// 进行Prepare
 	q.Prepare(1, SnapSync)
+	// 获取Results
 	if res := q.Results(false); len(res) != 0 {
 		t.Fatal("new queue should have 0 results")
 	}
 
 	// Schedule a batch of headers
+	// 调度一系列的headers
 	headers := chain.headers()
 	hashes := make([]common.Hash, len(headers))
 	for i, header := range headers {
@@ -120,15 +128,18 @@ func TestBasics(t *testing.T) {
 	if q.Idle() {
 		t.Errorf("queue should not be idle")
 	}
+	// 获取一系列的pending bodies和pending receipts
 	if got, exp := q.PendingBodies(), chain.Len(); got != exp {
 		t.Errorf("wrong pending block count, got %d, exp %d", got, exp)
 	}
 	// Only non-empty receipts get added to task-queue
+	// 只有非空的receipts才会被加入到task-queue
 	if got, exp := q.PendingReceipts(), 64; got != exp {
 		t.Errorf("wrong pending receipt count, got %d, exp %d", got, exp)
 	}
 	// Items are now queued for downloading, next step is that we tell the
 	// queue that a certain peer will deliver them for us
+	// Items现在排队用于下载，下一步是我们告诉queue，有一个特定的peer会为我们传送它们
 	{
 		peer := dummyPeer("peer-1")
 		fetchReq, _, throttle := q.ReserveBodies(peer, 50)
@@ -155,10 +166,12 @@ func TestBasics(t *testing.T) {
 		fetchReq, _, throttle := q.ReserveBodies(peer, 50)
 
 		// The second peer should hit throttling
+		// 第二个peer应该触发限流
 		if !throttle {
 			t.Fatalf("should not throttle")
 		}
 		// And not get any fetches at all, since it was throttled to begin with
+		// 不应获取任何的fetches，因为它开始就被限流了
 		if fetchReq != nil {
 			t.Fatalf("should have no fetches, got %d", len(fetchReq.Headers))
 		}
@@ -172,6 +185,7 @@ func TestBasics(t *testing.T) {
 	{
 		// The receipt delivering peer should not be affected
 		// by the throttling of body deliveries
+		// receipt delivering peer应该不被body deliveries的限流影响
 		peer := dummyPeer("peer-3")
 		fetchReq, _, throttle := q.ReserveReceipts(peer, 50)
 		if !throttle {
@@ -206,6 +220,7 @@ func TestEmptyBlocks(t *testing.T) {
 	q.Prepare(1, SnapSync)
 
 	// Schedule a batch of headers
+	// 调度一批headers
 	headers := emptyChain.headers()
 	hashes := make([]common.Hash, len(headers))
 	for i, header := range headers {
@@ -223,6 +238,7 @@ func TestEmptyBlocks(t *testing.T) {
 	}
 	// They won't be processable, because the fetchresults haven't been
 	// created yet
+	// 他们不能被处理，因为fetchresult还没被创建
 	if got, exp := q.resultCache.countCompleted(), 0; got != exp {
 		t.Errorf("wrong processable count, got %d, exp %d", got, exp)
 	}
@@ -230,12 +246,15 @@ func TestEmptyBlocks(t *testing.T) {
 	// Items are now queued for downloading, next step is that we tell the
 	// queue that a certain peer will deliver them for us
 	// That should trigger all of them to suddenly become 'done'
+	// Items都排队等着下载，下一步是我们告诉queue，一个特定的peer会为我们传送他们
+	// 这应该触发他们所有都立刻变为'done'
 	{
 		// Reserve blocks
 		peer := dummyPeer("peer-1")
 		fetchReq, _, _ := q.ReserveBodies(peer, 50)
 
 		// there should be nothing to fetch, blocks are empty
+		// 没有东西需要fetch
 		if fetchReq != nil {
 			t.Fatal("there should be no body fetch tasks remaining")
 		}

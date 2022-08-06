@@ -45,7 +45,8 @@ var (
 	MaxSkeletonSize = 128 // Number of header fetches to need for a skeleton assembly
 	MaxReceiptFetch = 256 // Amount of transaction receipts to allow fetching per request
 
-	maxQueuedHeaders            = 32 * 1024                         // [eth/62] Maximum number of headers to queue for import (DOS protection)
+	maxQueuedHeaders = 32 * 1024 // [eth/62] Maximum number of headers to queue for import (DOS protection)
+	// header download results的数目，一次导入chain
 	maxHeadersProcess           = 2048                              // Number of header download results to import at once into the chain
 	maxResultsProcess           = 2048                              // Number of content download results to import at once into the chain
 	fullMaxForkAncestry  uint64 = params.FullImmutabilityThreshold  // Maximum chain reorganisation (locally redeclared so tests can reduce it)
@@ -54,11 +55,12 @@ var (
 	reorgProtThreshold   = 48 // Threshold number of recent blocks to disable mini reorg protection
 	reorgProtHeaderDelay = 2  // Number of headers to delay delivering to cover mini reorgs
 
-	fsHeaderCheckFrequency = 100             // Verification frequency of the downloaded headers during snap sync
-	fsHeaderSafetyNet      = 2048            // Number of headers to discard in case a chain violation is detected
-	fsHeaderForceVerify    = 24              // Number of headers to verify before and after the pivot to accept it
-	fsHeaderContCheck      = 3 * time.Second // Time interval to check for header continuations during state download
-	fsMinFullBlocks        = 64              // Number of blocks to retrieve fully even in snap sync // 用于完全获取的blocks的数目，即使在snap sync中
+	fsHeaderCheckFrequency = 100 // Verification frequency of the downloaded headers during snap sync
+	// 当chain violation被检测到时丢弃的headers的数目
+	fsHeaderSafetyNet   = 2048            // Number of headers to discard in case a chain violation is detected
+	fsHeaderForceVerify = 24              // Number of headers to verify before and after the pivot to accept it
+	fsHeaderContCheck   = 3 * time.Second // Time interval to check for header continuations during state download
+	fsMinFullBlocks     = 64              // Number of blocks to retrieve fully even in snap sync // 用于完全获取的blocks的数目，即使在snap sync中
 )
 
 var (
@@ -1383,6 +1385,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 			return errCanceled
 
 		case task := <-d.headerProcCh:
+			// 从队列里拿出一系列的header
 			// Terminate header processing if we synced up
 			// 如果我们已经同步了，终止header processing
 			if task == nil || len(task.headers) == 0 {
@@ -1442,6 +1445,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 			gotHeaders = true
 			for len(headers) > 0 {
 				// Terminate if something failed in between processing chunks
+				// 如果在处理chunks之间出了一些问题，则直接终止
 				select {
 				case <-d.cancelCh:
 					rollbackErr = errCanceled
@@ -1537,6 +1541,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 				// 除非我们是light chains，调度headers用于相关内容的获取
 				if mode == FullSync || mode == SnapSync {
 					// If we've reached the allowed number of pending headers, stall a bit
+					// 如果我们到达了允许的pending headers的上限，则暂停一下
 					for d.queue.PendingBodies() >= maxQueuedHeaders || d.queue.PendingReceipts() >= maxQueuedHeaders {
 						select {
 						case <-d.cancelCh:
