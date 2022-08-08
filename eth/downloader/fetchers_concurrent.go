@@ -36,18 +36,24 @@ var timeoutGracePeriod = 2 * time.Minute
 // typedQueue is an interface defining the adaptor needed to translate the type
 // specific downloader/queue schedulers into the type-agnostic general concurrent
 // fetcher algorithm calls.
+// typedQueue是一个接口，定义了需要的adaptor用于转换特定类型的downloader/queue schedulers
+// 到类型无关的通用concurrent fetcher algorightm calls
 type typedQueue interface {
 	// waker returns a notification channel that gets pinged in case more fetches
 	// have been queued up, so the fetcher might assign it to idle peers.
+	// waker返回一个notification channel，当有更多的fetches已经入队的时候会被ping
+	// 这样fetcher可能将它赋值给idle peers
 	waker() chan bool
 
 	// pending returns the number of wrapped items that are currently queued for
 	// fetching by the concurrent downloader.
+	// pending返回concurrent downloader当前排队等待获取的wrapped items的数目
 	pending() int
 
 	// capacity is responsible for calculating how many items of the abstracted
 	// type a particular peer is estimated to be able to retrieve within the
 	// alloted round trip time.
+	// capacity负责计算一个特定的peer在round trip time中获取items的时间
 	capacity(peer *peerConnection, rtt time.Duration) int
 
 	// updateCapacity is responsible for updating how many items of the abstracted
@@ -56,15 +62,19 @@ type typedQueue interface {
 
 	// reserve is responsible for allocating a requested number of pending items
 	// from the download queue to the specified peer.
+	// reserve负责分配download queue中请求的pending items的数目到特定的peer
 	reserve(peer *peerConnection, items int) (*fetchRequest, bool, bool)
 
 	// unreserve is resposible for removing the current retrieval allocation
 	// assigned to a specific peer and placing it back into the pool to allow
 	// reassigning to some other peer.
+	// unreserve负责将分配给一个特定的peer的retrival移除并且将它加回到pool中允许
+	// 重新分配给一些其他的peer
 	unreserve(peer string) int
 
 	// request is responsible for converting a generic fetch request into a typed
 	// one and sending it to the remote peer for fulfillment.
+	// request负责将一个通用的fetch request转换为类型特定的，并且将他们发送到remote peer用于填充
 	request(peer *peerConnection, req *fetchRequest, resCh chan *eth.Response) (*eth.Request, error)
 
 	// deliver is responsible for taking a generic response packet from the
@@ -86,6 +96,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 	responses := make(chan *eth.Response)
 
 	// Track the currently active requests and their timeout order
+	// 追踪当前的active requests以及它们的超时顺序
 	pending := make(map[string]*eth.Request)
 	defer func() {
 		// Abort all requests on sync cycle cancellation. The requests may still
@@ -140,17 +151,21 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			return errNoPeers
 		}
 		// If there's nothing more to fetch, wait or terminate
+		// 如果没有更多东西需要获取了，等待或者终结
 		if queue.pending() == 0 {
 			if len(pending) == 0 && finished {
+				// 结束了则返回
 				return nil
 			}
 		} else {
 			// Send a download request to all idle peers, until throttled
+			// 发送一个download request到所有idle peers，直到限流
 			var (
 				idles []*peerConnection
 				caps  []int
 			)
 			for _, peer := range d.peers.AllPeers() {
+				// 遍历所有peers
 				pending, stale := pending[peer.id], stales[peer.id]
 				if pending == nil && stale == nil {
 					idles = append(idles, peer)
@@ -175,6 +190,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			for _, peer := range idles {
 				// Short circuit if throttling activated or there are no more
 				// queued tasks to be retrieved
+				// 快速路径，如果触发了限流或者没有更多的queued tasks需要被获取
 				if throttled {
 					break
 				}
@@ -221,6 +237,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			}
 			// Make sure that we have peers available for fetching. If all peers have been tried
 			// and all failed throw an error
+			// 确保我们有peers可用用于fetching，如果所有peers都已经尝试了并且失败了，发送一个error
 			if !progressed && !throttled && len(pending) == 0 && len(idles) == d.peers.Len() && queued > 0 && !beaconMode {
 				return errPeersUnavailable
 			}
@@ -232,6 +249,8 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			// If sync was cancelled, tear down the parallel retriever. Pending
 			// requests will be cancelled locally, and the remote responses will
 			// be dropped when they arrive
+			// 如果同步为取消了，摧毁parallel retrieval，Pending requests会在本地取消
+			// 远程的responses会被丢弃，当它们到达的时候
 			return errCanceled
 
 		case event := <-peering:
@@ -250,12 +269,16 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 					event.peer.log.Error("Stale request exists for joining peer")
 				}
 				// Loop back to the entry point for task assignment
+				// 回到entry point用于task assignment
 				continue
 			}
 			// A peer left, any existing requests need to be untracked, pending
 			// tasks returned and possible reassignment checked
+			// 一个peer离开了，任何已经存在的requests需要被untracked，返回pending tasks
+			// 并且检查可能的reassignment
 			if req, ok := pending[peerid]; ok {
 				queue.unreserve(peerid) // TODO(karalabe): This needs a non-expiration method
+				// 从pending中移除
 				delete(pending, peerid)
 				req.Close()
 
@@ -270,6 +293,7 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 							timeout.Reset(time.Until(time.Unix(0, -exp)))
 						}
 					}
+					// 从ordering中移除
 					delete(ordering, req)
 				}
 			}
@@ -313,6 +337,9 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 			// elements expired, we might have overestimated the remote peer or
 			// perhaps ourselves. Only reset to minimal throughput but don't drop
 			// just yet.
+			// 最后，更新peer的retrieval capacity，或者如果它已经在minimum allowance之下
+			// 丢弃peer，如果很多retrieval elements超时，我们可能高估了remote peer或者我们自己
+			// 只是重置minimal throughput，但是还不丢弃
 			//
 			// The reason the minimum threshold is 2 is that the downloader tries
 			// to estimate the bandwidth and latency of a peer separately, which
@@ -363,19 +390,23 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 				delete(ordering, res.Req)
 			}
 			// Delete the pending request (if it still exists) and mark the peer idle
+			// 删除pending request（如果它依然存在的话）并且将peer标记为idle
 			delete(pending, res.Req.Peer)
 			delete(stales, res.Req.Peer)
 
 			// Signal the dispatcher that the round trip is done. We'll drop the
 			// peer if the data turns out to be junk.
+			// 提醒dispatcher，round trip已经结束了，我们会丢弃peer，如果返回的data是垃圾
 			res.Done <- nil
 			res.Req.Close()
 
 			// If the peer was previously banned and failed to deliver its pack
 			// in a reasonable time frame, ignore its message.
+			// 如果peer之前已经被屏蔽了并且不能在合理的时间内传递它的pack，忽略它的message
 			if peer := d.peers.Peer(res.Req.Peer); peer != nil {
 				// Deliver the received chunk of data and check chain validity
 				// 传送接收到的chunk of data并且检查chain validity
+				// 用queue进行deliver
 				accepted, err := queue.deliver(peer, res)
 				if errors.Is(err, errInvalidChain) {
 					return err

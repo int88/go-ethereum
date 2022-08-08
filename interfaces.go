@@ -97,6 +97,7 @@ type ChainStateReader interface {
 
 // SyncProgress gives progress indications when the node is synchronising with
 // the Ethereum network.
+// SyncProgress给了一个progress indications，当node和Ethereum network进行同步的时候
 type SyncProgress struct {
 	StartingBlock uint64 // Block number where sync began
 	CurrentBlock  uint64 // Current block number where sync is at
@@ -104,10 +105,12 @@ type SyncProgress struct {
 
 	// "fast sync" fields. These used to be sent by geth, but are no longer used
 	// since version v1.10.
+	// "fast sync"的一些字段
 	PulledStates uint64 // Number of state trie entries already downloaded
 	KnownStates  uint64 // Total number of state trie entries known about
 
 	// "snap sync" fields.
+	// "snap sync"的一些字段
 	SyncedAccounts      uint64 // Number of accounts downloaded
 	SyncedAccountBytes  uint64 // Number of account trie bytes persisted to disk
 	SyncedBytecodes     uint64 // Number of bytecodes downloaded

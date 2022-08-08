@@ -24,8 +24,10 @@ import (
 )
 
 // syncState starts downloading state with the given root hash.
+// syncState开始下载给定的root hash的state
 func (d *Downloader) syncState(root common.Hash) *stateSync {
 	// Create the state sync
+	// 创建state sync
 	s := newStateSync(d, root)
 	select {
 	case d.stateSyncStart <- s:
@@ -60,6 +62,7 @@ func (d *Downloader) stateFetcher() {
 // hash is requested to be switched over to.
 // runStateSync运行一个state synchronisation，直到它完成或者请求另一个root hash进行切换
 func (d *Downloader) runStateSync(s *stateSync) *stateSync {
+	// 启动State sync
 	log.Trace("State sync starting", "root", s.root)
 
 	go s.run()
@@ -68,8 +71,10 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 	for {
 		select {
 		case next := <-d.stateSyncStart:
+			// 返回下一个State Sync
 			return next
 
+		// 等待sync结束
 		case <-s.done:
 			return nil
 		}
@@ -80,7 +85,8 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 // by a given state root.
 // stateSync调度由一个给定的state root定义的state trie
 type stateSync struct {
-	d    *Downloader // Downloader instance to access and manage current peerset	// 用于访问以及管理当前的peerset的Downloader实例
+	d *Downloader // Downloader instance to access and manage current peerset	// 用于访问以及管理当前的peerset的Downloader实例
+	// 当前正在被同步的State root
 	root common.Hash // State root currently being synced
 
 	started    chan struct{} // Started is signalled once the sync loop starts
@@ -92,6 +98,8 @@ type stateSync struct {
 
 // newStateSync creates a new state trie download scheduler. This method does not
 // yet start the sync. The user needs to call run to initiate.
+// newStateSync创建一个新的state trie download scheduler，这个方法不会开始sync，用户需要
+// 调用run来初始化
 func newStateSync(d *Downloader, root common.Hash) *stateSync {
 	return &stateSync{
 		d:       d,
@@ -105,13 +113,17 @@ func newStateSync(d *Downloader, root common.Hash) *stateSync {
 // run starts the task assignment and response processing loop, blocking until
 // it finishes, and finally notifying any goroutines waiting for the loop to
 // finish.
+// run启动task assignment以及response的处理循环，阻塞直到结束，并且最后通知任何等待loop结束
+// 的goroutine
 func (s *stateSync) run() {
 	close(s.started)
+	// 启动SnapSyncer
 	s.err = s.d.SnapSyncer.Sync(s.root, s.cancel)
 	close(s.done)
 }
 
 // Wait blocks until the sync is done or canceled.
+// Wait阻塞直到sync结束或者取消
 func (s *stateSync) Wait() error {
 	<-s.done
 	return s.err

@@ -431,6 +431,7 @@ func (dlp *downloadTesterPeer) RequestTrieNodes(id uint64, root common.Hash, pat
 }
 
 // Log retrieves the peer's own contextual logger.
+// Log获取peer自己的contextual logger
 func (dlp *downloadTesterPeer) Log() log.Logger {
 	return log.New("peer", dlp.id)
 }
@@ -462,6 +463,7 @@ func TestCanonicalSynchronisation66Snap(t *testing.T)  { testCanonSync(t, eth.ET
 func TestCanonicalSynchronisation66Light(t *testing.T) { testCanonSync(t, eth.ETH66, LightSync) }
 
 func testCanonSync(t *testing.T, protocol uint, mode SyncMode) {
+	log.Root().SetHandler(log.StdoutHandler)
 	tester := newTester(t)
 	defer tester.terminate()
 
@@ -833,6 +835,7 @@ func TestMissingHeaderAttack66Snap(t *testing.T)  { testMissingHeaderAttack(t, e
 func TestMissingHeaderAttack66Light(t *testing.T) { testMissingHeaderAttack(t, eth.ETH66, LightSync) }
 
 func testMissingHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
+	log.Root().SetHandler(log.StdoutHandler)
 	tester := newTester(t)
 	defer tester.terminate()
 

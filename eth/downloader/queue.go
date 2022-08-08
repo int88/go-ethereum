@@ -121,7 +121,8 @@ type queue struct {
 
 	// Headers are "special", they download in batches, supported by a skeleton chain
 	// Headers是特殊的，它们批量下载，支持一个skeleton chain
-	headerHead      common.Hash                    // Hash of the last queued header to verify order
+	headerHead common.Hash // Hash of the last queued header to verify order
+	// Pending的header retrieval tasks，映射索引到skeleton headers
 	headerTaskPool  map[uint64]*types.Header       // Pending header retrieval tasks, mapping starting indexes to skeleton headers
 	headerTaskQueue *prque.Prque                   // Priority queue of the skeleton indexes to fetch the filling headers for
 	headerPeerMiss  map[string]map[uint64]struct{} // Set of per-peer header batches known to be unavailable
@@ -264,15 +265,18 @@ func (q *queue) Idle() bool {
 
 // ScheduleSkeleton adds a batch of header retrieval tasks to the queue to fill
 // up an already retrieved header skeleton.
+// ScheduleSkeleton添加一批header retrieval tasks到队列中，用来填充一个已经获取到的header skeleton
 func (q *queue) ScheduleSkeleton(from uint64, skeleton []*types.Header) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
 	// No skeleton retrieval can be in progress, fail hard if so (huge implementation bug)
+	// 不应该有skeleton retrieval正在处理过程中
 	if q.headerResults != nil {
 		panic("skeleton assembly already in progress")
 	}
 	// Schedule all the header retrieval tasks for the skeleton assembly
+	// 调度所有的header retrieval tasks用于skeleton assembly
 	q.headerTaskPool = make(map[uint64]*types.Header)
 	q.headerTaskQueue = prque.New(nil)
 	q.headerPeerMiss = make(map[string]map[uint64]struct{}) // Reset availability to correct invalid chains
@@ -285,6 +289,7 @@ func (q *queue) ScheduleSkeleton(from uint64, skeleton []*types.Header) {
 	for i, header := range skeleton {
 		index := from + uint64(i*MaxHeaderFetch)
 
+		// 设置headers
 		q.headerTaskPool[index] = header
 		q.headerTaskQueue.Push(index, -int64(index))
 	}
@@ -292,10 +297,12 @@ func (q *queue) ScheduleSkeleton(from uint64, skeleton []*types.Header) {
 
 // RetrieveHeaders retrieves the header chain assemble based on the scheduled
 // skeleton.
+// RetrieveHeaders获取header chain，基于scheduled skeleton进行组装
 func (q *queue) RetrieveHeaders() ([]*types.Header, []common.Hash, int) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
+	// 从header results，hashes以及headerProced获取Head信息
 	headers, hashes, proced := q.headerResults, q.headerHashes, q.headerProced
 	q.headerResults, q.headerHashes, q.headerProced = nil, nil, 0
 
@@ -349,6 +356,7 @@ func (q *queue) Schedule(headers []*types.Header, hashes []common.Hash, from uin
 		}
 		inserts = append(inserts, header)
 		q.headerHead = hash
+		// 对from进行自增
 		from++
 	}
 	return inserts
@@ -386,6 +394,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 		q.lock.Unlock()
 	}
 	// Regardless if closed or not, we can still deliver whatever we have
+	// 不管是否关闭，我们依然能够传递我们有的
 	results := q.resultCache.GetCompleted(maxResultsProcess)
 	for _, result := range results {
 		// Recalculate the result item weights to prevent memory exhaustion
@@ -408,6 +417,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 	throttleThreshold = q.resultCache.SetThrottleThreshold(throttleThreshold)
 
 	// With results removed from the cache, wake throttled fetchers
+	// 随着results从cache中移除，叫醒throttled fetchers
 	for _, ch := range []chan bool{q.blockWakeCh, q.receiptWakeCh} {
 		select {
 		case ch <- true:
@@ -415,6 +425,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 		}
 	}
 	// Log some info at certain times
+	// 记录一些日志
 	if time.Since(q.lastStatLog) > 60*time.Second {
 		q.lastStatLog = time.Now()
 		info := q.Stats()
@@ -533,6 +544,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 	for proc := 0; len(send) < count && !taskQueue.Empty(); proc++ {
 		// the task queue will pop items in order, so the highest prio block
 		// is also the lowest block number.
+		// task queue会按顺序弹出Items，因此最高优先级的block同时也有最小的block number
 		h, _ := taskQueue.Peek()
 		header := h.(*types.Header)
 		// we can ask the resultcache if this header is within the
@@ -573,8 +585,10 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 			continue
 		}
 		// Remove it from the task queue
+		// 从task queue移除
 		taskQueue.PopItem()
 		// Otherwise unless the peer is known not to have the data, add to the retrieve list
+		// 否则除非peer已知没有data，添加到retrieve list中
 		if p.Lacks(header.Hash()) {
 			skip = append(skip, header)
 		} else {
@@ -590,6 +604,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		q.active.Signal()
 	}
 	// Assemble and return the block download request
+	// 组合并且返回block download request
 	if len(send) == 0 {
 		return nil, progress, throttled
 	}
@@ -710,6 +725,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	request := q.headerPendPool[id]
 	if request == nil {
 		headerDropMeter.Mark(int64(len(headers)))
+		// 没有Fetching处于pending
 		return 0, errNoFetchesPending
 	}
 	delete(q.headerPendPool, id)
@@ -718,6 +734,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	headerInMeter.Mark(int64(len(headers)))
 
 	// Ensure headers can be mapped onto the skeleton chain
+	// 确认headers可以映射到skeleton chain
 	target := q.headerTaskPool[request.From].Hash()
 
 	accepted := len(headers) == MaxHeaderFetch
@@ -726,6 +743,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 			logger.Trace("First header broke chain ordering", "number", headers[0].Number, "hash", hashes[0], "expected", request.From)
 			accepted = false
 		} else if hashes[len(headers)-1] != target {
+			// 最新的header破坏了skeleton结构
 			logger.Trace("Last header broke skeleton structure ", "number", headers[len(headers)-1].Number, "hash", hashes[len(headers)-1], "expected", target)
 			accepted = false
 		}
@@ -749,6 +767,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 		}
 	}
 	// If the batch of headers wasn't accepted, mark as unavailable
+	// 如果这批headers没有被接收，将它标记为unavailable
 	if !accepted {
 		logger.Trace("Skeleton filling not accepted", "from", request.From)
 		headerDropMeter.Mark(int64(len(headers)))
@@ -764,6 +783,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 		return 0, errors.New("delivery not accepted")
 	}
 	// Clean up a successful fetch and try to deliver any sub-results
+	// 清理任何的成功fetch并且试着提交任何的sub-results
 	copy(q.headerResults[request.From-q.headerOffset:], headers)
 	copy(q.headerHashes[request.From-q.headerOffset:], hashes)
 
@@ -775,6 +795,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	}
 	if ready > 0 {
 		// Headers are ready for delivery, gather them and push forward (non blocking)
+		// Headers已经准备好进行delivery，收集他们并且进行推送（非阻塞）
 		processHeaders := make([]*types.Header, ready)
 		copy(processHeaders, q.headerResults[q.headerProced:q.headerProced+ready])
 
@@ -802,6 +823,8 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 // DeliverBodies injects a block body retrieval response into the results queue.
 // The method returns the number of blocks bodies accepted from the delivery and
 // also wakes any threads waiting for data delivery.
+// DeliverBodies注入一个block retrieval response到results queue，这个方法返回从delivery
+// 接收到的blocks bodies的数目，同时唤醒任何等待data delivery的线程
 func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListHashes []common.Hash, uncleLists [][]*types.Header, uncleListHashes []common.Hash) (int, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -847,10 +870,11 @@ func (q *queue) DeliverReceipts(id string, receiptList [][]*types.Receipt, recei
 }
 
 // deliver injects a data retrieval response into the results queue.
+// deliver注入一个data retreival response到results queue
 //
 // Note, this method expects the queue lock to be already held for writing. The
 // reason this lock is not obtained in here is because the parameters already need
-// to access the queue, so they already need a lock anyway.
+// to access the queue, so they already need a lock anyway.f
 func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	taskQueue *prque.Prque, pendPool map[string]*fetchRequest,
 	reqTimer metrics.Timer, resInMeter metrics.Meter, resDropMeter metrics.Meter,
@@ -912,10 +936,12 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	resDropMeter.Mark(int64(results - accepted))
 
 	// Return all failed or missing fetches to the queue
+	// 返回所有失败的或者missing fetches到队列中
 	for _, header := range request.Headers[accepted:] {
 		taskQueue.Push(header, -int64(header.Number.Uint64()))
 	}
 	// Wake up Results
+	// 唤醒Result
 	if accepted > 0 {
 		q.active.Signal()
 	}

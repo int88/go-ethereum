@@ -41,7 +41,8 @@ var (
 	// 每个retrieval request请求的blocks的数目
 	MaxBlockFetch = 128 // Amount of blocks to be fetched per retrieval request
 	// 每个rerieval request请求的block headers的数目
-	MaxHeaderFetch  = 192 // Amount of block headers to be fetched per retrieval request
+	MaxHeaderFetch = 192 // Amount of block headers to be fetched per retrieval request
+	// 用于skeleton assembly的header fetches的数目
 	MaxSkeletonSize = 128 // Number of header fetches to need for a skeleton assembly
 	MaxReceiptFetch = 256 // Amount of transaction receipts to allow fetching per request
 
@@ -163,6 +164,7 @@ type Downloader struct {
 }
 
 // LightChain encapsulates functions required to synchronise a light chain.
+// LightChain封装了同步一个light chain需要的方法
 type LightChain interface {
 	// HasHeader verifies a header's presence in the local chain.
 	HasHeader(common.Hash, uint64) bool
@@ -174,6 +176,7 @@ type LightChain interface {
 	CurrentHeader() *types.Header
 
 	// GetTd returns the total difficulty of a local block.
+	// GetTd获取一个local block的total difficulty
 	GetTd(common.Hash, uint64) *big.Int
 
 	// InsertHeaderChain inserts a batch of headers into the local chain.
@@ -245,6 +248,7 @@ func New(checkpoint uint64, stateDb ethdb.Database, mux *event.TypeMux, chain Bl
 	}
 	dl.skeleton = newSkeleton(stateDb, dl.peers, dropPeer, newBeaconBackfiller(dl, success))
 
+	// 对state fetcher进行同步
 	go dl.stateFetcher()
 	return dl
 }
@@ -252,10 +256,14 @@ func New(checkpoint uint64, stateDb ethdb.Database, mux *event.TypeMux, chain Bl
 // Progress retrieves the synchronisation boundaries, specifically the origin
 // block where synchronisation started at (may have failed/suspended); the block
 // or header sync is currently at; and the latest known block which the sync targets.
+// Progress获取synchronisation boundaries，特别地，包括同步开始的origin block；当前同步所在
+// 的block或者header；最新已知的block，即sync targets
 //
 // In addition, during the state download phase of snap synchronisation the number
 // of processed and the total number of known states are also returned. Otherwise
 // these are zero.
+// 另外在snap synchronisation的state download期间，已经处理的以及所有已知的states也会被返回
+// 否则这些为0
 func (d *Downloader) Progress() ethereum.SyncProgress {
 	// Lock the current stats and return the progress
 	d.syncStatsLock.RLock()
@@ -347,6 +355,8 @@ func (d *Downloader) UnregisterPeer(id string) error {
 
 // LegacySync tries to sync up our local block chain with a remote peer, both
 // adding various sanity checks as well as wrapping it with various log entries.
+// LegacySync试着将local block chain和一个remote peer进行同步，包括添加各种sanity checks
+// 以及用各种log entries进行封装
 func (d *Downloader) LegacySync(id string, head common.Hash, td, ttd *big.Int, mode SyncMode) error {
 	err := d.synchronise(id, head, td, ttd, mode, false, nil)
 
@@ -357,6 +367,7 @@ func (d *Downloader) LegacySync(id string, head common.Hash, td, ttd *big.Int, m
 	if errors.Is(err, errInvalidChain) || errors.Is(err, errBadPeer) || errors.Is(err, errTimeout) ||
 		errors.Is(err, errStallingPeer) || errors.Is(err, errUnsyncedPeer) || errors.Is(err, errEmptyHeaderSet) ||
 		errors.Is(err, errPeersUnavailable) || errors.Is(err, errTooOld) || errors.Is(err, errInvalidAncestor) {
+		// 同步失败，丢弃peer
 		log.Warn("Synchronisation failed, dropping peer", "peer", id, "err", err)
 		if d.dropPeer == nil {
 			// The dropPeer method is nil when `--copydb` is used for a local copy.
@@ -370,6 +381,7 @@ func (d *Downloader) LegacySync(id string, head common.Hash, td, ttd *big.Int, m
 	if errors.Is(err, ErrMergeTransition) {
 		return err // This is an expected fault, don't keep printing it in a spin-loop
 	}
+	// 同步失败，重试
 	log.Warn("Synchronisation failed, retrying", "err", err)
 	return err
 }
@@ -665,6 +677,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		d.pivotHeader = pivot
 		d.pivotLock.Unlock()
 
+		// 对于snap sync，再扩展一个processSnapSyncContent()
 		fetchers = append(fetchers, func() error { return d.processSnapSyncContent() })
 	} else if mode == FullSync {
 		// 扩展full sync content fetcher
@@ -788,6 +801,7 @@ func (d *Downloader) fetchHead(p *peerConnection) (head *types.Header, pivot *ty
 		if mode == SnapSync && head.Number.Uint64() > uint64(fsMinFullBlocks) {
 			return nil, nil, fmt.Errorf("%w: no pivot included along head header", errBadPeer)
 		}
+		// 识别到了remote head，没有pivot
 		p.log.Debug("Remote head identified, no pivot", "number", head.Number, "hash", hashes[0])
 		return head, nil, nil
 	}
@@ -1074,16 +1088,22 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 	// Start pulling the header chain skeleton until all is done
 	// 开始拉取header chain skeleton，直到所有都结束
 	var (
-		skeleton = true  // Skeleton assembly phase or finishing up
+		// Skeleton assembly或者结束
+		skeleton = true // Skeleton assembly phase or finishing up
+		// 下一个请求是不是pivot verification
 		pivoting = false // Whether the next request is pivot verification
 		ancestor = from
 		mode     = d.getMode()
 	)
 	for {
 		// Pull the next batch of headers, it either:
+		// 拉取下一批的headers
 		//   - Pivot check to see if the chain moved too far
+		//	 - Pivot check来看是否chain移动的太远
 		//   - Skeleton retrieval to permit concurrent header fetches
+		//	 - Skeleton retrieval从而允许并行的header fetches
 		//   - Full header retrieval if we're near the chain head
+		//	 - 完整的header retrieval，如果我们在head chain附近
 		var (
 			headers []*types.Header
 			hashes  []common.Hash
@@ -1104,6 +1124,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			headers, hashes, err = d.fetchHeadersByNumber(p, from+uint64(MaxHeaderFetch)-1, MaxSkeletonSize, MaxHeaderFetch-1, false)
 
 		default:
+			// 默认获取full headers
 			p.log.Trace("Fetching full headers", "count", MaxHeaderFetch, "from", from)
 			headers, hashes, err = d.fetchHeadersByNumber(p, from, MaxHeaderFetch, 0, false)
 		}
@@ -1119,6 +1140,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		default:
 			// Header retrieval either timed out, or the peer failed in some strange way
 			// (e.g. disconnect). Consider the master peer bad and drop
+			// Header retreival要么失败，或者peer以一种奇怪的方式失败，考虑master peer有问题并且丢弃
 			d.dropPeer(p.id)
 
 			// Finish the sync gracefully instead of dumping the gathered data though
@@ -1183,6 +1205,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			continue
 		}
 		// If no more headers are inbound, notify the content fetchers and return
+		// 如果没有更多的headers进入，通知content fetchers并且返回
 		if len(headers) == 0 {
 			// Don't abort header fetches while the pivot is downloading
 			// 停止退出header fetches，当pivot仍然在下载
@@ -1196,6 +1219,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 				}
 			}
 			// Pivot done (or not in snap sync) and no more headers, terminate the process
+			// Pivot结束并且没有更多的headers，终止进程
 			p.log.Debug("No more headers available")
 			select {
 			case d.headerProcCh <- nil:
@@ -1208,6 +1232,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		// 如果我们获取了一个skeleton batch，内部并发解析
 		var progressed bool
 		if skeleton {
+			// 填充header sleleton
 			filled, hashset, proced, err := d.fillHeaderSkeleton(from, headers)
 			if err != nil {
 				p.log.Debug("Skeleton chain invalid", "err", err)
@@ -1217,9 +1242,11 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			hashes = hashset[proced:]
 
 			progressed = proced > 0
+			// 已经处理完proced个了
 			from += uint64(proced)
 		} else {
 			// A malicious node might withhold advertised headers indefinitely
+			// 一个有害的node可能会一直扣留advertised headers
 			if n := len(headers); n < MaxHeaderFetch && headers[n-1].Number.Uint64() < head {
 				p.log.Warn("Peer withheld headers", "advertised", head, "delivered", headers[n-1].Number.Uint64())
 				return fmt.Errorf("%w: withheld headers: advertised %d, delivered %d", errStallingPeer, head, headers[n-1].Number.Uint64())
@@ -1258,6 +1285,8 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		// If no headers have bene delivered, or all of them have been delayed,
 		// sleep a bit and retry. Take care with headers already consumed during
 		// skeleton filling
+		// 如果没有headers已经被传递，或者所有的都被delayed了，睡眠一会儿然后重试
+		// 处理在skeleton filling中已经消费的headers
 		if len(headers) == 0 && !progressed {
 			p.log.Trace("All headers delayed, waiting")
 			select {
@@ -1272,6 +1301,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		if len(headers) > 0 {
 			p.log.Trace("Scheduling new headers", "count", len(headers), "from", from)
 			select {
+			// 提交header task
 			case d.headerProcCh <- &headerTask{
 				headers: headers,
 				hashes:  hashes,
@@ -1283,6 +1313,8 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 		}
 		// If we're still skeleton filling snap sync, check pivot staleness
 		// before continuing to the next skeleton filling
+		// 如果我们还在skeleton filling snap sync，检查pivot staleness
+		// 在我们继续下一个skeleton filling之前
 		if skeleton && pivot > 0 {
 			pivoting = true
 		}
@@ -1291,23 +1323,30 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 
 // fillHeaderSkeleton concurrently retrieves headers from all our available peers
 // and maps them to the provided skeleton header chain.
+// fillHeaderSkeleton并行地从我们所有可用的peers获取headers并且映射他们到提供的skeleton header chain
 //
 // Any partial results from the beginning of the skeleton is (if possible) forwarded
 // immediately to the header processor to keep the rest of the pipeline full even
 // in the case of header stalls.
+// 任何来自skeleton开头的partial results（如果有的话）被立即转发到header processor，来保持
+// pipeline满载，即使在header卡顿的情况下
 //
 // The method returns the entire filled skeleton and also the number of headers
 // already forwarded for processing.
+// 这个方法返回完整的filled skeleton以及已经转发用于处理的headers的数目
 func (d *Downloader) fillHeaderSkeleton(from uint64, skeleton []*types.Header) ([]*types.Header, []common.Hash, int, error) {
 	log.Debug("Filling up skeleton", "from", from)
 	d.queue.ScheduleSkeleton(from, skeleton)
 
+	// 并发获取
 	err := d.concurrentFetch((*headerQueue)(d), false)
 	if err != nil {
 		log.Debug("Skeleton fill failed", "err", err)
 	}
+	// 获取headers
 	filled, hashes, proced := d.queue.RetrieveHeaders()
 	if err == nil {
+		// 填充skeleton成功
 		log.Debug("Skeleton fill succeeded", "filled", len(filled), "processed", proced)
 	}
 	return filled, hashes, proced, err
@@ -1586,6 +1625,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 // processFullSyncContent从队列中获取results并且将他们导入chain
 func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error {
 	for {
+		// 从队列中获取Results
 		results := d.queue.Results(true)
 		if len(results) == 0 {
 			return nil
@@ -1613,6 +1653,7 @@ func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error
 				td = new(big.Int).Add(td, result.Header.Difficulty)
 				if td.Cmp(ttd) >= 0 {
 					// Terminal total difficulty reached, allow the last block in
+					// 到达了total difficulty，允许last block进入
 					if new(big.Int).Sub(td, result.Header.Difficulty).Cmp(ttd) < 0 {
 						results, rejected = results[:i+1], results[i+1:]
 						if len(rejected) > 0 {
@@ -1626,10 +1667,12 @@ func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error
 				}
 			}
 		}
+		// 导入block results
 		if err := d.importBlockResults(results); err != nil {
 			return err
 		}
 		if len(rejected) != 0 {
+			// Legacy sync到达了merge threshold
 			log.Info("Legacy sync reached merge threshold", "number", rejected[0].Header.Number, "hash", rejected[0].Header.Hash(), "td", td, "ttd", ttd)
 			return ErrMergeTransition
 		}
@@ -1638,6 +1681,7 @@ func (d *Downloader) processFullSyncContent(ttd *big.Int, beaconMode bool) error
 
 func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	// Check for any early termination requests
+	// 检查任何的early termination请求
 	if len(results) == 0 {
 		return nil
 	}
@@ -1655,6 +1699,7 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 	)
 	blocks := make([]*types.Block, len(results))
 	for i, result := range results {
+		// 将result转换为blocks
 		blocks[i] = types.NewBlockWithHeader(result.Header).WithBody(result.Transactions, result.Uncles)
 	}
 	// Downloaded blocks are always regarded as trusted after the
@@ -1679,6 +1724,8 @@ func (d *Downloader) importBlockResults(results []*fetchResult) error {
 
 // processSnapSyncContent takes fetch results from the queue and writes them to the
 // database. It also controls the synchronisation of state nodes of the pivot block.
+// processSnapSyncContent从队列中获取fetch results并且将他们写入到database，它同时控制了
+// 从pivot block同步state nodes
 func (d *Downloader) processSnapSyncContent() error {
 	// Start syncing state of the reported head block. This should get us most of
 	// the state of the pivot block.

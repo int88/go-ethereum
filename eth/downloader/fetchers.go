@@ -80,6 +80,8 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 // fetchHeadersByNumber is a blocking version of Peer.RequestHeadersByNumber which
 // handles all the cancellation, interruption and timeout mechanisms of a data
 // retrieval to allow blocking API calls.
+// fetchHeadersByNumber是一个阻塞版本的Peer.RequestHeadersByNumber，它负责处理所有的cancellation
+// interruption以及timeout机制，对于一个data retrieval，从而允许blocking API调用
 func (d *Downloader) fetchHeadersByNumber(p *peerConnection, number uint64, amount int, skip int, reverse bool) ([]*types.Header, []common.Hash, error) {
 	// Create the response sink and send the network request
 	start := time.Now()
@@ -110,12 +112,15 @@ func (d *Downloader) fetchHeadersByNumber(p *peerConnection, number uint64, amou
 
 	case res := <-resCh:
 		// Headers successfully retrieved, update the metrics
+		// 成功获取了Headers，更新metrics
 		headerReqTimer.Update(time.Since(start))
 		headerInMeter.Mark(int64(len(*res.Res.(*eth.BlockHeadersPacket))))
 
 		// Don't reject the packet even if it turns out to be bad, downloader will
 		// disconnect the peer on its own terms. Simply delivery the headers to
 		// be processed by the caller
+		// 不要拒绝packet，即使它是坏的，downloader会以自己的方式和downloader断开连接
+		// 简单地传递headers来给caller调用
 		res.Done <- nil
 
 		return *res.Res.(*eth.BlockHeadersPacket), res.Meta.([]common.Hash), nil

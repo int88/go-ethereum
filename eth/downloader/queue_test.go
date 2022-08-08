@@ -254,7 +254,7 @@ func TestEmptyBlocks(t *testing.T) {
 		fetchReq, _, _ := q.ReserveBodies(peer, 50)
 
 		// there should be nothing to fetch, blocks are empty
-		// 没有东西需要fetch
+		// 没有东西需要fetch，blocks为空
 		if fetchReq != nil {
 			t.Fatal("there should be no body fetch tasks remaining")
 		}
@@ -271,6 +271,7 @@ func TestEmptyBlocks(t *testing.T) {
 		fetchReq, _, _ := q.ReserveReceipts(peer, 50)
 
 		// there should be nothing to fetch, blocks are empty
+		// 没有东西去fetch，
 		if fetchReq != nil {
 			t.Fatal("there should be no body fetch tasks remaining")
 		}
@@ -281,12 +282,15 @@ func TestEmptyBlocks(t *testing.T) {
 	if q.receiptTaskQueue.Size() != 0 {
 		t.Errorf("expected receipt task queue to be %d, got %d", 0, q.receiptTaskQueue.Size())
 	}
+
+	// 完成10个results
 	if got, exp := q.resultCache.countCompleted(), 10; got != exp {
 		t.Errorf("wrong processable count, got %d, exp %d", got, exp)
 	}
 }
 
 // XTestDelivery does some more extensive testing of events that happen,
+// XTestDelivery做一些已经发生的事件的扩展测试，blocks已经知道并且peers已经做了reservatios和deliveries
 // blocks that become known and peers that make reservations and deliveries.
 // disabled since it's not really a unit-test, but can be executed to test
 // some more advanced scenarios
@@ -326,6 +330,7 @@ func XTestDelivery(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		// collect results
+		// 收集results
 		defer wg.Done()
 		tot := 0
 		for {
@@ -341,6 +346,7 @@ func XTestDelivery(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		// reserve body fetch
+		// 保留body fetch
 		i := 4
 		for {
 			peer := dummyPeer(fmt.Sprintf("peer-%d", i))
@@ -381,6 +387,7 @@ func XTestDelivery(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		// reserve receiptfetch
+		// 保留receipt fetch
 		peer := dummyPeer("peer-3")
 		for {
 			f, _, _ := q.ReserveReceipts(peer, rand.Intn(50))

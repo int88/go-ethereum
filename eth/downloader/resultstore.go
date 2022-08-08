@@ -33,6 +33,7 @@ type resultStore struct {
 	resultOffset uint64         // Offset of the first cached fetch result in the block chain
 
 	// Internal index of first non-completed entry, updated atomically when needed.
+	// 内部的索引，用于第一个non-completed entry，按需进行原子更新
 	// If all items are complete, this will equal length(items), so
 	// *important* : is not safe to use for indexing without checking against length
 	indexIncomplete int32 // atomic access
@@ -71,11 +72,15 @@ func (r *resultStore) SetThrottleThreshold(threshold uint64) uint64 {
 
 // AddFetch adds a header for body/receipt fetching. This is used when the queue
 // wants to reserve headers for fetching.
+// AddFetch添加header用于body/receipt的抓取，这是队列用于保留headers用于fetching的
 //
 // It returns the following:
 //   stale     - if true, this item is already passed, and should not be requested again
+//   stale     - 如果为true，则这个item已经被传输，并且不应该再次请求
 //   throttled - if true, the store is at capacity, this particular header is not prio now
+//	 throttled - 如果为true，则store已经满载了，这个header现在不具备优先级
 //   item      - the result to store data into
+//	 item	   - 存储data数据的result
 //   err       - any error that occurred
 func (r *resultStore) AddFetch(header *types.Header, fastSync bool) (stale, throttled bool, item *fetchResult, err error) {
 	r.lock.Lock()
@@ -107,6 +112,7 @@ func (r *resultStore) GetDeliverySlot(headerNumber uint64) (*fetchResult, bool, 
 
 // getFetchResult returns the fetchResult corresponding to the given item, and
 // the index where the result is stored.
+// getFetchResult返回给定item的fetchResult，以及result存储的index
 func (r *resultStore) getFetchResult(headerNumber uint64) (item *fetchResult, index int, stale, throttle bool, err error) {
 	index = int(int64(headerNumber) - int64(r.resultOffset))
 	throttle = index >= int(r.throttleThreshold)
@@ -142,11 +148,14 @@ func (r *resultStore) HasCompletedItems() bool {
 
 // countCompleted returns the number of items ready for delivery, stopping at
 // the first non-complete item.
+// countCompleted返回准备好传输的items的数目，停止在第一个non-complete item
 //
 // The mthod assumes (at least) rlock is held.
 func (r *resultStore) countCompleted() int {
 	// We iterate from the already known complete point, and see
 	// if any more has completed since last count
+	// 我们从已经知道的complete point进行遍历，看从上次之后是否
+	// 有更多已经完成的
 	index := atomic.LoadInt32(&r.indexIncomplete)
 	for ; ; index++ {
 		if index >= int32(len(r.items)) {

@@ -90,7 +90,7 @@ func TestHeaderInsertion(t *testing.T) {
 	// chain B: G->A1->B1...B128
 	// 在chain A的基础上构建chain B
 	chainB := makeHeaderChain(chainA[0], 128, ethash.NewFaker(), db, 10)
-	// 设置log handler
+	// 设置log handler为stdoutHandler，才能将log输出到stdout
 	log.Root().SetHandler(log.StdoutHandler)
 
 	forker := NewForkChoice(hc, nil)
