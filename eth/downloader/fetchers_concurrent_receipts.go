@@ -55,6 +55,7 @@ func (q *receiptQueue) updateCapacity(peer *peerConnection, items int, span time
 
 // reserve is responsible for allocating a requested number of pending receipts
 // from the download queue to the specified peer.
+// reserve负责申请请求数目的pending receipts，从download queue到指定的peer
 func (q *receiptQueue) reserve(peer *peerConnection, items int) (*fetchRequest, bool, bool) {
 	return q.queue.ReserveReceipts(peer, items)
 }
@@ -74,6 +75,7 @@ func (q *receiptQueue) unreserve(peer string) int {
 
 // request is responsible for converting a generic fetch request into a receipt
 // one and sending it to the remote peer for fulfillment.
+// request负责转换一个generic fetch request到一个receipt并且发送到remote peer用于填充
 func (q *receiptQueue) request(peer *peerConnection, req *fetchRequest, resCh chan *eth.Response) (*eth.Request, error) {
 	peer.log.Trace("Requesting new batch of receipts", "count", len(req.Headers), "from", req.Headers[0].Number)
 	if q.receiptFetchHook != nil {
@@ -83,11 +85,14 @@ func (q *receiptQueue) request(peer *peerConnection, req *fetchRequest, resCh ch
 	for _, header := range req.Headers {
 		hashes = append(hashes, header.Hash())
 	}
+	// 根据header hash找到receipts
 	return peer.peer.RequestReceipts(hashes, resCh)
 }
 
 // deliver is responsible for taking a generic response packet from the concurrent
 // fetcher, unpacking the receipt data and delivering it to the downloader's queue.
+// deliver负责从concurrent fetcher获取一个generic response packet，unpacking receipt data
+// 并且将它交付到downloader的队列
 func (q *receiptQueue) deliver(peer *peerConnection, packet *eth.Response) (int, error) {
 	receipts := *packet.Res.(*eth.ReceiptsPacket)
 	hashes := packet.Meta.([]common.Hash) // {receipt hashes}

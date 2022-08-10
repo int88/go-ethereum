@@ -208,6 +208,7 @@ func newTable(path string, name string, readMeter metrics.Meter, writeMeter metr
 
 // repair cross-checks the head and the index file and truncates them to
 // be in sync with each other after a potential crash / data loss.
+// repair交叉检查head以及index文件，并且截断它们，让他们能互相同步，在一个可能的crash / data loss之后
 func (t *freezerTable) repair() error {
 	// Create a temporary offset buffer to init files with and read indexEntry into
 	buffer := make([]byte, indexEntrySize)

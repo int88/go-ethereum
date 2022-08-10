@@ -89,6 +89,7 @@ func newFetchResult(header *types.Header, fastSync bool) *fetchResult {
 }
 
 // SetBodyDone flags the body as finished.
+// SetBodyDone标记body为finished
 func (f *fetchResult) SetBodyDone() {
 	if v := atomic.LoadInt32(&f.pending); (v & (1 << bodyType)) != 0 {
 		atomic.AddInt32(&f.pending, -1)
@@ -96,6 +97,7 @@ func (f *fetchResult) SetBodyDone() {
 }
 
 // AllDone checks if item is done.
+// AllDone检查item是否完成
 func (f *fetchResult) AllDone() bool {
 	return atomic.LoadInt32(&f.pending) == 0
 }
@@ -123,15 +125,17 @@ type queue struct {
 	// Headers是特殊的，它们批量下载，支持一个skeleton chain
 	headerHead common.Hash // Hash of the last queued header to verify order
 	// Pending的header retrieval tasks，映射索引到skeleton headers
-	headerTaskPool  map[uint64]*types.Header       // Pending header retrieval tasks, mapping starting indexes to skeleton headers
-	headerTaskQueue *prque.Prque                   // Priority queue of the skeleton indexes to fetch the filling headers for
-	headerPeerMiss  map[string]map[uint64]struct{} // Set of per-peer header batches known to be unavailable
-	headerPendPool  map[string]*fetchRequest       // Currently pending header retrieval operations
-	headerResults   []*types.Header                // Result cache accumulating the completed headers
-	headerHashes    []common.Hash                  // Result cache accumulating the completed header hashes
-	headerProced    int                            // Number of headers already processed from the results
-	headerOffset    uint64                         // Number of the first header in the result cache
-	headerContCh    chan bool                      // Channel to notify when header download finishes
+	headerTaskPool  map[uint64]*types.Header // Pending header retrieval tasks, mapping starting indexes to skeleton headers
+	headerTaskQueue *prque.Prque             // Priority queue of the skeleton indexes to fetch the filling headers for
+	// 一系列的per-peer header batches，已知不可用
+	headerPeerMiss map[string]map[uint64]struct{} // Set of per-peer header batches known to be unavailable
+	// 当前阻塞的header retrieval操作
+	headerPendPool map[string]*fetchRequest // Currently pending header retrieval operations
+	headerResults  []*types.Header          // Result cache accumulating the completed headers
+	headerHashes   []common.Hash            // Result cache accumulating the completed header hashes
+	headerProced   int                      // Number of headers already processed from the results
+	headerOffset   uint64                   // Number of the first header in the result cache
+	headerContCh   chan bool                // Channel to notify when header download finishes
 
 	// All data retrievals below are based on an already assembles header chain
 	// 所有下面获取的data，都是基于已经组装的header chain
@@ -452,16 +456,19 @@ func (q *queue) stats() []interface{} {
 
 // ReserveHeaders reserves a set of headers for the given peer, skipping any
 // previously failed batches.
+// ReserveHeaders为给定的peer保留一系列的headers，跳过任何之前失败的batches
 func (q *queue) ReserveHeaders(p *peerConnection, count int) *fetchRequest {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
 	// Short circuit if the peer's already downloading something (sanity check to
 	// not corrupt state)
+	// 短路，如果Peer已经在下载一些东西（完整性检查，从而不毁坏state）
 	if _, ok := q.headerPendPool[p.id]; ok {
 		return nil
 	}
 	// Retrieve a batch of hashes, skipping previously failed ones
+	// 获取一批hashes，跳过之前失败的那些
 	send, skip := uint64(0), []uint64{}
 	for send == 0 && !q.headerTaskQueue.Empty() {
 		from, _ := q.headerTaskQueue.Pop()
@@ -474,18 +481,23 @@ func (q *queue) ReserveHeaders(p *peerConnection, count int) *fetchRequest {
 		send = from.(uint64)
 	}
 	// Merge all the skipped batches back
+	// 合并所有的skipped batches
 	for _, from := range skip {
 		q.headerTaskQueue.Push(from, -int64(from))
 	}
 	// Assemble and return the block download request
+	// 组合并且返回block download request
 	if send == 0 {
 		return nil
 	}
+	// 构建fetchRequest
 	request := &fetchRequest{
+		// 指定了peer
 		Peer: p,
 		From: send,
 		Time: time.Now(),
 	}
+	// peer id到fetch requests的映射
 	q.headerPendPool[p.id] = request
 	return request
 }
@@ -505,6 +517,8 @@ func (q *queue) ReserveBodies(p *peerConnection, count int) (*fetchRequest, bool
 // ReserveReceipts reserves a set of receipt fetches for the given peer, skipping
 // any previously failed downloads. Beside the next batch of needed fetches, it
 // also returns a flag whether empty receipts were queued requiring importing.
+// ReserveReceipts保留一系列的receipt fetches，为给定的peer，跳过任何之前失败的download
+// 除了下一批needed fetches，它同时返回一个flag，表明是否空的receipts在排队，需要被导入
 func (q *queue) ReserveReceipts(p *peerConnection, count int) (*fetchRequest, bool, bool) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -516,6 +530,7 @@ func (q *queue) ReserveReceipts(p *peerConnection, count int) (*fetchRequest, bo
 // skipping any previously failed ones. This method is a generic version used
 // by the individual special reservation functions.
 // reserveHeaders为一个给定的peer保留一系列的data download操作，跳过任何之前已经失败的
+// 这个方法是一个通用的版本，由单个特定的reservation函数使用
 //
 // Note, this method expects the queue lock to be already held for writing. The
 // reason the lock is not obtained in here is because the parameters already need
@@ -549,6 +564,8 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		header := h.(*types.Header)
 		// we can ask the resultcache if this header is within the
 		// "prioritized" segment of blocks. If it is not, we need to throttle
+		// 我们可以询问resultcache，是否这个header在"prioritized" segment of blocks之内
+		// 如果不是的话，我们需要限流
 
 		stale, throttle, item, err := q.resultCache.AddFetch(header, q.mode == SnapSync)
 		if stale {
@@ -578,6 +595,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		}
 		if item.Done(kind) {
 			// If it's a noop, we can skip this task
+			// 如果这是一个noop，我们可以跳过这个task
 			delete(taskPool, header.Hash())
 			taskQueue.PopItem()
 			proc = proc - 1
@@ -596,6 +614,7 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 		}
 	}
 	// Merge all the skipped headers back
+	// 合并所有跳过的header
 	for _, header := range skip {
 		taskQueue.Push(header, -int64(header.Number.Uint64()))
 	}
@@ -620,6 +639,8 @@ func (q *queue) reserveHeaders(p *peerConnection, count int, taskPool map[common
 // Revoke cancels all pending requests belonging to a given peer. This method is
 // meant to be called during a peer drop to quickly reassign owned data fetches
 // to remaining nodes.
+// Revoke取消属于一个给定peer的所有pending requests，这个方法会在peer drop的时候被调用
+// 从而快速重新将它所有的data fetches赋值给其他的remaining nodes
 func (q *queue) Revoke(peerID string) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -808,6 +829,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 			headers: processHeaders,
 			hashes:  processHashes,
 		}:
+			// 提前调度新的headers
 			logger.Trace("Pre-scheduled new headers", "count", len(processHeaders), "from", processHeaders[0].Number)
 			q.headerProced += len(processHeaders)
 		default:
@@ -840,6 +862,7 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 	}
 
 	reconstruct := func(index int, result *fetchResult) {
+		// result中加入transactions，uncles
 		result.Transactions = txLists[index]
 		result.Uncles = uncleLists[index]
 		result.SetBodyDone()
@@ -849,8 +872,10 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, txListH
 }
 
 // DeliverReceipts injects a receipt retrieval response into the results queue.
+// DeliverReceipts注入一个receipt retrieval response到results queue
 // The method returns the number of transaction receipts accepted from the delivery
 // and also wakes any threads waiting for data delivery.
+// 这个方法返回从delivery接受到的transaction receipts的数目并且唤醒任何等待data delivery的任何threads
 func (q *queue) DeliverReceipts(id string, receiptList [][]*types.Receipt, receiptListHashes []common.Hash) (int, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
@@ -862,6 +887,7 @@ func (q *queue) DeliverReceipts(id string, receiptList [][]*types.Receipt, recei
 		return nil
 	}
 	reconstruct := func(index int, result *fetchResult) {
+		// result中加入receipts
 		result.Receipts = receiptList[index]
 		result.SetReceiptsDone()
 	}
@@ -882,6 +908,7 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	reconstruct func(index int, result *fetchResult)) (int, error) {
 
 	// Short circuit if the data was never requested
+	// 如果从未请求data，则直接短路
 	request := pendPool[id]
 	if request == nil {
 		resDropMeter.Mark(int64(results))
@@ -893,12 +920,14 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	resInMeter.Mark(int64(results))
 
 	// If no data items were retrieved, mark them as unavailable for the origin peer
+	// 如果没有收到data items，将它们标记为unavailable，对于origin peer
 	if results == 0 {
 		for _, header := range request.Headers {
 			request.Peer.MarkLacking(header.Hash())
 		}
 	}
 	// Assemble each of the results with their headers and retrieved data parts
+	// 组合每个results，用它们的headers以及获取来的data
 	var (
 		accepted int
 		failure  error
@@ -920,7 +949,9 @@ func (q *queue) deliver(id string, taskPool map[common.Hash]*types.Header,
 	}
 
 	for _, header := range request.Headers[:i] {
+		// 从result Cache中获取结果
 		if res, stale, err := q.resultCache.GetDeliverySlot(header.Number.Uint64()); err == nil {
+			// 重新构建result
 			reconstruct(accepted, res)
 		} else {
 			// else: betweeen here and above, some other peer filled this result,

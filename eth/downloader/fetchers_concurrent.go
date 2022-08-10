@@ -102,6 +102,8 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 		// Abort all requests on sync cycle cancellation. The requests may still
 		// be fulfilled by the remote side, but the dispatcher will not wait to
 		// deliver them since nobody's going to be listening.
+		// 在sync cycle cancellation退出所有的requests，requests可能依然被remote side
+		// 填充，但是dispatcher不会等待发送它们，因为没有人再监听了
 		for _, req := range pending {
 			req.Close()
 		}
@@ -122,6 +124,9 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 	// all trace of a timed out request is not good. We also can't just cancel
 	// the pending request altogether as that would prevent a late response from
 	// being delivered, thus never unblocking the peer.
+	// 另外追踪超时但是没有answered requests，我们想追踪哪个peers是busy（可能是超载的）
+	// 因此移除一个超时的request的所有trace不好，我们也不能只取消一个pending request
+	// 以为你这会阻止一个late response的传递，因此从不会unblocking peer
 	stales := make(map[string]*eth.Request)
 	defer func() {
 		// Abort all requests on sync cycle cancellation. The requests may still

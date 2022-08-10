@@ -668,7 +668,8 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 	fetchers := []func() error{
 		// headers总是要获取的
 		headerFetcher, // Headers are always retrieved
-		func() error { return d.fetchBodies(origin+1, beaconMode) },   // Bodies are retrieved during normal and snap sync	// Boides在normal以及snap sync的时候获取
+		func() error { return d.fetchBodies(origin+1, beaconMode) }, // Bodies are retrieved during normal and snap sync	// Boides在normal以及snap sync的时候获取
+		// 现在貌似所有sync模式都会运行？
 		func() error { return d.fetchReceipts(origin+1, beaconMode) }, // Receipts are retrieved during snap sync	// Receipts在snap sync的时候获取
 		func() error { return d.processHeaders(origin+1, td, ttd, beaconMode) },
 	}
@@ -696,6 +697,7 @@ func (d *Downloader) spawnSync(fetchers []func() error) error {
 	// 用goroutine启动fetchers
 	for _, fn := range fetchers {
 		fn := fn
+		// 运行结束发送结果到channel
 		go func() { defer d.cancelWg.Done(); errc <- fn() }()
 	}
 	// Wait for the first error, then terminate the others.
@@ -926,6 +928,7 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 		}
 	}
 
+	// 首先进行span searching
 	ancestor, err := d.findAncestorSpanSearch(p, mode, remoteHeight, localHeight, floor)
 	if err == nil {
 		return ancestor, nil
@@ -938,6 +941,7 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 		return 0, err
 	}
 
+	// 二分查找common ancestor
 	ancestor, err = d.findAncestorBinarySearch(p, mode, remoteHeight, floor)
 	if err != nil {
 		return 0, err
@@ -993,6 +997,7 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 			known = d.lightchain.HasHeader(h, n)
 		}
 		if known {
+			// 找到匹配的祖先
 			number, hash = n, h
 			break
 		}
@@ -1201,6 +1206,7 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 				return fmt.Errorf("%w: withheld skeleton headers: advertised %d, withheld #%d", errStallingPeer, head, from+uint64(MaxHeaderFetch)-1)
 			}
 			p.log.Debug("No skeleton, fetching headers directly")
+			// 将skeleton设置为false
 			skeleton = false
 			continue
 		}

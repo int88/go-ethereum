@@ -102,6 +102,9 @@ func (r *resultStore) AddFetch(header *types.Header, fastSync bool) (stale, thro
 // is true, that means the header has already been delivered 'upstream'. This method
 // does not bubble up the 'throttle' flag, since it's moot at the point in time when
 // the item is downloaded and ready for delivery
+// GetDeliverySlot返回给定header的fetchResult，如果'stale'为true，这意味着header已经被传递给了
+// 'upstrea'，这个方法不会bubble up the 'throttle'，因为在item被下载并且准备交付时，
+// 这个时间点是没有意义的
 func (r *resultStore) GetDeliverySlot(headerNumber uint64) (*fetchResult, bool, error) {
 	r.lock.RLock()
 	defer r.lock.RUnlock()

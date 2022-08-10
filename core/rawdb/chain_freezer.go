@@ -91,6 +91,7 @@ func (f *chainFreezer) Close() error {
 //
 // This functionality is deliberately broken off from block importing to avoid
 // incurring additional data shuffling delays on block propagation.
+// 这个功能故意从block导入中被切断来避免招致额外的data shuffling delays，在block传播过程中
 func (f *chainFreezer) freeze(db ethdb.KeyValueStore) {
 	nfdb := &nofreezedb{KeyValueStore: db}
 
@@ -123,6 +124,7 @@ func (f *chainFreezer) freeze(db ethdb.KeyValueStore) {
 		// Retrieve the freezing threshold.
 		hash := ReadHeadBlockHash(nfdb)
 		if hash == (common.Hash{}) {
+			// 新的chain，空的数据库
 			log.Debug("Current full block hash unavailable") // new chain, empty database
 			backoff = true
 			continue
@@ -154,6 +156,7 @@ func (f *chainFreezer) freeze(db ethdb.KeyValueStore) {
 		}
 
 		// Seems we have data ready to be frozen, process in usable batches
+		// 看来我们已经有数据准备好frozen了，在可用批次进行处理
 		var (
 			start    = time.Now()
 			first, _ = f.Ancients()

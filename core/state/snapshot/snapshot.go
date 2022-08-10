@@ -176,10 +176,14 @@ type Tree struct {
 // New attempts to load an already existing snapshot from a persistent key-value
 // store (with a number of memory layers from a journal), ensuring that the head
 // of the snapshot matches the expected one.
+// New试着从持久化的key-value存储中加载一个已经存在的snapshot（来自journal的一系列memory layers）
+// 确保snapshot的head和期望的匹配
 //
 // If the snapshot is missing or the disk layer is broken, the snapshot will be
 // reconstructed using both the existing data and the state trie.
 // The repair happens on a background thread.
+// 如果缺失snapshot或者disk layer被破坏，snapshot会用已经存在的数据以及state trie进行重构
+// repair在后台线程中发生
 //
 // If the memory layers in the journal do not match the disk layer (e.g. there is
 // a gap) or the journal is missing, there are two repair cases:
@@ -200,6 +204,7 @@ func New(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root comm
 		defer snap.waitBuild()
 	}
 	// Attempt to load a previously persisted snapshot and rebuild one if failed
+	// 试着加载一个之前已经存在的snapshot并且重新构建，如果失败的话
 	head, disabled, err := loadSnapshot(diskdb, triedb, cache, root, recovery)
 	if disabled {
 		log.Warn("Snapshot maintenance disabled (syncing)")
@@ -214,6 +219,7 @@ func New(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root comm
 		return nil, err // Bail out the error, don't rebuild automatically.
 	}
 	// Existing snapshot loaded, seed all the layers
+	// 加载了已经存在的snapshot
 	for head != nil {
 		snap.layers[head.Root()] = head
 		head = head.Parent()

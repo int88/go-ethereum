@@ -67,6 +67,8 @@ func (q *headerQueue) reserve(peer *peerConnection, items int) (*fetchRequest, b
 // unreserve is resposible for removing the current header retrieval allocation
 // assigned to a specific peer and placing it back into the pool to allow
 // reassigning to some other peer.
+// unreserve负责移除赋予给一个特定peer的current header retrieval并且将它放回pool
+// 从而允许重新赋值给一些其他的peer
 func (q *headerQueue) unreserve(peer string) int {
 	fails := q.queue.ExpireHeaders(peer)
 	if fails > 2 {
@@ -97,8 +99,10 @@ func (q *headerQueue) deliver(peer *peerConnection, packet *eth.Response) (int, 
 	accepted, err := q.queue.DeliverHeaders(peer.id, headers, hashes, q.headerProcCh)
 	switch {
 	case err == nil && len(headers) == 0:
+		// 请求的header已经被delivered
 		peer.log.Trace("Requested headers delivered")
 	case err == nil:
+		// Delivered新一批的headers
 		peer.log.Trace("Delivered new batch of headers", "count", len(headers), "accepted", accepted)
 	default:
 		peer.log.Debug("Failed to deliver retrieved headers", "err", err)
