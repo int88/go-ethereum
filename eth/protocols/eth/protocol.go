@@ -133,6 +133,7 @@ type GetBlockHeadersPacket struct {
 }
 
 // GetBlockHeadersPacket66 represents a block header query over eth/66
+// GetBlockHeadersPacket66代表了eth/66之上的一个block header query
 type GetBlockHeadersPacket66 struct {
 	RequestId uint64
 	*GetBlockHeadersPacket

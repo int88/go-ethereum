@@ -1127,7 +1127,10 @@ func (d *Downloader) fetchHeaders(p *peerConnection, from uint64, head uint64) e
 			p.log.Trace("Fetching skeleton headers", "count", MaxHeaderFetch, "from", from)
 			// 获取skeleton header
 			headers, hashes, err = d.fetchHeadersByNumber(p, from+uint64(MaxHeaderFetch)-1, MaxSkeletonSize, MaxHeaderFetch-1, false)
-
+			p.log.Trace("fetchHeadersByNumber result", "headers", headers, "hashes", hashes)
+			for i := 0; i < len(headers); i++ {
+				p.log.Trace("header number is ", "number", headers[i].Number)
+			}
 		default:
 			// 默认获取full headers
 			p.log.Trace("Fetching full headers", "count", MaxHeaderFetch, "from", from)

@@ -58,6 +58,7 @@ type typedQueue interface {
 
 	// updateCapacity is responsible for updating how many items of the abstracted
 	// type a particular peer is estimated to be able to retrieve in a unit time.
+	// updateCapacity负责更新一个特定的peer能够在单位时间内获取items的数目
 	updateCapacity(peer *peerConnection, items int, elapsed time.Duration)
 
 	// reserve is responsible for allocating a requested number of pending items
@@ -153,11 +154,13 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 		// Short circuit if we lost all our peers
 		// 丢失了所有的peers
 		if d.peers.Len() == 0 && !beaconMode {
+			// 如果没有peers，直接返回
 			return errNoPeers
 		}
 		// If there's nothing more to fetch, wait or terminate
 		// 如果没有更多东西需要获取了，等待或者终结
 		if queue.pending() == 0 {
+			// 没有pending peer了
 			if len(pending) == 0 && finished {
 				// 结束了则返回
 				return nil
@@ -419,6 +422,8 @@ func (d *Downloader) concurrentFetch(queue typedQueue, beaconMode bool) error {
 				// Unless a peer delivered something completely else than requested (usually
 				// caused by a timed out request which came through in the end), set it to
 				// idle. If the delivery's stale, the peer should have already been idled.
+				// 除非一个peer发送除了请求之外的something completely（通常因为超时导致）
+				// 将它设置为idle，如果delivery为stale，peer应该已经处于idle
 				if !errors.Is(err, errStaleDelivery) {
 					queue.updateCapacity(peer, accepted, res.Time)
 				}

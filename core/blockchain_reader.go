@@ -88,6 +88,7 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 
 // GetHeadersFrom returns a contiguous segment of headers, in rlp-form, going
 // backwards from the given number.
+// GetHeadersFrom返回headers的contiguous segment，以rlp的形式，从给定的number往后
 func (bc *BlockChain) GetHeadersFrom(number, count uint64) []rlp.RawValue {
 	return bc.hc.GetHeadersFrom(number, count)
 }

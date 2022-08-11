@@ -131,11 +131,13 @@ type queue struct {
 	headerPeerMiss map[string]map[uint64]struct{} // Set of per-peer header batches known to be unavailable
 	// 当前阻塞的header retrieval操作
 	headerPendPool map[string]*fetchRequest // Currently pending header retrieval operations
-	headerResults  []*types.Header          // Result cache accumulating the completed headers
-	headerHashes   []common.Hash            // Result cache accumulating the completed header hashes
-	headerProced   int                      // Number of headers already processed from the results
-	headerOffset   uint64                   // Number of the first header in the result cache
-	headerContCh   chan bool                // Channel to notify when header download finishes
+	// Result cache，累计完成的headers
+	headerResults []*types.Header // Result cache accumulating the completed headers
+	// Result cache，累计完成的header hashes
+	headerHashes []common.Hash // Result cache accumulating the completed header hashes
+	headerProced int           // Number of headers already processed from the results
+	headerOffset uint64        // Number of the first header in the result cache
+	headerContCh chan bool     // Channel to notify when header download finishes
 
 	// All data retrievals below are based on an already assembles header chain
 	// 所有下面获取的data，都是基于已经组装的header chain
@@ -284,6 +286,7 @@ func (q *queue) ScheduleSkeleton(from uint64, skeleton []*types.Header) {
 	q.headerTaskPool = make(map[uint64]*types.Header)
 	q.headerTaskQueue = prque.New(nil)
 	q.headerPeerMiss = make(map[string]map[uint64]struct{}) // Reset availability to correct invalid chains
+	// 每个skeleton，包含MaxHeaderFetch个header
 	q.headerResults = make([]*types.Header, len(skeleton)*MaxHeaderFetch)
 	q.headerHashes = make([]common.Hash, len(skeleton)*MaxHeaderFetch)
 	q.headerProced = 0
@@ -758,6 +761,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	// 确认headers可以映射到skeleton chain
 	target := q.headerTaskPool[request.From].Hash()
 
+	// 当headers的数目为MxHeaderFetch时，设置accepted为true
 	accepted := len(headers) == MaxHeaderFetch
 	if accepted {
 		if headers[0].Number.Uint64() != request.From {
@@ -784,6 +788,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 				break
 			}
 			// Set-up parent hash for next round
+			// 设置下一轮的parent hash
 			parentHash = hash
 		}
 	}

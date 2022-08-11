@@ -181,6 +181,8 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 		// Theoretically, we are tasked to deliver header by hash H, and onwards.
 		// However, if H is not canon, we will be unable to deliver any descendants of
 		// H.
+		// 理论上来说，我们被要求根据哈希值H传递header，并且onwards
+		// 然后，如果H不是canon，我们会无法传递H的后代
 		if canonHash := chain.GetCanonicalHash(num); canonHash != hash {
 			// Not canon, we can't deliver descendants
 			return headers

@@ -84,6 +84,7 @@ func (d *Downloader) fetchHeadersByHash(p *peerConnection, hash common.Hash, amo
 // interruption以及timeout机制，对于一个data retrieval，从而允许blocking API调用
 func (d *Downloader) fetchHeadersByNumber(p *peerConnection, number uint64, amount int, skip int, reverse bool) ([]*types.Header, []common.Hash, error) {
 	// Create the response sink and send the network request
+	// 创建response sink并且发送network request
 	start := time.Now()
 	resCh := make(chan *eth.Response)
 

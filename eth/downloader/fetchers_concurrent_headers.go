@@ -84,6 +84,7 @@ func (q *headerQueue) unreserve(peer string) int {
 // request负责转换一个generic fetch request到一个header类的并且将它们发送到remote peer用于填充
 func (q *headerQueue) request(peer *peerConnection, req *fetchRequest, resCh chan *eth.Response) (*eth.Request, error) {
 	peer.log.Trace("Requesting new batch of headers", "from", req.From)
+	// 同样也是轻轻的RequestHeadersByNumber
 	return peer.peer.RequestHeadersByNumber(req.From, MaxHeaderFetch, 0, false, resCh)
 }
 

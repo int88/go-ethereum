@@ -48,7 +48,9 @@ type Request struct {
 	sink   chan *Response // Channel to deliver the response on
 	cancel chan struct{}  // Channel to cancel requests ahead of time
 
-	code uint64      // Message code of the request packet
+	// request packet的Message code类型
+	code uint64 // Message code of the request packet
+	// response packet的Message code类型
 	want uint64      // Message code of the response packet
 	data interface{} // Data content of the request packet
 

@@ -722,6 +722,7 @@ func TestMultiSynchronisation66Snap(t *testing.T)  { testMultiSynchronisation(t,
 func TestMultiSynchronisation66Light(t *testing.T) { testMultiSynchronisation(t, eth.ETH66, LightSync) }
 
 func testMultiSynchronisation(t *testing.T, protocol uint, mode SyncMode) {
+	log.Root().SetHandler(log.StdoutHandler)
 	tester := newTester(t)
 	defer tester.terminate()
 
