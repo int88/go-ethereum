@@ -45,6 +45,7 @@ var (
 var testChainBase *testChain
 
 // Different forks on top of the base chain:
+// 在base chain之上的不同的forks
 var testChainForkLightA, testChainForkLightB, testChainForkHeavy *testChain
 
 var pregenerated bool
@@ -113,6 +114,7 @@ func init() {
 	wg.Wait()
 
 	// Mark the chains pregenerated. Generating a new one will lead to a panic.
+	// 标记chains已经提前生成，生成一个新的会导致panic
 	pregenerated = true
 }
 
@@ -167,6 +169,7 @@ func (tc *testChain) copy(newlen int) *testChain {
 // 每22个block包含一个transaction，每5个一个uncle，允许测试正确的block组装
 func (tc *testChain) generate(n int, seed byte, parent *types.Block, heavy bool) {
 	blocks, _ := core.GenerateChain(params.TestChainConfig, parent, ethash.NewFaker(), testDB, n, func(i int, block *core.BlockGen) {
+		// 设置不同的coinbase
 		block.SetCoinbase(common.Address{seed})
 		// If a heavy chain is requested, delay blocks to raise difficulty
 		// 如果请求了一个heavy chain，延迟blocks来提高difficulty
@@ -226,7 +229,7 @@ func newTestBlockchain(blocks []*types.Block) *core.BlockChain {
 	testBlockchainsLock.Unlock()
 
 	// Ensure that the database is generated
-	// 确保database被创建
+	// 确保database被创建且只会被调用一次
 	tbc.gen.Do(func() {
 		if pregenerated {
 			panic("Requested chain generation outside of init")

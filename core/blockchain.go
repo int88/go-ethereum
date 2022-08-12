@@ -950,6 +950,7 @@ func (bc *BlockChain) procFutureBlocks() {
 }
 
 // WriteStatus status of write
+// 写的状态
 type WriteStatus byte
 
 const (
@@ -1813,6 +1814,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 		switch status {
 		case CanonStatTy:
+			// 插入正常的blocks
 			log.Debug("", "number", block.Number(), "hash", block.Hash(),
 				"uncles", len(block.Uncles()), "txs", len(block.Transactions()), "gas", block.GasUsed(),
 				"elapsed", common.PrettyDuration(time.Since(start)),

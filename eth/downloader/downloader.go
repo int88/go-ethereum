@@ -48,7 +48,8 @@ var (
 
 	maxQueuedHeaders = 32 * 1024 // [eth/62] Maximum number of headers to queue for import (DOS protection)
 	// header download results的数目，一次导入chain
-	maxHeadersProcess           = 2048                              // Number of header download results to import at once into the chain
+	maxHeadersProcess = 2048 // Number of header download results to import at once into the chain
+	// 一次导入chain的content download结果的数目
 	maxResultsProcess           = 2048                              // Number of content download results to import at once into the chain
 	fullMaxForkAncestry  uint64 = params.FullImmutabilityThreshold  // Maximum chain reorganisation (locally redeclared so tests can reduce it)
 	lightMaxForkAncestry uint64 = params.LightImmutabilityThreshold // Maximum chain reorganisation (locally redeclared so tests can reduce it)
@@ -180,6 +181,7 @@ type LightChain interface {
 	GetTd(common.Hash, uint64) *big.Int
 
 	// InsertHeaderChain inserts a batch of headers into the local chain.
+	// InsertHeaderChain将一系列的headers插入到local chain
 	InsertHeaderChain([]*types.Header, int) (int, error)
 
 	// SetHead rewinds the local chain to a new head.
@@ -898,6 +900,7 @@ func (d *Downloader) findAncestor(p *peerConnection, remoteHeader *types.Header)
 	p.log.Debug("Looking for common ancestor", "local", localHeight, "remote", remoteHeight)
 
 	// Recap floor value for binary search
+	// 对于二分查找，重新确定floor的值
 	maxForkAncestry := fullMaxForkAncestry
 	if d.getMode() == LightSync {
 		maxForkAncestry = lightMaxForkAncestry
@@ -1006,6 +1009,7 @@ func (d *Downloader) findAncestorSpanSearch(p *peerConnection, mode SyncMode, re
 	// 如果head fetch已经找到了一个ancestor，返回
 	if hash != (common.Hash{}) {
 		if int64(number) <= floor {
+			// 在floor之下了，新的chain太老了，不允许
 			p.log.Warn("Ancestor below allowance", "number", number, "hash", hash, "allowance", floor)
 			return 0, errInvalidAncestor
 		}
@@ -1557,6 +1561,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 						}
 					}
 					if len(chunkHeaders) > 0 {
+						// 插入lightchain
 						if n, err := d.lightchain.InsertHeaderChain(chunkHeaders, frequency); err != nil {
 							rollbackErr = err
 
@@ -1603,6 +1608,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 					inserts := d.queue.Schedule(chunkHeaders, chunkHashes, origin)
 					if len(inserts) != len(chunkHeaders) {
 						rollbackErr = fmt.Errorf("stale headers: len inserts %v len(chunk) %v", len(inserts), len(chunkHeaders))
+						// 包含了过期的header
 						return fmt.Errorf("%w: stale headers", errBadPeer)
 					}
 				}

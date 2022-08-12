@@ -125,8 +125,9 @@ type queue struct {
 	// Headers是特殊的，它们批量下载，支持一个skeleton chain
 	headerHead common.Hash // Hash of the last queued header to verify order
 	// Pending的header retrieval tasks，映射索引到skeleton headers
-	headerTaskPool  map[uint64]*types.Header // Pending header retrieval tasks, mapping starting indexes to skeleton headers
-	headerTaskQueue *prque.Prque             // Priority queue of the skeleton indexes to fetch the filling headers for
+	headerTaskPool map[uint64]*types.Header // Pending header retrieval tasks, mapping starting indexes to skeleton headers
+	// skeleton indexes的优先级队列，用于获取filling headers
+	headerTaskQueue *prque.Prque // Priority queue of the skeleton indexes to fetch the filling headers for
 	// 一系列的per-peer header batches，已知不可用
 	headerPeerMiss map[string]map[uint64]struct{} // Set of per-peer header batches known to be unavailable
 	// 当前阻塞的header retrieval操作
@@ -155,8 +156,9 @@ type queue struct {
 	receiptWakeCh    chan bool                // Channel to notify when receipt fetcher of new tasks	// 用于通知receipt fetcher有新的tasks的channel
 
 	// 已经下载但是没有分发的fetch results
-	resultCache *resultStore       // Downloaded but not yet delivered fetch results
-	resultSize  common.StorageSize // Approximate size of a block (exponential moving average)
+	resultCache *resultStore // Downloaded but not yet delivered fetch results
+	// 一个block大概的大小
+	resultSize common.StorageSize // Approximate size of a block (exponential moving average)
 
 	lock   *sync.RWMutex
 	active *sync.Cond
@@ -296,7 +298,7 @@ func (q *queue) ScheduleSkeleton(from uint64, skeleton []*types.Header) {
 	for i, header := range skeleton {
 		index := from + uint64(i*MaxHeaderFetch)
 
-		// 设置headers
+		// 设置headers，填充headerTaskPool
 		q.headerTaskPool[index] = header
 		q.headerTaskQueue.Push(index, -int64(index))
 	}
@@ -311,6 +313,7 @@ func (q *queue) RetrieveHeaders() ([]*types.Header, []common.Hash, int) {
 
 	// 从header results，hashes以及headerProced获取Head信息
 	headers, hashes, proced := q.headerResults, q.headerHashes, q.headerProced
+	// 重置headerResults, headerHashes, headerProced
 	q.headerResults, q.headerHashes, q.headerProced = nil, nil, 0
 
 	return headers, hashes, proced
@@ -396,6 +399,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 			break
 		}
 		// No items available, and not closed
+		// 没有可用的items，并且不关闭
 		q.active.Wait()
 		closed = q.closed
 		q.lock.Unlock()
@@ -405,6 +409,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 	results := q.resultCache.GetCompleted(maxResultsProcess)
 	for _, result := range results {
 		// Recalculate the result item weights to prevent memory exhaustion
+		// 重新计算result item weights来避免内存用尽
 		size := result.Header.Size()
 		for _, uncle := range result.Uncles {
 			size += uncle.Size()
@@ -420,6 +425,7 @@ func (q *queue) Results(block bool) []*fetchResult {
 	}
 	// Using the newly calibrated resultsize, figure out the new throttle limit
 	// on the result cache
+	// 使用新校准的resultsize，搞清楚在result cache中心的throttle limit
 	throttleThreshold := uint64((common.StorageSize(blockCacheMemory) + q.resultSize - 1) / q.resultSize)
 	throttleThreshold = q.resultCache.SetThrottleThreshold(throttleThreshold)
 
@@ -497,6 +503,7 @@ func (q *queue) ReserveHeaders(p *peerConnection, count int) *fetchRequest {
 	request := &fetchRequest{
 		// 指定了peer
 		Peer: p,
+		// 从send开始
 		From: send,
 		Time: time.Now(),
 	}
@@ -762,6 +769,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	target := q.headerTaskPool[request.From].Hash()
 
 	// 当headers的数目为MxHeaderFetch时，设置accepted为true
+	// 因为请求的就是MaxHeaderFetch个headers
 	accepted := len(headers) == MaxHeaderFetch
 	if accepted {
 		if headers[0].Number.Uint64() != request.From {
@@ -775,6 +783,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 	}
 	if accepted {
 		parentHash := hashes[0]
+		// 确认父子关系
 		for i, header := range headers[1:] {
 			hash := hashes[i+1]
 			if want := request.From + 1 + uint64(i); header.Number.Uint64() != want {
@@ -803,9 +812,11 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, hashes []comm
 			q.headerPeerMiss[id] = make(map[uint64]struct{})
 			miss = q.headerPeerMiss[id]
 		}
+		// peer id，对应from的header range不可获取
 		miss[request.From] = struct{}{}
 
 		q.headerTaskQueue.Push(request.From, -int64(request.From))
+		// delivery没有被接受
 		return 0, errors.New("delivery not accepted")
 	}
 	// Clean up a successful fetch and try to deliver any sub-results

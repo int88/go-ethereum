@@ -92,6 +92,7 @@ func (r *resultStore) AddFetch(header *types.Header, fastSync bool) (stale, thro
 		return stale, throttled, item, err
 	}
 	if item == nil {
+		// 构建一个新的FetchResult
 		item = newFetchResult(header, fastSync)
 		r.items[index] = item
 	}
@@ -174,6 +175,7 @@ func (r *resultStore) countCompleted() int {
 }
 
 // GetCompleted returns the next batch of completed fetchResults
+// GetCompleted返回下一批完成的fetchResults
 func (r *resultStore) GetCompleted(limit int) []*fetchResult {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -186,6 +188,7 @@ func (r *resultStore) GetCompleted(limit int) []*fetchResult {
 	copy(results, r.items[:limit])
 
 	// Delete the results from the cache and clear the tail.
+	// 从缓存中清除results并且清理tail
 	copy(r.items, r.items[limit:])
 	for i := len(r.items) - limit; i < len(r.items); i++ {
 		r.items[i] = nil

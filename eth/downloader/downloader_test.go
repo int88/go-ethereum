@@ -508,6 +508,7 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 		errc <- tester.sync("peer", nil, mode)
 	}()
 	// Iteratively take some blocks, always checking the retrieval count
+	// 遍历一些blocks，总是检查retrieval count
 	for {
 		// Check the retrieval count synchronously (! reason for this ugly block)
 		tester.lock.RLock()
@@ -541,6 +542,7 @@ func testThrottling(t *testing.T, protocol uint, mode SyncMode) {
 			}
 		}
 		// Make sure we filled up the cache, then exhaust it
+		// 确保我们填满了caceh，之后排干它
 		time.Sleep(25 * time.Millisecond) // give it a chance to screw up
 		tester.lock.RLock()
 		retrieved = int(tester.chain.CurrentFastBlock().Number().Uint64()) + 1
@@ -572,6 +574,7 @@ func TestForkedSync66Snap(t *testing.T)  { testForkedSync(t, eth.ETH66, SnapSync
 func TestForkedSync66Light(t *testing.T) { testForkedSync(t, eth.ETH66, LightSync) }
 
 func testForkedSync(t *testing.T, protocol uint, mode SyncMode) {
+	log.Root().SetHandler(log.StdoutHandler)
 	tester := newTester(t)
 	defer tester.terminate()
 
@@ -611,15 +614,18 @@ func testHeavyForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 	tester.newPeer("heavy", protocol, chainB.blocks[1:])
 
 	// Synchronise with the peer and make sure all blocks were retrieved
+	// 和Peer进行同步，确保所有的blocks都被获取到
 	if err := tester.sync("light", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
 	assertOwnChain(t, tester, len(chainA.blocks))
 
 	// Synchronise with the second peer and make sure that fork is pulled too
+	// 和第二个peer进行同步并且确保fork也被拉取
 	if err := tester.sync("heavy", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
+	// 最终是等于chains B
 	assertOwnChain(t, tester, len(chainB.blocks))
 }
 
@@ -641,12 +647,14 @@ func testBoundedForkedSync(t *testing.T, protocol uint, mode SyncMode) {
 	tester.newPeer("rewriter", protocol, chainB.blocks[1:])
 
 	// Synchronise with the peer and make sure all blocks were retrieved
+	// 和Peer进行同步并且确保所有的blocks都已经获取了
 	if err := tester.sync("original", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
 	assertOwnChain(t, tester, len(chainA.blocks))
 
 	// Synchronise with the second peer and ensure that the fork is rejected to being too old
+	// 和第二个peer进行同步并且确保fork被拒绝，因为太老了
 	if err := tester.sync("rewriter", nil, mode); err != errInvalidAncestor {
 		t.Fatalf("sync failure mismatch: have %v, want %v", err, errInvalidAncestor)
 	}

@@ -57,6 +57,9 @@ const (
 	// considered immutable (i.e. soft finality). It is used by the downloader as a
 	// hard limit against deep ancestors, by the blockchain against deep reorgs, by
 	// the freezer as the cutoff threshold and by clique as the snapshot trust limit.
+	// FullImmutabilityThreshold是blocks的数目，在这之后，一个chain segment将被认为
+	// 是不可变的（soft finality），它由downloader使用作为一个hard limit来防止deep ancestor
+	// 从而防止deep reorgs，对于freezer，作为cutoff threshold，对于clique，作为snapshot truct limit
 	FullImmutabilityThreshold = 90000
 
 	// LightImmutabilityThreshold is the number of blocks after which a header chain

@@ -37,6 +37,7 @@ func NewWrapAround(setIndex SetIndexCallback) *Prque {
 }
 
 // Pushes a value with a given priority into the queue, expanding if necessary.
+// 推送一个给定优先级的value到队列中，按需扩展
 func (p *Prque) Push(data interface{}, priority int64) {
 	heap.Push(p.cont, &item{data, priority})
 }
