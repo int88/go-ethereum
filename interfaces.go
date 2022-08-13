@@ -101,7 +101,8 @@ type ChainStateReader interface {
 type SyncProgress struct {
 	StartingBlock uint64 // Block number where sync began
 	CurrentBlock  uint64 // Current block number where sync is at
-	HighestBlock  uint64 // Highest alleged block number in the chain
+	// 链中声称的最高的block number
+	HighestBlock uint64 // Highest alleged block number in the chain
 
 	// "fast sync" fields. These used to be sent by geth, but are no longer used
 	// since version v1.10.

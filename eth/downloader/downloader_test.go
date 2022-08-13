@@ -709,11 +709,13 @@ func testCancel(t *testing.T, protocol uint, mode SyncMode) {
 	tester.newPeer("peer", protocol, chain.blocks[1:])
 
 	// Make sure canceling works with a pristine downloader
+	// 确保对于原始的downloader，能cancel成功
 	tester.downloader.Cancel()
 	if !tester.downloader.queue.Idle() {
 		t.Errorf("download queue not idle")
 	}
 	// Synchronise with the peer, but cancel afterwards
+	// 和peer进行同步，但是之后能cancel
 	if err := tester.sync("peer", nil, mode); err != nil {
 		t.Fatalf("failed to synchronise blocks: %v", err)
 	}
@@ -735,6 +737,7 @@ func testMultiSynchronisation(t *testing.T, protocol uint, mode SyncMode) {
 	defer tester.terminate()
 
 	// Create various peers with various parts of the chain
+	// 创建多个peers，有着chain的各个部分
 	targetPeers := 8
 	chain := testChainBase.shorten(targetPeers * 100)
 
@@ -855,6 +858,7 @@ func testMissingHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 	attacker.withholdHeaders[chain.blocks[len(chain.blocks)/2-1].Hash()] = struct{}{}
 
 	if err := tester.sync("attack", nil, mode); err == nil {
+		// 队友有问题的peer，应该返回err
 		t.Fatalf("succeeded attacker synchronisation")
 	}
 
@@ -882,6 +886,7 @@ func testShiftedHeaderAttack(t *testing.T, protocol uint, mode SyncMode) {
 
 	// Attempt a full sync with an attacker feeding shifted headers
 	attacker := tester.newPeer("attack", protocol, chain.blocks[1:])
+	// 第一个header丢失
 	attacker.withholdHeaders[chain.blocks[1].Hash()] = struct{}{}
 
 	if err := tester.sync("attack", nil, mode); err == nil {
@@ -912,7 +917,9 @@ func testInvalidHeaderRollback(t *testing.T, protocol uint, mode SyncMode) {
 	chain := testChainBase.shorten(targetBlocks)
 
 	// Attempt to sync with an attacker that feeds junk during the fast sync phase.
+	// 试着和一个attacker同步，在fast sync期间喂垃圾
 	// This should result in the last fsHeaderSafetyNet headers being rolled back.
+	// 这应该导致最后fsHeaderSafetyNet个headers被回滚
 	// 2048 + 192 + 1
 	missing := fsHeaderSafetyNet + MaxHeaderFetch + 1
 
@@ -1003,6 +1010,7 @@ func testHighTDStarvationAttack(t *testing.T, protocol uint, mode SyncMode) {
 }
 
 // Tests that misbehaving peers are disconnected, whilst behaving ones are not.
+// 测试对于misbehaving peers会断开连接，同时正常的则不会
 func TestBlockHeaderAttackerDropping66(t *testing.T) { testBlockHeaderAttackerDropping(t, eth.ETH66) }
 
 func testBlockHeaderAttackerDropping(t *testing.T, protocol uint) {
@@ -1034,6 +1042,7 @@ func testBlockHeaderAttackerDropping(t *testing.T, protocol uint) {
 
 	for i, tt := range tests {
 		// Register a new peer and ensure its presence
+		// 注册一个新的peer并且确保它存在
 		id := fmt.Sprintf("test %d", i)
 		tester.newPeer(id, protocol, chain.blocks[1:])
 		if _, ok := tester.peers[id]; !ok {
@@ -1072,9 +1081,11 @@ func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 		starting <- struct{}{}
 		<-progress
 	}
+	// 检查progress
 	checkProgress(t, tester.downloader, "pristine", ethereum.SyncProgress{})
 
 	// Synchronise half the blocks and check initial progress
+	// 同步一半的blocks并且检查initial progress
 	tester.newPeer("peer-half", protocol, chain.shorten(len(chain.blocks) / 2).blocks[1:])
 	pending := new(sync.WaitGroup)
 	pending.Add(1)
@@ -1093,6 +1104,7 @@ func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	pending.Wait()
 
 	// Synchronise all the blocks and check continuation progress
+	// 同步所有的blocks并且检查continuation progress
 	tester.newPeer("peer-full", protocol, chain.blocks[1:])
 	pending.Add(1)
 	go func() {
@@ -1109,6 +1121,7 @@ func testSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	})
 
 	// Check final progress after successful sync
+	// 检查在成功sync之后的fianl progress
 	progress <- struct{}{}
 	pending.Wait()
 	checkProgress(t, tester.downloader, "final", ethereum.SyncProgress{
@@ -1131,6 +1144,7 @@ func checkProgress(t *testing.T, d *Downloader, stage string, want ethereum.Sync
 // Tests that synchronisation progress (origin block number and highest block
 // number) is tracked and updated correctly in case of a fork (or manual head
 // revertal).
+// 测试同步过程被追踪并且在fork的时候能正确更新
 func TestForkedSyncProgress66Full(t *testing.T)  { testForkedSyncProgress(t, eth.ETH66, FullSync) }
 func TestForkedSyncProgress66Snap(t *testing.T)  { testForkedSyncProgress(t, eth.ETH66, SnapSync) }
 func TestForkedSyncProgress66Light(t *testing.T) { testForkedSyncProgress(t, eth.ETH66, LightSync) }
@@ -1143,6 +1157,7 @@ func testForkedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	chainB := testChainForkLightB.shorten(len(testChainBase.blocks) + MaxHeaderFetch)
 
 	// Set a sync init hook to catch progress changes
+	// 设置一个sync init hook，来追踪progress的改变
 	starting := make(chan struct{})
 	progress := make(chan struct{})
 
@@ -1174,6 +1189,7 @@ func testForkedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	tester.downloader.syncStatsChainOrigin = tester.downloader.syncStatsChainHeight
 
 	// Synchronise with the second fork and check progress resets
+	// 和第二个fork进行同步并且检查progress被重置了
 	tester.newPeer("fork B", protocol, chainB.blocks[1:])
 	pending.Add(1)
 	go func() {
@@ -1190,6 +1206,7 @@ func testForkedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	})
 
 	// Check final progress after successful sync
+	// 在成功同步之后的final progress
 	progress <- struct{}{}
 	pending.Wait()
 	checkProgress(t, tester.downloader, "final", ethereum.SyncProgress{
@@ -1202,6 +1219,8 @@ func testForkedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 // Tests that if synchronisation is aborted due to some failure, then the progress
 // origin is not updated in the next sync cycle, as it should be considered the
 // continuation of the previous sync and not a new instance.
+// 如果同步被中止，因为一些原因，之后progress origin在下一个sync cycle不会更新，因为它应该
+// 被考虑为之前的同步的延续而不是一个新的
 func TestFailedSyncProgress66Full(t *testing.T)  { testFailedSyncProgress(t, eth.ETH66, FullSync) }
 func TestFailedSyncProgress66Snap(t *testing.T)  { testFailedSyncProgress(t, eth.ETH66, SnapSync) }
 func TestFailedSyncProgress66Light(t *testing.T) { testFailedSyncProgress(t, eth.ETH66, LightSync) }
@@ -1223,6 +1242,7 @@ func testFailedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	checkProgress(t, tester.downloader, "pristine", ethereum.SyncProgress{})
 
 	// Attempt a full sync with a faulty peer
+	// 试着和一个有问题的peer进行同步
 	missing := len(chain.blocks)/2 - 1
 
 	faulter := tester.newPeer("faulty", protocol, chain.blocks[1:])
@@ -1246,6 +1266,7 @@ func testFailedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 
 	// Synchronise with a good peer and check that the progress origin remind the same
 	// after a failure
+	// 和一个好的peer进行同步并且检查progress origin还是一样，在一个failure之后
 	tester.newPeer("valid", protocol, chain.blocks[1:])
 	pending.Add(1)
 	go func() {
@@ -1258,9 +1279,11 @@ func testFailedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	checkProgress(t, tester.downloader, "completing", afterFailedSync)
 
 	// Check final progress after successful sync
+	// 在成功同步之后的final progress
 	progress <- struct{}{}
 	pending.Wait()
 	checkProgress(t, tester.downloader, "final", ethereum.SyncProgress{
+		// 当前的Block和声称的HighestBlock相同
 		CurrentBlock: uint64(len(chain.blocks) - 1),
 		HighestBlock: uint64(len(chain.blocks) - 1),
 	})
@@ -1281,6 +1304,7 @@ func testFakedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	chain := testChainBase.shorten(blockCacheMaxItems - 15)
 
 	// Set a sync init hook to catch progress changes
+	// 设置一个sync init hook来追踪progress的变更
 	starting := make(chan struct{})
 	progress := make(chan struct{})
 	tester.downloader.syncInitHook = func(origin, latest uint64) {
@@ -1290,6 +1314,7 @@ func testFakedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 	checkProgress(t, tester.downloader, "pristine", ethereum.SyncProgress{})
 
 	// Create and sync with an attacker that promises a higher chain than available.
+	// 创建并且和一个attacker进行同步，保证一个比可用更高的chain
 	attacker := tester.newPeer("attack", protocol, chain.blocks[1:])
 	numMissing := 5
 	for i := len(chain.blocks) - 2; i > len(chain.blocks)-numMissing; i-- {
@@ -1313,6 +1338,7 @@ func testFakedSyncProgress(t *testing.T, protocol uint, mode SyncMode) {
 
 	// Synchronise with a good peer and check that the progress height has been reduced to
 	// the true value.
+	// 和一个good peer进行同步并且检查progress height已经降低到了一个正确值
 	validChain := chain.shorten(len(chain.blocks) - numMissing)
 	tester.newPeer("valid", protocol, validChain.blocks[1:])
 	pending.Add(1)

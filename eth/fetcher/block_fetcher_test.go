@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -210,11 +211,13 @@ func (f *fetcherTester) makeHeaderFetcher(peer string, blocks map[common.Hash]*t
 		closure[hash] = block
 	}
 	// Create a function that return a header from the closure
+	// 创建一个函数，从closure返回一个header
 	return func(hash common.Hash, sink chan *eth.Response) (*eth.Request, error) {
 		// Gather the blocks to return
 		// 收集blocks用于返回
 		headers := make([]*types.Header, 0, 1)
 		if block, ok := closure[hash]; ok {
+			// 请求hash对应的blocks
 			headers = append(headers, block.Header())
 		}
 		// Return on a new thread
@@ -229,6 +232,7 @@ func (f *fetcherTester) makeHeaderFetcher(peer string, blocks map[common.Hash]*t
 			Done: make(chan error, 1), // Ignore the returned status
 		}
 		go func() {
+			// 创建一个goroutine，将response直接放到channel中
 			sink <- res
 		}()
 		return req, nil
@@ -351,6 +355,7 @@ func verifyImportCount(t *testing.T, imported chan interface{}, count int) {
 }
 
 // verifyImportDone verifies that no more events are arriving on an import channel.
+// verifyImportDone确认在import channel没有更多的events
 func verifyImportDone(t *testing.T, imported chan interface{}) {
 	t.Helper()
 
@@ -379,6 +384,7 @@ func TestFullSequentialAnnouncements(t *testing.T)  { testSequentialAnnouncement
 func TestLightSequentialAnnouncements(t *testing.T) { testSequentialAnnouncements(t, true) }
 
 func testSequentialAnnouncements(t *testing.T, light bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// Create a chain of blocks to import
 	// 创建a chain of blocks用于导入
 	targetBlocks := 4 * hashLimit
@@ -386,6 +392,7 @@ func testSequentialAnnouncements(t *testing.T, light bool) {
 
 	tester := newTester(light)
 	defer tester.fetcher.Stop()
+	// 构建header fetcher和body fetcher
 	headerFetcher := tester.makeHeaderFetcher("valid", blocks, -gatherSlack)
 	bodyFetcher := tester.makeBodyFetcher("valid", blocks, 0)
 
@@ -407,6 +414,7 @@ func testSequentialAnnouncements(t *testing.T, light bool) {
 		}
 	}
 	for i := len(hashes) - 2; i >= 0; i-- {
+		// 通知fetcher
 		tester.fetcher.Notify("valid", hashes[i], uint64(len(hashes)-i-1), time.Now().Add(-arriveTimeout), headerFetcher, bodyFetcher)
 		verifyImportEvent(t, imported, true)
 	}

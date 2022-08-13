@@ -261,10 +261,12 @@ func (q *queue) InFlightReceipts() bool {
 }
 
 // Idle returns if the queue is fully idle or has some data still inside.
+// Idle返回是否队列已经完全idle或者还有一些数据在里面
 func (q *queue) Idle() bool {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
+	// 包括blockTaskQueue，receiptTaskQueue，blockPendPool以及receiptPendPool
 	queued := q.blockTaskQueue.Size() + q.receiptTaskQueue.Size()
 	pending := len(q.blockPendPool) + len(q.receiptPendPool)
 

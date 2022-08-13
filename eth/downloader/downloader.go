@@ -66,9 +66,10 @@ var (
 )
 
 var (
-	errBusy                    = errors.New("busy")
-	errUnknownPeer             = errors.New("peer is unknown or unhealthy")
-	errBadPeer                 = errors.New("action from bad peer ignored")
+	errBusy        = errors.New("busy")
+	errUnknownPeer = errors.New("peer is unknown or unhealthy")
+	errBadPeer     = errors.New("action from bad peer ignored")
+	// peer停滞了
 	errStallingPeer            = errors.New("peer is stalling")
 	errUnsyncedPeer            = errors.New("unsynced peer")
 	errNoPeers                 = errors.New("no peers to keep download active")
@@ -268,6 +269,7 @@ func New(checkpoint uint64, stateDb ethdb.Database, mux *event.TypeMux, chain Bl
 // 否则这些为0
 func (d *Downloader) Progress() ethereum.SyncProgress {
 	// Lock the current stats and return the progress
+	// 锁住当前的stats并且返回progress
 	d.syncStatsLock.RLock()
 	defer d.syncStatsLock.RUnlock()
 
@@ -432,7 +434,10 @@ func (d *Downloader) synchronise(id string, hash common.Hash, td, ttd *big.Int, 
 		// Snap sync uses the snapshot namespace to store potentially flakey data until
 		// sync completely heals and finishes. Pause snapshot maintenance in the mean-
 		// time to prevent access.
+		// Snap sync使用snapshot namespace来存储potentially flakey data，直到sync完成了
+		// heals并且结束，停止snapshot的维护同时避免访问
 		if snapshots := d.blockchain.Snapshots(); snapshots != nil { // Only nil in tests
+			// 只有在测试的时候才会为nil
 			snapshots.Disable()
 		}
 	}
@@ -743,6 +748,7 @@ func (d *Downloader) cancel() {
 
 // Cancel aborts all of the operations and waits for all download goroutines to
 // finish before returning.
+// Cancel中止所有的操作并且在返回之前等待所有的download goroutine结束
 func (d *Downloader) Cancel() {
 	d.cancel()
 	d.cancelWg.Wait()
@@ -1428,6 +1434,7 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 		}
 	}()
 	// Wait for batches of headers to process
+	// 等待批量的headers进行处理
 	gotHeaders := false
 
 	for {
@@ -1457,6 +1464,8 @@ func (d *Downloader) processHeaders(origin uint64, td, ttd *big.Int, beaconMode 
 					// If no headers were retrieved at all, the peer violated its TD promise that it had a
 					// better chain compared to ours. The only exception is if its promised blocks were
 					// already imported by other means (e.g. fetcher):
+					// 如果没有headers被获取，peer违背了它的TD承诺，即它有着更好的chain，唯一的例外是，它的承诺
+					// 的blocks已经通过其他方式导入了（例如，fetcher）
 					//
 					// R <remote peer>, L <local node>: Both at block 10
 					// R: Mine block 11, and propagate it to L

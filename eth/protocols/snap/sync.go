@@ -700,6 +700,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 
 // loadSyncStatus retrieves a previously aborted sync status from the database,
 // or generates a fresh one if none is available.
+// loadSyncStatus获取一个之前中止的sync status，从数据库中，或者产生一个新的，如果没有的话
 func (s *Syncer) loadSyncStatus() {
 	var progress SyncProgress
 
