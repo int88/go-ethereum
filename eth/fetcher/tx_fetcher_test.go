@@ -67,6 +67,7 @@ type isUnderpriced int
 
 // txFetcherTest represents a test scenario that can be executed by the test
 // runner.
+// txFetcherTest代表一个测试场景，可以被test runner执行
 type txFetcherTest struct {
 	init  func() *TxFetcher
 	steps []interface{}
@@ -74,6 +75,8 @@ type txFetcherTest struct {
 
 // Tests that transaction announcements are added to a waitlist, and none
 // of them are scheduled for retrieval until the wait expires.
+// 测试transaction announcements被添加到一个waitlist，在wait超时之前，没有一个
+// 会被调度用于获取
 func TestTransactionFetcherWaiting(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -1251,9 +1254,11 @@ func testTransactionFetcherParallel(t *testing.T, tt txFetcherTest) {
 
 func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 	// Create a fetcher and hook into it's simulated fields
+	// 创建一个fetcher并且将它们hook到它的模拟的字段
 	clock := new(mclock.Simulated)
 	wait := make(chan struct{})
 
+	// 构建fetcher
 	fetcher := tt.init()
 	fetcher.clock = clock
 	fetcher.step = wait
@@ -1273,6 +1278,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 	}()
 
 	// Crunch through all the test steps and execute them
+	// 完成所有的测试步骤并且执行它们
 	for i, step := range tt.steps {
 		switch step := step.(type) {
 		case doTxNotify:

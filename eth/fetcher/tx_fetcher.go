@@ -99,25 +99,35 @@ var (
 
 // txAnnounce is the notification of the availability of a batch
 // of new transactions in the network.
+// txAnnounce是通知，关于network中一批新的transactions可用
 type txAnnounce struct {
-	origin string        // Identifier of the peer originating the notification
+	// 产生这个通知的peer的identifier
+	origin string // Identifier of the peer originating the notification
+	// 一系列通知的transaction hashes
 	hashes []common.Hash // Batch of transaction hashes being announced
 }
 
 // txRequest represents an in-flight transaction retrieval request destined to
 // a specific peers.
+// txRequest代表一个飞行中的transaction获取请求，发往一个特定的peer
 type txRequest struct {
-	hashes []common.Hash            // Transactions having been requested
+	// 已经被请求的transactions
+	hashes []common.Hash // Transactions having been requested
+	// 其他人的交付（不要重新请求）
 	stolen map[common.Hash]struct{} // Deliveries by someone else (don't re-request)
 	time   mclock.AbsTime           // Timestamp of the request
 }
 
 // txDelivery is the notification that a batch of transactions have been added
 // to the pool and should be untracked.
+// txDelivery是一个通知，一系列的transactions已经被添加到pool并且应该被untracked
 type txDelivery struct {
-	origin string        // Identifier of the peer originating the notification
+	// 这个notification的peer的标识
+	origin string // Identifier of the peer originating the notification
+	// 一系列已经被delivered的transactions
 	hashes []common.Hash // Batch of transaction hashes having been delivered
-	direct bool          // Whether this is a direct reply or a broadcast
+	// 这是一个直接的reply还是一个广播
+	direct bool // Whether this is a direct reply or a broadcast
 }
 
 // txDrop is the notiication that a peer has disconnected.
@@ -142,12 +152,17 @@ type txDrop struct {
 //     并且移动到fetching状态，直到完整或者失败
 //
 // The invariants of the fetcher are:
+// fetcher不变的部分是：
+//	 - 每个追踪的transaction（hash）必须是上面三个状态之一，这确保fetcher类似于
+//	 - 有限自动机执行，而不会有数据泄露
 //   - Each tracked transaction (hash) must only be present in one of the
 //     three stages. This ensures that the fetcher operates akin to a finite
 //     state automata and there's do data leak.
 //   - Each peer that announced transactions may be scheduled retrievals, but
 //     only ever one concurrently. This ensures we can immediately know what is
 //     missing from a reply and reschedule it.
+//	 - 每个声称transactions的peer都可能被调度用于获取，但是只有一个并发度
+//	   这个可以让我们立即知道reply里缺失了什么并且重新调度
 type TxFetcher struct {
 	notify  chan *txAnnounce
 	cleanup chan *txDelivery
@@ -158,27 +173,43 @@ type TxFetcher struct {
 
 	// Stage 1: Waiting lists for newly discovered transactions that might be
 	// broadcast without needing explicit request/reply round trips.
-	waitlist  map[common.Hash]map[string]struct{} // Transactions waiting for an potential broadcast
-	waittime  map[common.Hash]mclock.AbsTime      // Timestamps when transactions were added to the waitlist
+	// 阶段一：对于新发现的transactions的Waiting lists，可能被广播，而不需要显式的request/reply的round trips
+	// 用于潜在的广播的transactions
+	waitlist map[common.Hash]map[string]struct{} // Transactions waiting for an potential broadcast
+	// transactions被添加到waitlist中的时间戳
+	waittime map[common.Hash]mclock.AbsTime // Timestamps when transactions were added to the waitlist
+	// 基于peer结队的waiting
 	waitslots map[string]map[common.Hash]struct{} // Waiting announcement sgroupped by peer (DoS protection)
 
 	// Stage 2: Queue of transactions that waiting to be allocated to some peer
 	// to be retrieved directly.
+	// 阶段二：transactions的队列，等待被分配给一些peer用于直接获取
+	// 一系列announced transactions，基于origin peer分组
 	announces map[string]map[common.Hash]struct{} // Set of announced transactions, grouped by origin peer
+	// 一系列下载的locations，由transaction hash分组
 	announced map[common.Hash]map[string]struct{} // Set of download locations, grouped by transaction hash
 
 	// Stage 3: Set of transactions currently being retrieved, some which may be
 	// fulfilled and some rescheduled. Note, this step shares 'announces' from the
 	// previous stage to avoid having to duplicate (need it for DoS checks).
-	fetching   map[common.Hash]string              // Transaction set currently being retrieved
-	requests   map[string]*txRequest               // In-flight transaction retrievals
+	// 步骤三：一系列当前正在被获取的transactions，有些可能被填充，有些可能被重调度
+	// 注意，这个步骤共享之前步骤的'announces'来避免重复
+	// 当前正在抓取的transaction
+	fetching map[common.Hash]string // Transaction set currently being retrieved
+	// In-flight的transaction retrievals
+	requests map[string]*txRequest // In-flight transaction retrievals
+	// In-flight transactions的交替起源，如果retrieval失败
 	alternates map[common.Hash]map[string]struct{} // In-flight transaction alternate origins if retrieval fails
 
 	// Callbacks
-	hasTx    func(common.Hash) bool             // Retrieves a tx from the local txpool
-	addTxs   func([]*types.Transaction) []error // Insert a batch of transactions into local txpool
-	fetchTxs func(string, []common.Hash) error  // Retrieves a set of txs from a remote peer
+	// 从本地的txpool获取一个tx的回调函数
+	hasTx func(common.Hash) bool // Retrieves a tx from the local txpool
+	// 添加一系列transactions到本地txpool的回调函数
+	addTxs func([]*types.Transaction) []error // Insert a batch of transactions into local txpool
+	// 从一个remote peer获取一系列的txs
+	fetchTxs func(string, []common.Hash) error // Retrieves a set of txs from a remote peer
 
+	// 当fetcher loop迭代的通知channel
 	step  chan struct{} // Notification channel when the fetcher loop iterates
 	clock mclock.Clock  // Time wrapper to simulate in tests
 	rand  *mrand.Rand   // Randomizer to use in tests instead of map range loops (soft-random)
@@ -339,6 +370,8 @@ func (f *TxFetcher) Drop(peer string) error {
 
 // Start boots up the announcement based synchroniser, accepting and processing
 // hash notifications and block fetches until termination requested.
+// Start启动基于announcement的synchroniser，接收并且处理hash notifications以及transaction fetchers
+// 直到请求终结
 func (f *TxFetcher) Start() {
 	go f.loop()
 }
@@ -364,6 +397,9 @@ func (f *TxFetcher) loop() {
 			// Note, we could but do not filter already known transactions here as
 			// the probability of something arriving between this call and the pre-
 			// filter outside is essentially zero.
+			// 丢弃部分新的announcements，如果有许多累计的，注意，我们可以，但是不要过滤
+			// 已经知道的transactions，因为在这个调用到外面的prefilter之间的来something
+			// 的可能性为零
 			used := len(f.waitslots[ann.origin]) + len(f.announces[ann.origin])
 			if used >= maxTxAnnounces {
 				// This can happen if a set of transactions are requested but not
@@ -379,6 +415,7 @@ func (f *TxFetcher) loop() {
 				ann.hashes = ann.hashes[:want-maxTxAnnounces]
 			}
 			// All is well, schedule the remainder of the transactions
+			// 所有都OK，调度剩余的transactions
 			idleWait := len(f.waittime) == 0
 			_, oldPeer := f.announces[ann.origin]
 
@@ -386,6 +423,8 @@ func (f *TxFetcher) loop() {
 				// If the transaction is already downloading, add it to the list
 				// of possible alternates (in case the current retrieval fails) and
 				// also account it for the peer.
+				// 如果transaction已经在下载，添加它到列表中，用于可能的替换（万一当前的retrieval失败）
+				// 同时把它记为peer
 				if f.alternates[hash] != nil {
 					f.alternates[hash][ann.origin] = struct{}{}
 
@@ -399,6 +438,7 @@ func (f *TxFetcher) loop() {
 				}
 				// If the transaction is not downloading, but is already queued
 				// from a different peer, track it for the new peer too.
+				// 如果transaction没有在下载，但是已经在另一个peer中排队，在新的peer也追踪它
 				if f.announced[hash] != nil {
 					f.announced[hash][ann.origin] = struct{}{}
 
@@ -413,6 +453,8 @@ func (f *TxFetcher) loop() {
 				// If the transaction is already known to the fetcher, but not
 				// yet downloading, add the peer as an alternate origin in the
 				// waiting list.
+				// 如果fetcher已经知道了transaction，但是还没有在下载，添加peer作为一个alternate origin
+				// 到waiting list
 				if f.waitlist[hash] != nil {
 					f.waitlist[hash][ann.origin] = struct{}{}
 
@@ -424,6 +466,7 @@ func (f *TxFetcher) loop() {
 					continue
 				}
 				// Transaction unknown to the fetcher, insert it into the waiting list
+				// Transaction对于fetcher是未知的，将它插入到waiting list
 				f.waitlist[hash] = map[string]struct{}{ann.origin: {}}
 				f.waittime[hash] = f.clock.Now()
 
@@ -434,11 +477,13 @@ func (f *TxFetcher) loop() {
 				}
 			}
 			// If a new item was added to the waitlist, schedule it into the fetcher
+			// 如果一个新的item被加入到waitlist，调度它到fetcher
 			if idleWait && len(f.waittime) > 0 {
 				f.rescheduleWait(waitTimer, waitTrigger)
 			}
 			// If this peer is new and announced something already queued, maybe
 			// request transactions from them
+			// 如果这个peer是新的并且声称有的已经入队了，可能向它们请求transactions
 			if !oldPeer && len(f.announces[ann.origin]) > 0 {
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, map[string]struct{}{ann.origin: {}})
 			}
@@ -446,6 +491,7 @@ func (f *TxFetcher) loop() {
 		case <-waitTrigger:
 			// At least one transaction's waiting time ran out, push all expired
 			// ones into the retrieval queues
+			// 至少一个transaction的等待时间已经用完了，推送所有超时的到拉取队列
 			actives := make(map[string]struct{})
 			for hash, instance := range f.waittime {
 				if time.Duration(f.clock.Now()-instance)+txGatherSlack > txArriveTimeout {
@@ -471,10 +517,12 @@ func (f *TxFetcher) loop() {
 				}
 			}
 			// If transactions are still waiting for propagation, reschedule the wait timer
+			// 如果transactions依然等待传播，重新调度wait timer
 			if len(f.waittime) > 0 {
 				f.rescheduleWait(waitTimer, waitTrigger)
 			}
 			// If any peers became active and are idle, request transactions from them
+			// 如果peers变为active并且为idle，从它们请求transactions
 			if len(actives) > 0 {
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, actives)
 			}
@@ -620,6 +668,7 @@ func (f *TxFetcher) loop() {
 
 		case drop := <-f.drop:
 			// A peer was dropped, remove all traces of it
+			// 一个peer已经被dropped了，移除所有的traces
 			if _, ok := f.waitslots[drop.peer]; ok {
 				for hash := range f.waitslots[drop.peer] {
 					delete(f.waitlist[hash], drop.peer)
@@ -634,6 +683,7 @@ func (f *TxFetcher) loop() {
 				}
 			}
 			// Clean up any active requests
+			// 请求任何的active requests
 			var request *txRequest
 			if request = f.requests[drop.peer]; request != nil {
 				for _, hash := range request.hashes {
