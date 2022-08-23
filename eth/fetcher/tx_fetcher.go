@@ -346,6 +346,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 			f.underpriced.Add(txs[i].Hash())
 		}
 		// Track a few interesting failure types
+		// 追踪一些有意思的失败类型
 		switch {
 		case err == nil: // Noop, but need to handle to not count these
 
@@ -358,6 +359,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 		default:
 			otherreject++
 		}
+		// 扩展添加的transactions
 		added = append(added, txs[i].Hash())
 	}
 	if direct {
@@ -519,6 +521,7 @@ func (f *TxFetcher) loop() {
 			for hash, instance := range f.waittime {
 				if time.Duration(f.clock.Now()-instance)+txGatherSlack > txArriveTimeout {
 					// Transaction expired without propagation, schedule for retrieval
+					// 过期的transaction，而没有传播，调度用于获取
 					if f.announced[hash] != nil {
 						panic("announce tracker already contains waitlist item")
 					}
@@ -533,8 +536,10 @@ func (f *TxFetcher) loop() {
 						if len(f.waitslots[peer]) == 0 {
 							delete(f.waitslots, peer)
 						}
+						// peer保存到active中
 						actives[peer] = struct{}{}
 					}
+					// 将hash从waittime和waitlist中移除
 					delete(f.waittime, hash)
 					delete(f.waitlist, hash)
 				}
@@ -555,19 +560,24 @@ func (f *TxFetcher) loop() {
 			// same peer (either overloaded or malicious, useless in both cases). We
 			// could also penalize (Drop), but there's nothing to gain, and if could
 			// possibly further increase the load on it.
+			// 清除任何过期的retrievals并且避免从同一个peer进行请求（要么过载，或者是恶意的，两种情况都
+			// 没用）我们也可以惩罚，但是这不会有任何收获，如果可能会进一步增加它的负载
 			for peer, req := range f.requests {
 				if time.Duration(f.clock.Now()-req.time)+txGatherSlack > txFetchTimeout {
 					txRequestTimeoutMeter.Mark(int64(len(req.hashes)))
 
 					// Reschedule all the not-yet-delivered fetches to alternate peers
+					// 重新调度所有还没有传输的fetches到alternate peers
 					for _, hash := range req.hashes {
 						// Skip rescheduling hashes already delivered by someone else
+						// 跳过已经由其他人delivered的transaction的重调度
 						if req.stolen != nil {
 							if _, ok := req.stolen[hash]; ok {
 								continue
 							}
 						}
 						// Move the delivery back from fetching to queued
+						// 将delivery从fetching移动到队列
 						if _, ok := f.announced[hash]; ok {
 							panic("announced tracker already contains alternate item")
 						}
@@ -583,22 +593,28 @@ func (f *TxFetcher) loop() {
 						delete(f.fetching, hash)
 					}
 					if len(f.announces[peer]) == 0 {
+						// 将peer从announces中移除
 						delete(f.announces, peer)
 					}
 					// Keep track of the request as dangling, but never expire
+					// 继续追踪request作为dangling，但是从不过期
 					f.requests[peer].hashes = nil
 				}
 			}
 			// Schedule a new transaction retrieval
+			// 调度一个新的transaction retrieval
 			f.scheduleFetches(timeoutTimer, timeoutTrigger, nil)
 
 			// No idea if we scheduled something or not, trigger the timer if needed
+			// 不知道我们是否调度了一些东西，触发timer，如果需要的话
 			// TODO(karalabe): this is kind of lame, can't we dump it into scheduleFetches somehow?
 			f.rescheduleTimeout(timeoutTimer, timeoutTrigger)
 
 		case delivery := <-f.cleanup:
 			// Independent if the delivery was direct or broadcast, remove all
 			// traces of the hash from internal trackers
+			// 独立的，如果delivery是直接的或者是广播的，从internal trackers移除所有的
+			// traces of the hash
 			for _, hash := range delivery.hashes {
 				if _, ok := f.waitlist[hash]; ok {
 					for peer, txset := range f.waitslots {
@@ -622,6 +638,8 @@ func (f *TxFetcher) loop() {
 					// If a transaction currently being fetched from a different
 					// origin was delivered (delivery stolen), mark it so the
 					// actual delivery won't double schedule it.
+					// 如果一个transaction档期正在从一个不同的origin进行拉取
+					// 标记它，这样真正的delivery就不会重复调度它
 					if origin, ok := f.fetching[hash]; ok && (origin != delivery.origin || !delivery.direct) {
 						stolen := f.requests[origin].stolen
 						if stolen == nil {
@@ -635,6 +653,7 @@ func (f *TxFetcher) loop() {
 			}
 			// In case of a direct delivery, also reschedule anything missing
 			// from the original query
+			// 万一是一个direct delivery，重新调度origin query缺失的
 			if delivery.direct {
 				// Mark the reqesting successful (independent of individual status)
 				txRequestDoneMeter.Mark(int64(len(delivery.hashes)))
@@ -649,6 +668,7 @@ func (f *TxFetcher) loop() {
 
 				// Anything not delivered should be re-scheduled (with or without
 				// this peer, depending on the response cutoff)
+				// 任何没有被传输的应该重新调度（是否是这个peer，取决于response cutoff）
 				delivered := make(map[common.Hash]struct{})
 				for _, hash := range delivery.hashes {
 					delivered[hash] = struct{}{}
@@ -756,6 +776,7 @@ func (f *TxFetcher) loop() {
 		txFetcherFetchingHashes.Update(int64(len(f.fetching)))
 
 		// Loop did something, ping the step notifier if needed (tests)
+		// Loop做了一些事情，ping step notifier，如果需要的话
 		if f.step != nil {
 			f.step <- struct{}{}
 		}
@@ -769,6 +790,8 @@ func (f *TxFetcher) loop() {
 // The method has a granularity of 'gatherSlack', since there's not much point in
 // spinning over all the transactions just to maybe find one that should trigger
 // a few ms earlier.
+// 这个方法有一个'gatherSlack'的粒度，因为没有必要自旋所有的transactions，就为了找到
+//一个应该早几mls触发的transaction
 func (f *TxFetcher) rescheduleWait(timer *mclock.Timer, trigger chan struct{}) {
 	if *timer != nil {
 		(*timer).Stop()
@@ -785,6 +808,7 @@ func (f *TxFetcher) rescheduleWait(timer *mclock.Timer, trigger chan struct{}) {
 		}
 	}
 	*timer = f.clock.AfterFunc(txArriveTimeout-time.Duration(now-earliest), func() {
+		// 触发等待超时
 		trigger <- struct{}{}
 	})
 }
@@ -869,6 +893,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 				delete(f.announced, hash)
 
 				// Accumulate the hash and stop if the limit was reached
+				// 累计hash并且停止，如果到达了limit
 				hashes = append(hashes, hash)
 				if len(hashes) >= maxTxRetrievals {
 					return false // break in the for-each
