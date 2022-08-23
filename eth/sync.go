@@ -82,6 +82,7 @@ type chainSyncOp struct {
 }
 
 // newChainSyncer creates a chainSyncer.
+// newChainSyncer创建一个chainSyncer
 func newChainSyncer(handler *handler) *chainSyncer {
 	return &chainSyncer{
 		handler:     handler,

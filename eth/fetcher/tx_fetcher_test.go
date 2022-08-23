@@ -27,10 +27,12 @@ import (
 	"github.com/ethereum/go-ethereum/common/mclock"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
 	// testTxs is a set of transactions to use during testing that have meaningful hashes.
+	// testTxs是一系列在测试中使用的transactions，有着有意义的哈希值
 	testTxs = []*types.Transaction{
 		types.NewTransaction(5577006791947779410, common.Address{0x0f}, new(big.Int), 0, new(big.Int), nil),
 		types.NewTransaction(15352856648520921629, common.Address{0xbb}, new(big.Int), 0, new(big.Int), nil),
@@ -38,6 +40,7 @@ var (
 		types.NewTransaction(9828766684487745566, common.Address{0xac}, new(big.Int), 0, new(big.Int), nil),
 	}
 	// testTxsHashes is the hashes of the test transactions above
+	// testTxsHashes是上面的test transactions的哈希值
 	testTxsHashes = []common.Hash{testTxs[0].Hash(), testTxs[1].Hash(), testTxs[2].Hash(), testTxs[3].Hash()}
 )
 
@@ -78,6 +81,7 @@ type txFetcherTest struct {
 // 测试transaction announcements被添加到一个waitlist，在wait超时之前，没有一个
 // 会被调度用于获取
 func TestTransactionFetcherWaiting(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -88,17 +92,20 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 		},
 		steps: []interface{}{
 			// Initial announcement to get something into the waitlist
+			// 初始的announcement，将一些东西放入waitlist
 			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x02}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x01}, {0x02}},
 			}),
 			// Announce from a new peer to check that no overwrite happens
+			// 来自另外一个新的peer的announcement，来检查没有发生覆盖
 			doTxNotify{peer: "B", hashes: []common.Hash{{0x03}, {0x04}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x01}, {0x02}},
 				"B": {{0x03}, {0x04}},
 			}),
 			// Announce clashing hashes but unique new peer
+			// 声明冲突的hashes，但是唯一的新的peer
 			doTxNotify{peer: "C", hashes: []common.Hash{{0x01}, {0x04}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x01}, {0x02}},
@@ -106,6 +113,7 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 				"C": {{0x01}, {0x04}},
 			}),
 			// Announce existing and clashing hashes from existing peer
+			// 声明已经存在的，冲突的hashes，来自已经存在的peer
 			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x03}, {0x05}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x01}, {0x02}, {0x03}, {0x05}},
@@ -116,9 +124,11 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 
 			// Wait for the arrival timeout which should move all expired items
 			// from the wait list to the scheduler
+			// 等待arrival timeout，它应该将所有的超时的items从wait list加入到scheduler
 			doWait{time: txArriveTimeout, step: true},
 			isWaiting(nil),
 			isScheduled{
+				// 被追踪
 				tracking: map[string][]common.Hash{
 					"A": {{0x01}, {0x02}, {0x03}, {0x05}},
 					"B": {{0x03}, {0x04}},
@@ -131,6 +141,7 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 			},
 			// Queue up a non-fetchable transaction and then trigger it with a new
 			// peer (weird case to test 1 line in the fetcher)
+			// 对一个non-fetchable的transaction进行排队，之后用一个新的peer触发
 			doTxNotify{peer: "C", hashes: []common.Hash{{0x06}, {0x07}}},
 			isWaiting(map[string][]common.Hash{
 				"C": {{0x06}, {0x07}},
@@ -167,6 +178,7 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 
 // Tests that transaction announcements skip the waiting list if they are
 // already scheduled.
+// 测试transaction announcements会跳过waiting list，如果它们已经被调度了
 func TestTransactionFetcherSkipWaiting(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -178,6 +190,7 @@ func TestTransactionFetcherSkipWaiting(t *testing.T) {
 		},
 		steps: []interface{}{
 			// Push an initial announcement through to the scheduled stage
+			// 推送一个初始的announcement，通过scheduled stage
 			doTxNotify{peer: "A", hashes: []common.Hash{{0x01}, {0x02}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x01}, {0x02}},
@@ -196,6 +209,8 @@ func TestTransactionFetcherSkipWaiting(t *testing.T) {
 			},
 			// Announce overlaps from the same peer, ensure the new ones end up
 			// in stage one, and clashing ones don't get double tracked
+			// 从同一个peer声明overlaps，确保新的不会在stage one，而冲突的那个不会被
+			// 重复追踪
 			doTxNotify{peer: "A", hashes: []common.Hash{{0x02}, {0x03}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x03}},
@@ -210,6 +225,8 @@ func TestTransactionFetcherSkipWaiting(t *testing.T) {
 			},
 			// Announce overlaps from a new peer, ensure new transactions end up
 			// in stage one and clashing ones get tracked for the new peer
+			// 声明来自一个新的peer的overlaps，确保新的transactions会最终在stage one
+			// 而冲突的会有新的peer追踪
 			doTxNotify{peer: "B", hashes: []common.Hash{{0x02}, {0x03}, {0x04}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x03}},
@@ -230,6 +247,8 @@ func TestTransactionFetcherSkipWaiting(t *testing.T) {
 
 // Tests that only a single transaction request gets scheduled to a peer
 // and subsequent announces block or get allotted to someone else.
+// 测试只有单个的transaction requests会被调度到一个peer，后续的announces阻塞
+// 或者分配到另外一个
 func TestTransactionFetcherSingletonRequesting(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -259,6 +278,8 @@ func TestTransactionFetcherSingletonRequesting(t *testing.T) {
 			},
 			// Announce a new set of transactions from the same peer and ensure
 			// they do not start fetching since the peer is already busy
+			// 从同一个peer声明一系列的transactions并且确保它们不会开始fetching，以为你peer
+			// 已经处于busy
 			doTxNotify{peer: "A", hashes: []common.Hash{{0x03}, {0x04}}},
 			isWaiting(map[string][]common.Hash{
 				"A": {{0x03}, {0x04}},
@@ -283,6 +304,8 @@ func TestTransactionFetcherSingletonRequesting(t *testing.T) {
 			},
 			// Announce a duplicate set of transactions from a new peer and ensure
 			// uniquely new ones start downloading, even if clashing.
+			// 声明一系列重复的transactions从一个新的peer，并且确保唯一的新的开始下载
+			// 即使有冲突
 			doTxNotify{peer: "B", hashes: []common.Hash{{0x02}, {0x03}, {0x05}, {0x06}}},
 			isWaiting(map[string][]common.Hash{
 				"B": {{0x05}, {0x06}},
@@ -293,6 +316,7 @@ func TestTransactionFetcherSingletonRequesting(t *testing.T) {
 					"B": {{0x02}, {0x03}},
 				},
 				fetching: map[string][]common.Hash{
+					// 也开始从B拉取3
 					"A": {{0x01}, {0x02}},
 					"B": {{0x03}},
 				},
@@ -376,6 +400,7 @@ func TestTransactionFetcherFailedRescheduling(t *testing.T) {
 
 // Tests that if a transaction retrieval succeeds, all alternate origins
 // are cleaned up.
+// 测试当一个transaction retrieval成功之后，所有的alternate origins都会别清除
 func TestTransactionFetcherCleanup(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -406,6 +431,7 @@ func TestTransactionFetcherCleanup(t *testing.T) {
 				},
 			},
 			// Request should be delivered
+			// 请求应该被传送
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: true},
 			isScheduled{nil, nil, nil},
 		},
@@ -415,6 +441,8 @@ func TestTransactionFetcherCleanup(t *testing.T) {
 // Tests that if a transaction retrieval succeeds, but the response is empty (no
 // transactions available, then all are nuked instead of being rescheduled (yes,
 // this was a bug)).
+// 测试如果一个transaction被成功获取，但是response为空（没有可用的transaction，之后所有
+// 都该被摧毁而不是重新调度）
 func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -445,6 +473,7 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 				},
 			},
 			// Deliver an empty response and ensure the transaction is cleared, not rescheduled
+			// 发送一个空的response并且确保transaction被清除，而不是重新调度
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{}, direct: true},
 			isScheduled{nil, nil, nil},
 		},
@@ -453,6 +482,7 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 
 // Tests that non-returned transactions are either re-scheduled from a
 // different peer, or self if they are after the cutoff point.
+// 测试没返回的transactions要么重新调度给另一个peer，或者它自己，如果他们在分界点之后
 func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -484,6 +514,7 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 			},
 			// Deliver the middle transaction requested, the one before which
 			// should be dropped and the one after re-requested.
+			// 传送中间请求的transaction，它之前的应该被丢弃，它之后的应该被重新请求
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: true}, // This depends on the deterministic random
 			isScheduled{
 				tracking: map[string][]common.Hash{
@@ -499,6 +530,8 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 
 // Tests that out of two transactions, if one is missing and the last is
 // delivered, the peer gets properly cleaned out from the internal state.
+// 测试对于两个transactions，如果一个已经被丢弃而另一个被传送，peer会被从internal
+// state清理出来
 func TestTransactionFetcherMissingCleanup(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -537,6 +570,7 @@ func TestTransactionFetcherMissingCleanup(t *testing.T) {
 }
 
 // Tests that transaction broadcasts properly clean up announcements.
+// 测试transaction的广播正确的清理了announcements
 func TestTransactionFetcherBroadcasts(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -762,8 +796,10 @@ func TestTransactionFetcherTimeoutTimerResets(t *testing.T) {
 
 // Tests that if thousands of transactions are announces, only a small
 // number of them will be requested at a time.
+// 测试如果声明了数千个transactions，一次只会请求一小部分
 func TestTransactionFetcherRateLimiting(t *testing.T) {
 	// Create a slew of transactions and to announce them
+	// 创建一连串的transactions并且声明他们
 	var hashes []common.Hash
 	for i := 0; i < maxTxAnnounces; i++ {
 		hashes = append(hashes, common.Hash{byte(i / 256), byte(i % 256)})
@@ -780,6 +816,7 @@ func TestTransactionFetcherRateLimiting(t *testing.T) {
 		steps: []interface{}{
 			// Announce all the transactions, wait a bit and ensure only a small
 			// percentage gets requested
+			// 声明所有的transactions，等待一会儿并且确保只有一小部分被请求了
 			doTxNotify{peer: "A", hashes: hashes},
 			doWait{time: txArriveTimeout, step: true},
 			isWaiting(nil),
@@ -797,8 +834,10 @@ func TestTransactionFetcherRateLimiting(t *testing.T) {
 
 // Tests that then number of transactions a peer is allowed to announce and/or
 // request at the same time is hard capped.
+// 测试一个peer允许声明的transactions的数目是严格限制的
 func TestTransactionFetcherDoSProtection(t *testing.T) {
 	// Create a slew of transactions and to announce them
+	// 创建批量的transactions并且announce它们
 	var hashesA []common.Hash
 	for i := 0; i < maxTxAnnounces+1; i++ {
 		hashesA = append(hashesA, common.Hash{0x01, byte(i / 256), byte(i % 256)})
@@ -902,6 +941,8 @@ func TestTransactionFetcherUnderpricedDedup(t *testing.T) {
 // Tests that underpriced transactions don't get rescheduled after being rejected,
 // but at the same time there's a hard cap on the number of transactions that are
 // tracked.
+// 测试underpriced transadctions不会被重新调度，在被拒绝之后，但是同时能够被追踪的transactions
+// 有一个hard cap
 func TestTransactionFetcherUnderpricedDoSProtection(t *testing.T) {
 	// Temporarily disable fetch timeouts as they massively mess up the simulated clock
 	defer func(timeout time.Duration) { txFetchTimeout = timeout }(txFetchTimeout)
@@ -1081,6 +1122,7 @@ func TestTransactionFetcherDrop(t *testing.T) {
 
 // Tests that dropping a peer instantly reschedules failed announcements to any
 // available peer.
+// 测试立刻丢弃一个peer会将failed announcements重新调度到任何可用的peer
 func TestTransactionFetcherDropRescheduling(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -1281,10 +1323,13 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 	// 完成所有的测试步骤并且执行它们
 	for i, step := range tt.steps {
 		switch step := step.(type) {
+		// 根据step的类型进行执行
 		case doTxNotify:
+			// 对fetcher进行notify
 			if err := fetcher.Notify(step.peer, step.hashes); err != nil {
 				t.Errorf("step %d: %v", i, err)
 			}
+			// Fetcher需要在这里进行处理，等待直到它完成
 			<-wait // Fetcher needs to process this, wait until it's done
 			select {
 			case <-wait:
@@ -1293,6 +1338,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 			}
 
 		case doTxEnqueue:
+			// 将transactions入队
 			if err := fetcher.Enqueue(step.peer, step.txs, step.direct); err != nil {
 				t.Errorf("step %d: %v", i, err)
 			}
@@ -1301,6 +1347,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 		case doWait:
 			clock.Run(step.time)
 			if step.step {
+				// Fetcher应该做一些事情，等待直到它结束
 				<-wait // Fetcher supposed to do something, wait until it's done
 			}
 
@@ -1317,6 +1364,9 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 			// We need to check that the waiting list (stage 1) internals
 			// match with the expected set. Check the peer->hash mappings
 			// first.
+			// 我们需要确认(stage 1)的waiting list和期望的相匹配
+			// 首先检查peer->hash的映射
+			// 确保哈希值在waitlist和waittime中
 			for peer, hashes := range step {
 				waiting := fetcher.waitslots[peer]
 				if waiting == nil {
@@ -1340,6 +1390,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 				}
 			}
 			// Peer->hash sets correct, check the hash->peer and timeout sets
+			// Peer到哈希的映射设置正确，检查hash->peer以及超时的设置
 			for peer, hashes := range step {
 				for _, hash := range hashes {
 					if _, ok := fetcher.waitlist[hash][peer]; !ok {
@@ -1376,6 +1427,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 		case isScheduled:
 			// Check that all scheduled announces are accounted for and no
 			// extra ones are present.
+			// 检查所有调度的announces已经被说明了，没有额外的
 			for peer, hashes := range step.tracking {
 				scheduled := fetcher.announces[peer]
 				if scheduled == nil {
@@ -1524,6 +1576,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 		}
 		// After every step, cross validate the internal uniqueness invariants
 		// between stage one and stage two.
+		// 在每个step之后，交叉遍历内部的唯一的不变量，在stage one和stage two之间
 		for hash := range fetcher.waittime {
 			if _, ok := fetcher.announced[hash]; ok {
 				t.Errorf("step %d: hash %s present in both stage 1 and 2", i, hash)

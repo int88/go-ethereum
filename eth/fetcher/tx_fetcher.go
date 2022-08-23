@@ -40,6 +40,7 @@ const (
 
 	// maxTxRetrievals is the maximum transaction number can be fetched in one
 	// request. The rationale to pick 256 is:
+	// maxTxRetrievals是在一个请求中可以抓取的最大的transaction的数目
 	//   - In eth protocol, the softResponseLimit is 2MB. Nowadays according to
 	//     Etherscan the average transaction size is around 200B, so in theory
 	//     we can include lots of transaction in a single protocol packet.
@@ -55,10 +56,12 @@ const (
 
 	// txArriveTimeout is the time allowance before an announced transaction is
 	// explicitly requested.
+	// txArriveTimeout是一个announced transaction被显式请求之前的time allowance
 	txArriveTimeout = 500 * time.Millisecond
 
 	// txGatherSlack is the interval used to collate almost-expired announces
 	// with network fetches.
+	// txGatherSlack是时间间隔用于整理几乎过期的announces，对于network fetches
 	txGatherSlack = 100 * time.Millisecond
 )
 
@@ -131,6 +134,7 @@ type txDelivery struct {
 }
 
 // txDrop is the notiication that a peer has disconnected.
+// txDrop是关于一个peer已经断开连接的通知
 type txDrop struct {
 	peer string
 }
@@ -169,6 +173,7 @@ type TxFetcher struct {
 	drop    chan *txDrop
 	quit    chan struct{}
 
+	// 因为太便宜而被丢弃的transactions
 	underpriced mapset.Set // Transactions discarded as too cheap (don't re-fetch)
 
 	// Stage 1: Waiting lists for newly discovered transactions that might be
@@ -212,7 +217,8 @@ type TxFetcher struct {
 	// 当fetcher loop迭代的通知channel
 	step  chan struct{} // Notification channel when the fetcher loop iterates
 	clock mclock.Clock  // Time wrapper to simulate in tests
-	rand  *mrand.Rand   // Randomizer to use in tests instead of map range loops (soft-random)
+	// 在测试中使用Randomizer，而不是map range loops
+	rand *mrand.Rand // Randomizer to use in tests instead of map range loops (soft-random)
 }
 
 // NewTxFetcher creates a transaction fetcher to retrieve transaction
@@ -251,8 +257,10 @@ func NewTxFetcherForTests(
 
 // Notify announces the fetcher of the potential availability of a new batch of
 // transactions in the network.
+// Notify通知fetcher，关于network中一系列潜在的transactions
 func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	// Keep track of all the announced transactions
+	// 追踪所有的announced transactions
 	txAnnounceInMeter.Mark(int64(len(hashes)))
 
 	// Skip any transaction announcements that we already know of, or that we've
@@ -260,6 +268,10 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	// because multiple concurrent notifies will still manage to pass it, but it's
 	// still valuable to check here because it runs concurrent  to the internal
 	// loop, so anything caught here is time saved internally.
+	// 跳过任何我们已经知道的transactions announcements，或者之前我们已经标记为cheap或者
+	// discarded，这个检查当然是冲突的，因为多个并行的notifes会依然管理来通过它，但是
+	// 在这里检查依然是有意义的，以为对于internal loop它是并行的，这样任何在这里获取的
+	// 对于内部来说都是节省时间的
 	var (
 		unknowns               = make([]common.Hash, 0, len(hashes))
 		duplicate, underpriced int64
@@ -280,6 +292,7 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 	txAnnounceUnderpricedMeter.Mark(underpriced)
 
 	// If anything's left to announce, push it into the internal loop
+	// 如果还有剩余的需要进行announce，将它推送到internal loop
 	if len(unknowns) == 0 {
 		return nil
 	}
@@ -299,6 +312,9 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 // and the fetcher. This method may be called by both transaction broadcasts and
 // direct request replies. The differentiation is important so the fetcher can
 // re-shedule missing transactions as soon as possible.
+// Enqueue导入一系列接收到的transaction到transaction pool以及fetcher，这个方法可能被transaction
+// broadcasts以及直接的request replies调用，差异化是非常重要的，这样fetcher可以重新调度
+// 缺失的transactions，尽快
 func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) error {
 	// Keep track of all the propagated transactions
 	if direct {
@@ -308,6 +324,8 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 	}
 	// Push all the transactions into the pool, tracking underpriced ones to avoid
 	// re-requesting them and dropping the peer in case of malicious transfers.
+	// 推送所以后的transactions到pool，追踪所有的underpriced来避免重新请求它们
+	// 丢弃peer，万一是恶意的传输
 	var (
 		added       = make([]common.Hash, 0, len(txs))
 		duplicate   int64
@@ -317,8 +335,10 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 	errs := f.addTxs(txs)
 	for i, err := range errs {
 		// Track the transaction hash if the price is too low for us.
+		// 追踪那些对我们来说price太低的transaction hash
 		// Avoid re-request this transaction when we receive another
 		// announcement.
+		// 避免重新请求这个transaction，当我们接受到另一个announcement
 		if errors.Is(err, core.ErrUnderpriced) || errors.Is(err, core.ErrReplaceUnderpriced) {
 			for f.underpriced.Cardinality() >= maxTxUnderpricedSetSize {
 				f.underpriced.Pop()
@@ -406,6 +426,9 @@ func (f *TxFetcher) loop() {
 				// all fulfilled, so the remainder are rescheduled without the cap
 				// check. Should be fine as the limit is in the thousands and the
 				// request size in the hundreds.
+				// 这个可以发生，如果一系列的transactions已经被请求，但是没有完全满足
+				// 这样剩余的可以被重新调度而没有cap检查，这样是OK的，因为limit是上千的
+				// 而request size是上万的
 				txAnnounceDOSMeter.Mark(int64(len(ann.hashes)))
 				break
 			}
@@ -741,6 +764,7 @@ func (f *TxFetcher) loop() {
 
 // rescheduleWait iterates over all the transactions currently in the waitlist
 // and schedules the movement into the fetcher for the earliest.
+// rescheduleWait遍历所有在waitlist中的transactions，将movement调度到fetchers，对于最早的
 //
 // The method has a granularity of 'gatherSlack', since there's not much point in
 // spinning over all the transactions just to maybe find one that should trigger
@@ -767,6 +791,7 @@ func (f *TxFetcher) rescheduleWait(timer *mclock.Timer, trigger chan struct{}) {
 
 // rescheduleTimeout iterates over all the transactions currently in flight and
 // schedules a cleanup run when the first would trigger.
+// rescheduleTimeout遍历所有在处理的transactions并且调度一个cleanup run当第一个会触发的时候
 //
 // The method has a granularity of 'gatherSlack', since there's not much point in
 // spinning over all the transactions just to maybe find one that should trigger
@@ -788,6 +813,7 @@ func (f *TxFetcher) rescheduleTimeout(timer *mclock.Timer, trigger chan struct{}
 	earliest := now
 	for _, req := range f.requests {
 		// If this request already timed out, skip it altogether
+		// 如果这个请求已经超时了，跳过它
 		if req.hashes == nil {
 			continue
 		}
@@ -804,8 +830,10 @@ func (f *TxFetcher) rescheduleTimeout(timer *mclock.Timer, trigger chan struct{}
 }
 
 // scheduleFetches starts a batch of retrievals for all available idle peers.
+// scheduleFetches启动对于所有可用的idle peers的retrievals
 func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, whitelist map[string]struct{}) {
 	// Gather the set of peers we want to retrieve from (default to all)
+	// 获取一系列我们想要retrieve from的peers（默认为all）
 	actives := whitelist
 	if actives == nil {
 		actives = make(map[string]struct{})
@@ -817,6 +845,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 		return
 	}
 	// For each active peer, try to schedule some transaction fetches
+	// 对于每个active peer，试着调度一些transaction fetches
 	idle := len(f.requests) == 0
 
 	f.forEachPeer(actives, func(peer string) {
@@ -830,6 +859,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 		f.forEachHash(f.announces[peer], func(hash common.Hash) bool {
 			if _, ok := f.fetching[hash]; !ok {
 				// Mark the hash as fetching and stash away possible alternates
+				// 将hash标记为fetching并且将alternates藏起来
 				f.fetching[hash] = peer
 
 				if _, ok := f.alternates[hash]; ok {
@@ -847,6 +877,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 			return true // continue in the for-each
 		})
 		// If any hashes were allocated, request them from the peer
+		// 如果已经申请了任何的hashes，从peer对它们进行请求
 		if len(hashes) > 0 {
 			f.requests[peer] = &txRequest{hashes: hashes, time: f.clock.Now()}
 			txRequestOutMeter.Mark(int64(len(hashes)))
@@ -854,6 +885,8 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 			go func(peer string, hashes []common.Hash) {
 				// Try to fetch the transactions, but in case of a request
 				// failure (e.g. peer disconnected), reschedule the hashes.
+				// 试着获取transactions，如果万一一个请求失败了（例如，peer断开连接）
+				// 重新调度哈希值
 				if err := f.fetchTxs(peer, hashes); err != nil {
 					txRequestFailMeter.Mark(int64(len(hashes)))
 					f.Drop(peer)
@@ -862,6 +895,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 		}
 	})
 	// If a new request was fired, schedule a timeout timer
+	// 如果已经发射了一个新的请求，调度一个timeout timer
 	if idle && len(f.requests) > 0 {
 		f.rescheduleTimeout(timer, timeout)
 	}
@@ -869,6 +903,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 
 // forEachPeer does a range loop over a map of peers in production, but during
 // testing it does a deterministic sorted random to allow reproducing issues.
+// forEachPeer在一系列的peers之上进行range loop，但是在测试期间，它做一个确定性的排序，来重现issues
 func (f *TxFetcher) forEachPeer(peers map[string]struct{}, do func(peer string)) {
 	// If we're running production, use whatever Go's map gives us
 	if f.rand == nil {
@@ -878,6 +913,7 @@ func (f *TxFetcher) forEachPeer(peers map[string]struct{}, do func(peer string))
 		return
 	}
 	// We're running the test suite, make iteration deterministic
+	// 我们正在运行test suite，让遍历具有确定性
 	list := make([]string, 0, len(peers))
 	for peer := range peers {
 		list = append(list, peer)

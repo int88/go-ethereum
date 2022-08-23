@@ -304,8 +304,10 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		if p == nil {
 			return errors.New("unknown peer")
 		}
+		// 向peer请求transactions
 		return p.RequestTxs(hashes)
 	}
+	// 创建tx fetcher，最终调用txpool的AddRemotes将tx加入tx pool
 	h.txFetcher = fetcher.NewTxFetcher(h.txpool.Has, h.txpool.AddRemotes, fetchTx)
 	h.chainSync = newChainSyncer(h)
 	return h, nil
