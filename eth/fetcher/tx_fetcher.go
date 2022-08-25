@@ -215,8 +215,9 @@ type TxFetcher struct {
 	fetchTxs func(string, []common.Hash) error // Retrieves a set of txs from a remote peer
 
 	// 当fetcher loop迭代的通知channel
-	step  chan struct{} // Notification channel when the fetcher loop iterates
-	clock mclock.Clock  // Time wrapper to simulate in tests
+	step chan struct{} // Notification channel when the fetcher loop iterates
+	// Time wrapper用来在测试中模拟
+	clock mclock.Clock // Time wrapper to simulate in tests
 	// 在测试中使用Randomizer，而不是map range loops
 	rand *mrand.Rand // Randomizer to use in tests instead of map range loops (soft-random)
 }
@@ -317,6 +318,7 @@ func (f *TxFetcher) Notify(peer string, hashes []common.Hash) error {
 // 缺失的transactions，尽快
 func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) error {
 	// Keep track of all the propagated transactions
+	// 追踪所有propagated transactions
 	if direct {
 		txReplyInMeter.Mark(int64(len(txs)))
 	} else {
@@ -451,9 +453,11 @@ func (f *TxFetcher) loop() {
 				// 如果transaction已经在下载，添加它到列表中，用于可能的替换（万一当前的retrieval失败）
 				// 同时把它记为peer
 				if f.alternates[hash] != nil {
+					// 将这个hash加入到alternate
 					f.alternates[hash][ann.origin] = struct{}{}
 
 					// Stage 2 and 3 share the set of origins per tx
+					// Stage 2和3共享一系列的origins，对于每个tx
 					if announces := f.announces[ann.origin]; announces != nil {
 						announces[hash] = struct{}{}
 					} else {
@@ -527,6 +531,7 @@ func (f *TxFetcher) loop() {
 					}
 					f.announced[hash] = f.waitlist[hash]
 					for peer := range f.waitlist[hash] {
+						// 加入到announced中
 						if announces := f.announces[peer]; announces != nil {
 							announces[hash] = struct{}{}
 						} else {
@@ -617,9 +622,11 @@ func (f *TxFetcher) loop() {
 			// traces of the hash
 			for _, hash := range delivery.hashes {
 				if _, ok := f.waitlist[hash]; ok {
+					// 如果在waitlist中存在
 					for peer, txset := range f.waitslots {
 						delete(txset, hash)
 						if len(txset) == 0 {
+							// 将peer从waitlist中删除
 							delete(f.waitslots, peer)
 						}
 					}
@@ -627,6 +634,7 @@ func (f *TxFetcher) loop() {
 					delete(f.waittime, hash)
 				} else {
 					for peer, txset := range f.announces {
+						// 从announces中删除
 						delete(txset, hash)
 						if len(txset) == 0 {
 							delete(f.announces, peer)
@@ -656,9 +664,11 @@ func (f *TxFetcher) loop() {
 			// 万一是一个direct delivery，重新调度origin query缺失的
 			if delivery.direct {
 				// Mark the reqesting successful (independent of individual status)
+				// 标记请求成功
 				txRequestDoneMeter.Mark(int64(len(delivery.hashes)))
 
 				// Make sure something was pending, nuke it
+				// 确保有一些处于pending
 				req := f.requests[delivery.origin]
 				if req == nil {
 					log.Warn("Unexpected transaction delivery", "peer", delivery.origin)
@@ -680,8 +690,10 @@ func (f *TxFetcher) loop() {
 					}
 				}
 				// Reschedule missing hashes from alternates, not-fulfilled from alt+self
+				// 从alternates重新调度missing hashes，alt+self未实现
 				for i, hash := range req.hashes {
 					// Skip rescheduling hashes already delivered by someone else
+					// 跳过对于hashes的重调度，如果它已经被别人delivered了
 					if req.stolen != nil {
 						if _, ok := req.stolen[hash]; ok {
 							continue
@@ -702,10 +714,12 @@ func (f *TxFetcher) loop() {
 							f.announced[hash] = f.alternates[hash]
 						}
 					}
+					// 从alternates和fetching中移除
 					delete(f.alternates, hash)
 					delete(f.fetching, hash)
 				}
 				// Something was delivered, try to rechedule requests
+				// 有些已经被传送了，试着重新调度请求
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, nil) // Partial delivery may enable others to deliver too
 			}
 
@@ -731,12 +745,14 @@ func (f *TxFetcher) loop() {
 			if request = f.requests[drop.peer]; request != nil {
 				for _, hash := range request.hashes {
 					// Skip rescheduling hashes already delivered by someone else
+					// 跳过重新调度已经被其他人传送的hashes
 					if request.stolen != nil {
 						if _, ok := request.stolen[hash]; ok {
 							continue
 						}
 					}
 					// Undelivered hash, reschedule if there's an alternative origin available
+					// 没有传送的hash，重新调度如果没有另一个可用的origin
 					delete(f.alternates[hash], drop.peer)
 					if len(f.alternates[hash]) == 0 {
 						delete(f.alternates, hash)
@@ -749,6 +765,7 @@ func (f *TxFetcher) loop() {
 				delete(f.requests, drop.peer)
 			}
 			// Clean up general announcement tracking
+			// 清理通常的announcement tracking
 			if _, ok := f.announces[drop.peer]; ok {
 				for hash := range f.announces[drop.peer] {
 					delete(f.announced[hash], drop.peer)
@@ -759,6 +776,7 @@ func (f *TxFetcher) loop() {
 				delete(f.announces, drop.peer)
 			}
 			// If a request was cancelled, check if anything needs to be rescheduled
+			// 如果一个请求被取消了，检查是否有东西需要重新调度
 			if request != nil {
 				f.scheduleFetches(timeoutTimer, timeoutTrigger, nil)
 				f.rescheduleTimeout(timeoutTimer, timeoutTrigger)
@@ -849,6 +867,7 @@ func (f *TxFetcher) rescheduleTimeout(timer *mclock.Timer, trigger chan struct{}
 		}
 	}
 	*timer = f.clock.AfterFunc(txFetchTimeout-time.Duration(now-earliest), func() {
+		// 指定时间触发
 		trigger <- struct{}{}
 	})
 }
@@ -861,6 +880,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 	actives := whitelist
 	if actives == nil {
 		actives = make(map[string]struct{})
+		// whitelist为空，则获取所有的active peers
 		for peer := range f.announces {
 			actives[peer] = struct{}{}
 		}

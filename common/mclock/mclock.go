@@ -56,9 +56,11 @@ type Clock interface {
 }
 
 // Timer is a cancellable event created by AfterFunc.
+// Timer是一个可取消的event，由AfterFunc创建
 type Timer interface {
 	// Stop cancels the timer. It returns false if the timer has already
 	// expired or been stopped.
+	// Stop取消timer，它返回false，如果timer已经超时或者被停止了
 	Stop() bool
 }
 

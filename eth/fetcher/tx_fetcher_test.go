@@ -34,6 +34,7 @@ var (
 	// testTxs is a set of transactions to use during testing that have meaningful hashes.
 	// testTxs是一系列在测试中使用的transactions，有着有意义的哈希值
 	testTxs = []*types.Transaction{
+		// 第二个参数是目标地址
 		types.NewTransaction(5577006791947779410, common.Address{0x0f}, new(big.Int), 0, new(big.Int), nil),
 		types.NewTransaction(15352856648520921629, common.Address{0xbb}, new(big.Int), 0, new(big.Int), nil),
 		types.NewTransaction(3916589616287113937, common.Address{0x86}, new(big.Int), 0, new(big.Int), nil),
@@ -498,6 +499,7 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 // different peer, or self if they are after the cutoff point.
 // 测试没返回的transactions要么重新调度给另一个peer，或者它自己，如果他们在分界点之后
 func TestTransactionFetcherMissingRescheduling(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -529,7 +531,7 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 			// Deliver the middle transaction requested, the one before which
 			// should be dropped and the one after re-requested.
 			// 传送中间请求的transaction，它之前的应该被丢弃，它之后的应该被重新请求
-			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[1]}, direct: true}, // This depends on the deterministic random
+			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: true}, // This depends on the deterministic random
 			isScheduled{
 				tracking: map[string][]common.Hash{
 					"A": {testTxsHashes[2]},
@@ -1021,6 +1023,7 @@ func TestTransactionFetcherUnderpricedDoSProtection(t *testing.T) {
 }
 
 // Tests that unexpected deliveries don't corrupt the internal state.
+// 测试非预期的deliveries不会损坏内部的状态
 func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -1034,6 +1037,7 @@ func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 		},
 		steps: []interface{}{
 			// Deliver something out of the blue
+			// 突然间发送一些东西
 			isWaiting(nil),
 			isScheduled{nil, nil, nil},
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: false},
@@ -1041,12 +1045,14 @@ func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 			isScheduled{nil, nil, nil},
 
 			// Set up a few hashes into various stages
+			// 设置一些hashes在各种状态
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[0]}},
 			doWait{time: txArriveTimeout, step: true},
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[1]}},
 			doWait{time: txArriveTimeout, step: true},
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[2]}},
 
+			// 有wating，有tracking，也有fetching
 			isWaiting(map[string][]common.Hash{
 				"A": {testTxsHashes[2]},
 			}),
@@ -1059,6 +1065,7 @@ func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 				},
 			},
 			// Deliver everything and more out of the blue
+			// 传送一些以及更多突然传送的
 			doTxEnqueue{peer: "B", txs: []*types.Transaction{testTxs[0], testTxs[1], testTxs[2], testTxs[3]}, direct: true},
 			isWaiting(nil),
 			isScheduled{
@@ -1074,6 +1081,7 @@ func TestTransactionFetcherOutOfBoundDeliveries(t *testing.T) {
 
 // Tests that dropping a peer cleans out all internal data structures in all the
 // live or danglng stages.
+// 测试当丢弃一个peer会清理所有内部的数据结构，在live或者dangling的状态
 func TestTransactionFetcherDrop(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -1105,11 +1113,13 @@ func TestTransactionFetcherDrop(t *testing.T) {
 				},
 			},
 			// Drop the peer and ensure everything's cleaned out
+			// 丢弃peer并且确保所有的被清理
 			doDrop("A"),
 			isWaiting(nil),
 			isScheduled{nil, nil, nil},
 
 			// Push the node into a dangling (timeout) state
+			// 推送新的节点到dangling（超时）状态
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[0]}},
 			doWait{time: txArriveTimeout, step: true},
 			isWaiting(nil),
@@ -1121,16 +1131,19 @@ func TestTransactionFetcherDrop(t *testing.T) {
 					"A": {testTxsHashes[0]},
 				},
 			},
+			// 设置超时时间
 			doWait{time: txFetchTimeout, step: true},
 			isWaiting(nil),
 			isScheduled{
 				tracking: nil,
 				fetching: nil,
 				dangling: map[string][]common.Hash{
+					// A处于dangling状态
 					"A": {},
 				},
 			},
 			// Drop the peer and ensure everything's cleaned out
+			// 丢弃peer并确保所有都被清理了
 			doDrop("A"),
 			isWaiting(nil),
 			isScheduled{nil, nil, nil},
@@ -1169,6 +1182,7 @@ func TestTransactionFetcherDropRescheduling(t *testing.T) {
 				},
 			},
 			// Drop the peer and ensure everything's cleaned out
+			// 丢弃peer并且确保所有都会被清理
 			doDrop("A"),
 			isWaiting(nil),
 			isScheduled{
