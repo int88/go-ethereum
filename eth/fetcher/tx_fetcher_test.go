@@ -158,6 +158,7 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 				},
 				fetching: map[string][]common.Hash{
 					"A": {{0x02}, {0x03}, {0x05}},
+					// 因为C此时已经在获取了，所以新来的6和7不能获取
 					"C": {{0x01}, {0x04}},
 				},
 			},
@@ -172,7 +173,7 @@ func TestTransactionFetcherWaiting(t *testing.T) {
 				fetching: map[string][]common.Hash{
 					"A": {{0x02}, {0x03}, {0x05}},
 					"C": {{0x01}, {0x04}},
-					// D回去抓取6和7，为什么C不会？
+					// 新加入的D空闲，可以去抓取6和7
 					"D": {{0x06}, {0x07}},
 				},
 			},
@@ -239,6 +240,7 @@ func TestTransactionFetcherSkipWaiting(t *testing.T) {
 			isScheduled{
 				tracking: map[string][]common.Hash{
 					"A": {{0x01}, {0x02}},
+					// 2已经被调度了，则会直接进入B的tracking状态
 					"B": {{0x02}},
 				},
 				fetching: map[string][]common.Hash{
@@ -398,6 +400,7 @@ func TestTransactionFetcherFailedRescheduling(t *testing.T) {
 					"B": {{0x02}},
 				},
 				fetching: map[string][]common.Hash{
+					// 此时改为B进行抓取
 					"B": {{0x02}},
 				},
 			},
@@ -445,9 +448,24 @@ func TestTransactionFetcherCleanup(t *testing.T) {
 					"A": {testTxsHashes[0]},
 				},
 			},
+
+			doTxNotify{peer: "B", hashes: []common.Hash{testTxsHashes[0], testTxsHashes[1]}},
+			isWaiting(map[string][]common.Hash{
+				"B": {testTxsHashes[1]},
+			}),
+			isScheduled{
+				tracking: map[string][]common.Hash{
+					"A": {testTxsHashes[0]},
+					"B": {testTxsHashes[0]},
+				},
+				fetching: map[string][]common.Hash{
+					"A": {testTxsHashes[0]},
+				},
+			},
 			// Request should be delivered
 			// 请求应该被传送
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: true},
+			// 直接从列表中移除
 			isScheduled{nil, nil, nil},
 		},
 	})
@@ -490,6 +508,7 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 			// Deliver an empty response and ensure the transaction is cleared, not rescheduled
 			// 发送一个空的response并且确保transaction被清除，而不是重新调度
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{}, direct: true},
+			// 直接全部变为空
 			isScheduled{nil, nil, nil},
 		},
 	})
@@ -500,6 +519,7 @@ func TestTransactionFetcherCleanupEmpty(t *testing.T) {
 // 测试没返回的transactions要么重新调度给另一个peer，或者它自己，如果他们在分界点之后
 func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 	log.Root().SetHandler(log.StdoutHandler)
+	log.Info("list of hashes", "hash0", testTxsHashes[0], "hash1", testTxsHashes[1], "hash2", testTxsHashes[2])
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -549,6 +569,7 @@ func TestTransactionFetcherMissingRescheduling(t *testing.T) {
 // 测试对于两个transactions，如果一个已经被丢弃而另一个被传送，peer会被从internal
 // state清理出来
 func TestTransactionFetcherMissingCleanup(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
 			return NewTxFetcher(
@@ -629,6 +650,7 @@ func TestTransactionFetcherBroadcasts(t *testing.T) {
 				tracking: nil,
 				fetching: nil,
 				dangling: map[string][]common.Hash{
+					// tx0变为dangling
 					"A": {testTxsHashes[0]},
 				},
 			},
@@ -641,6 +663,7 @@ func TestTransactionFetcherBroadcasts(t *testing.T) {
 }
 
 // Tests that the waiting list timers properly reset and reschedule.
+// 测试waiting list的timers被正确重置以及重调度
 func TestTransactionFetcherWaitTimerResets(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -696,6 +719,7 @@ func TestTransactionFetcherWaitTimerResets(t *testing.T) {
 
 // Tests that if a transaction request is not replied to, it will time
 // out and be re-scheduled for someone else.
+// 测试如果一个transaction request没有被回应，它会超时并且重新调度到someone else
 func TestTransactionFetcherTimeoutRescheduling(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -726,6 +750,7 @@ func TestTransactionFetcherTimeoutRescheduling(t *testing.T) {
 				},
 			},
 			// Wait until the delivery times out, everything should be cleaned up
+			// 等待delivery超时，everything都应该被清理
 			doWait{time: txFetchTimeout, step: true},
 			isWaiting(nil),
 			isScheduled{
@@ -736,6 +761,7 @@ func TestTransactionFetcherTimeoutRescheduling(t *testing.T) {
 				},
 			},
 			// Ensure that followup announcements don't get scheduled
+			// 确认后续的announcements不会被调度
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[1]}},
 			doWait{time: txArriveTimeout, step: true},
 			isScheduled{
@@ -748,6 +774,7 @@ func TestTransactionFetcherTimeoutRescheduling(t *testing.T) {
 				},
 			},
 			// If the dangling request arrives a bit later, do not choke
+			// 如果dangling request后续来了，不要choke
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0]}, direct: true},
 			isWaiting(nil),
 			isScheduled{
@@ -763,6 +790,7 @@ func TestTransactionFetcherTimeoutRescheduling(t *testing.T) {
 }
 
 // Tests that the fetching timeout timers properly reset and reschedule.
+// 测试fetching超时被正确的重置以及重调度
 func TestTransactionFetcherTimeoutTimerResets(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -805,6 +833,7 @@ func TestTransactionFetcherTimeoutTimerResets(t *testing.T) {
 			isScheduled{
 				tracking: nil,
 				fetching: nil,
+				// 都处于dangling状态
 				dangling: map[string][]common.Hash{
 					"A": {},
 					"B": {},
@@ -922,6 +951,7 @@ func TestTransactionFetcherDoSProtection(t *testing.T) {
 }
 
 // Tests that underpriced transactions don't get rescheduled after being rejected.
+// 测试underpriced transactions不会被重调度，在被拒绝了之后
 func TestTransactionFetcherUnderpricedDedup(t *testing.T) {
 	testTransactionFetcherParallel(t, txFetcherTest{
 		init: func() *TxFetcher {
@@ -936,6 +966,7 @@ func TestTransactionFetcherUnderpricedDedup(t *testing.T) {
 							errs[i] = core.ErrReplaceUnderpriced
 						}
 					}
+					// 返回underpriced的error
 					return errs
 				},
 				func(string, []common.Hash) error { return nil },
@@ -943,12 +974,14 @@ func TestTransactionFetcherUnderpricedDedup(t *testing.T) {
 		},
 		steps: []interface{}{
 			// Deliver a transaction through the fetcher, but reject as underpriced
+			// 通过fetcher传送一个transaction，但是因为underpriced被拒绝
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[0], testTxsHashes[1]}},
 			doWait{time: txArriveTimeout, step: true},
 			doTxEnqueue{peer: "A", txs: []*types.Transaction{testTxs[0], testTxs[1]}, direct: true},
 			isScheduled{nil, nil, nil},
 
 			// Try to announce the transaction again, ensure it's not scheduled back
+			// 试着重新声明，确保不会再次被调度
 			doTxNotify{peer: "A", hashes: []common.Hash{testTxsHashes[0], testTxsHashes[1], testTxsHashes[2]}}, // [2] is needed to force a step in the fetcher
 			isWaiting(map[string][]common.Hash{
 				"A": {testTxsHashes[2]},
@@ -1115,6 +1148,7 @@ func TestTransactionFetcherDrop(t *testing.T) {
 			// Drop the peer and ensure everything's cleaned out
 			// 丢弃peer并且确保所有的被清理
 			doDrop("A"),
+			// 状态全部清空
 			isWaiting(nil),
 			isScheduled{nil, nil, nil},
 
@@ -1190,6 +1224,7 @@ func TestTransactionFetcherDropRescheduling(t *testing.T) {
 					"B": {{0x01}},
 				},
 				fetching: map[string][]common.Hash{
+					// 马上调度到B进行fetching
 					"B": {{0x01}},
 				},
 			},
@@ -1560,6 +1595,7 @@ func testTransactionFetcher(t *testing.T, tt txFetcherTest) {
 				}
 			}
 			for peer, hashes := range step.dangling {
+				// 确保dangling在fetcher.requests中存在，并且两者的hashes完全一致
 				request := fetcher.requests[peer]
 				if request == nil {
 					t.Errorf("step %d: peer %s missing from requests", i, peer)

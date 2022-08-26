@@ -472,6 +472,7 @@ func (f *TxFetcher) loop() {
 					f.announced[hash][ann.origin] = struct{}{}
 
 					// Stage 2 and 3 share the set of origins per tx
+					// Stage 2和3对于每个tx共享一系列的origins
 					if announces := f.announces[ann.origin]; announces != nil {
 						announces[hash] = struct{}{}
 					} else {
@@ -485,6 +486,7 @@ func (f *TxFetcher) loop() {
 				// 如果fetcher已经知道了transaction，但是还没有在下载，添加peer作为一个alternate origin
 				// 到waiting list
 				if f.waitlist[hash] != nil {
+					// 加入到wait list和wait slot
 					f.waitlist[hash][ann.origin] = struct{}{}
 
 					if waitslots := f.waitslots[ann.origin]; waitslots != nil {
@@ -494,6 +496,7 @@ func (f *TxFetcher) loop() {
 					}
 					continue
 				}
+				log.Info("add to wait list", "hash", hash)
 				// Transaction unknown to the fetcher, insert it into the waiting list
 				// Transaction对于fetcher是未知的，将它插入到waiting list
 				f.waitlist[hash] = map[string]struct{}{ann.origin: {}}
@@ -587,6 +590,7 @@ func (f *TxFetcher) loop() {
 							panic("announced tracker already contains alternate item")
 						}
 						if f.alternates[hash] != nil { // nil if tx was broadcast during fetch
+							// 如果tx在fetch期间广播获得
 							f.announced[hash] = f.alternates[hash]
 						}
 						delete(f.announced[hash], peer)
@@ -674,6 +678,7 @@ func (f *TxFetcher) loop() {
 					log.Warn("Unexpected transaction delivery", "peer", delivery.origin)
 					break
 				}
+				// 获取了delivery，直接从f.requests中删除
 				delete(f.requests, delivery.origin)
 
 				// Anything not delivered should be re-scheduled (with or without
@@ -683,12 +688,15 @@ func (f *TxFetcher) loop() {
 				for _, hash := range delivery.hashes {
 					delivered[hash] = struct{}{}
 				}
+				// 如果没有东西被delivered，假设所有都丢失了，不要重试
 				cutoff := len(req.hashes) // If nothing is delivered, assume everything is missing, don't retry!!!
 				for i, hash := range req.hashes {
 					if _, ok := delivered[hash]; ok {
+						// cutoff设置为最大的被delivered的值
 						cutoff = i
 					}
 				}
+				log.Info("cleanup", "cutoff", cutoff, "len(req.hashes)", len(req.hashes))
 				// Reschedule missing hashes from alternates, not-fulfilled from alt+self
 				// 从alternates重新调度missing hashes，alt+self未实现
 				for i, hash := range req.hashes {
@@ -701,6 +709,7 @@ func (f *TxFetcher) loop() {
 					}
 					if _, ok := delivered[hash]; !ok {
 						if i < cutoff {
+							// 小于cutoff的都移除
 							delete(f.alternates[hash], delivery.origin)
 							delete(f.announces[delivery.origin], hash)
 							if len(f.announces[delivery.origin]) == 0 {
@@ -709,6 +718,7 @@ func (f *TxFetcher) loop() {
 						}
 						if len(f.alternates[hash]) > 0 {
 							if _, ok := f.announced[hash]; ok {
+								// announced tracker已经包含了alternate item
 								panic(fmt.Sprintf("announced tracker already contains alternate item: %v", f.announced[hash]))
 							}
 							f.announced[hash] = f.alternates[hash]
@@ -894,9 +904,11 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 
 	f.forEachPeer(actives, func(peer string) {
 		if f.requests[peer] != nil {
+			// 如果peer已经在请求了
 			return // continue in the for-each
 		}
 		if len(f.announces[peer]) == 0 {
+			// 在announces中没有peer的信息
 			return // continue in the for-each
 		}
 		hashes := make([]common.Hash, 0, maxTxRetrievals)
@@ -909,21 +921,26 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 				if _, ok := f.alternates[hash]; ok {
 					panic(fmt.Sprintf("alternate tracker already contains fetching item: %v", f.alternates[hash]))
 				}
+				// 添加到alternates中
 				f.alternates[hash] = f.announced[hash]
+				// 从announced中删除
 				delete(f.announced, hash)
 
 				// Accumulate the hash and stop if the limit was reached
 				// 累计hash并且停止，如果到达了limit
 				hashes = append(hashes, hash)
 				if len(hashes) >= maxTxRetrievals {
+					// 超过max retrievals则返回
 					return false // break in the for-each
 				}
 			}
+			// 继续进行loop
 			return true // continue in the for-each
 		})
 		// If any hashes were allocated, request them from the peer
 		// 如果已经申请了任何的hashes，从peer对它们进行请求
 		if len(hashes) > 0 {
+			// 构建txRequest并且保存
 			f.requests[peer] = &txRequest{hashes: hashes, time: f.clock.Now()}
 			txRequestOutMeter.Mark(int64(len(hashes)))
 
@@ -942,6 +959,7 @@ func (f *TxFetcher) scheduleFetches(timer *mclock.Timer, timeout chan struct{}, 
 	// If a new request was fired, schedule a timeout timer
 	// 如果已经发射了一个新的请求，调度一个timeout timer
 	if idle && len(f.requests) > 0 {
+		// 设置重调度的timeout
 		f.rescheduleTimeout(timer, timeout)
 	}
 }
@@ -990,6 +1008,7 @@ func (f *TxFetcher) forEachHash(hashes map[common.Hash]struct{}, do func(hash co
 	sortHashes(list)
 	rotateHashes(list, f.rand.Intn(len(list)))
 	for _, hash := range list {
+		log.Info("forEachHash hashes are ", "hash", hash)
 		if !do(hash) {
 			return
 		}
