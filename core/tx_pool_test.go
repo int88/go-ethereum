@@ -33,6 +33,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
 )
@@ -81,6 +82,7 @@ func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) even
 }
 
 func transaction(nonce uint64, gaslimit uint64, key *ecdsa.PrivateKey) *types.Transaction {
+	// 将gas price设置为1
 	return pricedTransaction(nonce, gaslimit, big.NewInt(1), key)
 }
 
@@ -117,6 +119,7 @@ func setupTxPool() (*TxPool, *ecdsa.PrivateKey) {
 }
 
 func setupTxPoolWithConfig(config *params.ChainConfig) (*TxPool, *ecdsa.PrivateKey) {
+	// 构建statedb和blockchain
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	blockchain := &testBlockChain{10000000, statedb, new(event.Feed)}
 
@@ -124,6 +127,7 @@ func setupTxPoolWithConfig(config *params.ChainConfig) (*TxPool, *ecdsa.PrivateK
 	pool := NewTxPool(testTxPoolConfig, config, blockchain)
 
 	// wait for the pool to initialize
+	// 等待pool初始化完成
 	<-pool.initDoneCh
 	return pool, key
 }
@@ -278,12 +282,15 @@ func testSetNonce(pool *TxPool, addr common.Address, nonce uint64) {
 }
 
 func TestInvalidTransactions(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 
 	pool, key := setupTxPool()
 	defer pool.Stop()
 
+	// 第二个参数是gas limit，默认的gas price为1
 	tx := transaction(0, 100, key)
+	// 从tx中衍生出发送者
 	from, _ := deriveSender(tx)
 
 	testAddBalance(pool, from, big.NewInt(1))
@@ -305,10 +312,12 @@ func TestInvalidTransactions(t *testing.T) {
 	}
 
 	tx = transaction(1, 100000, key)
+	// 重新设置gas price
 	pool.gasPrice = big.NewInt(1000)
 	if err := pool.AddRemote(tx); err != ErrUnderpriced {
 		t.Error("expected", ErrUnderpriced, "got", err)
 	}
+	// 从local添加就没有问题
 	if err := pool.AddLocal(tx); err != nil {
 		t.Error("expected", nil, "got", err)
 	}
@@ -377,6 +386,7 @@ func TestTransactionNegativeValue(t *testing.T) {
 	pool, key := setupTxPool()
 	defer pool.Stop()
 
+	// 第三个参数是传递的value
 	tx, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(-1), 100, big.NewInt(1), nil), types.HomesteadSigner{}, key)
 	from, _ := deriveSender(tx)
 	testAddBalance(pool, from, big.NewInt(1))
@@ -470,6 +480,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	tx3, _ := types.SignTx(types.NewTransaction(0, common.Address{}, big.NewInt(100), 1000000, big.NewInt(1), nil), signer, key)
 
 	// Add the first two transaction, ensure higher priced stays only
+	// 添加前两个transaction，确保价格更高的留下
 	if replace, err := pool.add(tx1, false); err != nil || replace {
 		t.Errorf("first transaction insert failed (%v) or reported replacement (%v)", err, replace)
 	}
@@ -477,6 +488,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 		t.Errorf("second transaction insert failed (%v) or not reported replacement (%v)", err, replace)
 	}
 	<-pool.requestPromoteExecutables(newAccountSet(signer, addr))
+	// 有一个transaction并且留下的是tx2
 	if pool.pending[addr].Len() != 1 {
 		t.Error("expected 1 pending transactions, got", pool.pending[addr].Len())
 	}
@@ -485,6 +497,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 	}
 
 	// Add the third transaction and ensure it's not saved (smaller price)
+	// 添加第三个transaction并且确保它不会被保存
 	pool.add(tx3, false)
 	<-pool.requestPromoteExecutables(newAccountSet(signer, addr))
 	if pool.pending[addr].Len() != 1 {
@@ -494,6 +507,7 @@ func TestTransactionDoubleNonce(t *testing.T) {
 		t.Errorf("transaction mismatch: have %x, want %x", tx.Hash(), tx2.Hash())
 	}
 	// Ensure the total transaction count is correct
+	// 确保完整的transaction数目是正确的
 	if pool.all.Count() != 1 {
 		t.Error("expected 1 total transactions, got", pool.all.Count())
 	}

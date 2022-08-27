@@ -63,6 +63,8 @@ var (
 
 	// ErrUnderpriced is returned if a transaction's gas price is below the minimum
 	// configured for the transaction pool.
+	// ErrUnderpriced被返回，如果一个transaction的gas price小于transaction pool配置的最小d
+	// gas price
 	ErrUnderpriced = errors.New("transaction underpriced")
 
 	// ErrTxPoolOverflow is returned if the transaction pool is full and can't accpet
@@ -79,6 +81,7 @@ var (
 
 	// ErrNegativeValue is a sanity error to ensure no one is able to specify a
 	// transaction with a negative value.
+	// ErrNegativeValue是一个sanity error来确保没有人能指定一个负值的transaction
 	ErrNegativeValue = errors.New("negative value")
 
 	// ErrOversizedData is returned if the input data of a transaction is greater
@@ -153,10 +156,11 @@ type blockChain interface {
 // TxPoolConfig are the configuration parameters of the transaction pool.
 // TxPoolConfig是transaction pool的配置参数
 type TxPoolConfig struct {
-	Locals    []common.Address // Addresses that should be treated by default as local // 那些应该被作为local的地址
-	NoLocals  bool             // Whether local transaction handling should be disabled // 是否应该禁止local transactrion handling
-	Journal   string           // Journal of local transactions to survive node restarts
-	Rejournal time.Duration    // Time interval to regenerate the local transaction journal
+	Locals   []common.Address // Addresses that should be treated by default as local // 那些应该被作为local的地址
+	NoLocals bool             // Whether local transaction handling should be disabled // 是否应该禁止local transactrion handling
+	// 本地transaction的journal从而在node重启的时候能存活
+	Journal   string        // Journal of local transactions to survive node restarts
+	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
@@ -166,6 +170,7 @@ type TxPoolConfig struct {
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
+	// non-executalb transaction排队的最长时间
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 }
 
@@ -258,11 +263,15 @@ type TxPool struct {
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
 	journal *txJournal  // Journal of local transaction to back up to disk	// 关于local transaction的日志，备份到磁盘中
 
-	pending map[common.Address]*txList   // All currently processable transactions
-	queue   map[common.Address]*txList   // Queued but non-processable transactions
-	beats   map[common.Address]time.Time // Last heartbeat from each known account
-	all     *txLookup                    // All transactions to allow lookups
-	priced  *txPricedList                // All transactions sorted by price	// 根据price排序的所有transactions
+	// 当前所有可以处理的transactions
+	pending map[common.Address]*txList // All currently processable transactions
+	// 队列中但是不能处理的transaction
+	queue map[common.Address]*txList // Queued but non-processable transactions
+	// 每个已知的account的最后的心跳
+	beats map[common.Address]time.Time // Last heartbeat from each known account
+	// 所有允许查找的transactions
+	all    *txLookup     // All transactions to allow lookups
+	priced *txPricedList // All transactions sorted by price	// 根据price排序的所有transactions
 
 	chainHeadCh     chan ChainHeadEvent
 	chainHeadSub    event.Subscription
@@ -286,6 +295,7 @@ type txpoolResetRequest struct {
 // NewTxPool创建一个新的transaction pool用来收集，排序以及过滤来自network的inbound transaction
 func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
+	// 确保没有设置易受攻击的gas prices
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
@@ -309,6 +319,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 		initDoneCh:      make(chan struct{}),
 		gasPrice:        new(big.Int).SetUint64(config.PriceLimit),
 	}
+	// 设置本地的accout
 	pool.locals = newAccountSet(pool.signer)
 	for _, addr := range config.Locals {
 		log.Info("Setting new local account", "address", addr)
@@ -325,6 +336,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	// If local transactions and journaling is enabled, load from disk
 	// 如果使能了local transactions和journaling，从磁盘中加载
 	if !config.NoLocals && config.Journal != "" {
+		// 构建journal
 		pool.journal = newTxJournal(config.Journal)
 
 		if err := pool.journal.load(pool.AddLocals); err != nil {
@@ -684,6 +696,8 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 // If a newly added transaction is marked as local, its sending account will be
 // be added to the allowlist, preventing any associated transaction from being dropped
 // out of the pool due to pricing constraints.
+// 如果一个新加入的transaction被标记为local，它的sending account会被添加到allowlist，防止任何相关的transaction
+// 从Pool中丢弃，因为pricing的限制
 func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err error) {
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
@@ -793,6 +807,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 // Note, this method assumes the pool lock is held!
 func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local bool, addAll bool) (bool, error) {
 	// Try to insert the transaction into the future queue
+	// 试着插入transaction到future queue中
 	from, _ := types.Sender(pool.signer, tx) // already validated
 	if pool.queue[from] == nil {
 		pool.queue[from] = newTxList(false)
@@ -800,20 +815,24 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
 	if !inserted {
 		// An older transaction was better, discard this
+		// 如果一个older transaction更好，丢弃它
 		queuedDiscardMeter.Mark(1)
 		return false, ErrReplaceUnderpriced
 	}
 	// Discard any previous transaction and mark this
+	// 丢弃任何之前的transaction
 	if old != nil {
 		pool.all.Remove(old.Hash())
 		pool.priced.Removed(1)
 		queuedReplaceMeter.Mark(1)
 	} else {
 		// Nothing was replaced, bump the queued counter
+		// 没有东西被替换，queued counter加一
 		queuedGauge.Inc(1)
 	}
 	// If the transaction isn't in lookup set but it's expected to be there,
 	// show the error log.
+	// 如果transaction不再lookup set，但是又期望在那里，展示错误日志
 	if pool.all.Get(hash) == nil && !addAll {
 		log.Error("Missing transaction in lookup set, please report the issue", "hash", hash)
 	}
@@ -822,6 +841,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 		pool.priced.Put(tx, local)
 	}
 	// If we never record the heartbeat, do it right now.
+	// 如果我们从不记录heartbeat，现在就做
 	if _, exist := pool.beats[from]; !exist {
 		pool.beats[from] = time.Now()
 	}
@@ -1421,6 +1441,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		queuedGauge.Dec(int64(len(readies)))
 
 		// Drop all transactions over the allowed limit
+		// 丢弃所有的transactions，超过允许的limit
 		var caps types.Transactions
 		if !pool.locals.contains(addr) {
 			caps = list.Cap(int(pool.config.AccountQueue))
@@ -1432,12 +1453,14 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			queuedRateLimitMeter.Mark(int64(len(caps)))
 		}
 		// Mark all the items dropped as removed
+		// 将所有丢弃的items标记为removed
 		pool.priced.Removed(len(forwards) + len(drops) + len(caps))
 		queuedGauge.Dec(int64(len(forwards) + len(drops) + len(caps)))
 		if pool.locals.contains(addr) {
 			localGauge.Dec(int64(len(forwards) + len(drops) + len(caps)))
 		}
 		// Delete the entire queue entry if it became empty.
+		// 移除整个queue entry，如果它变为空的话
 		if list.Empty() {
 			delete(pool.queue, addr)
 			delete(pool.beats, addr)
@@ -1729,6 +1752,7 @@ func (as *accountSet) merge(other *accountSet) {
 
 // txLookup is used internally by TxPool to track transactions while allowing
 // lookup without mutex contention.
+// txLookup由TxPool在内部使用，来追踪transactions，同时允许在没有锁竞争的情况下进行查询
 //
 // Note, although this type is properly protected against concurrent access, it
 // is **not** a type that should ever be mutated or even exposed outside of the

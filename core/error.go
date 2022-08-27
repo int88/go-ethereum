@@ -50,6 +50,7 @@ var (
 var (
 	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
 	// one present in the local chain.
+	// ErrNonceTooLow被返回，如果一个transaction的nonce小于local chain中包含的transaction
 	ErrNonceTooLow = errors.New("nonce too low")
 
 	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
@@ -70,6 +71,8 @@ var (
 
 	// ErrInsufficientFunds is returned if the total cost of executing a transaction
 	// is higher than the balance of the user's account.
+	// ErrInsufficientFunds被返回，如果运行一个transaction的cost比user的account的balance
+	// 还高的话
 	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
 
 	// ErrGasUintOverflow is returned when calculating gas usage.
@@ -77,6 +80,7 @@ var (
 
 	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
 	// than required to start the invocation.
+	// ErrIntrinsicGas被返回，如果指定的transaction使用开始一个调用所需的更少的gas
 	ErrIntrinsicGas = errors.New("intrinsic gas too low")
 
 	// ErrTxTypeNotSupported is returned if a transaction is not supported in the
@@ -85,6 +89,7 @@ var (
 
 	// ErrTipAboveFeeCap is a sanity error to ensure no one is able to specify a
 	// transaction with a tip higher than the total fee cap.
+	// ErrTipAboveFeeCap确保没人指定一个transaction，它的tip会高于total fee cap
 	ErrTipAboveFeeCap = errors.New("max priority fee per gas higher than max fee per gas")
 
 	// ErrTipVeryHigh is a sanity error to avoid extremely big numbers specified
