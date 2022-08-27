@@ -249,6 +249,9 @@ func (m *txSortedMap) LastElement() *types.Transaction {
 // nonce. The same type can be used both for storing contiguous transactions for
 // the executable/pending queue; and for storing gapped transactions for the non-
 // executable/future queue, with minor behavioral changes.
+// txList是属于一个account的transactions的列表，根据account nonce进行排序，同一个类型
+// 可以用于存储连续的transactions，对于executable/pending queue；以及对于存储gapped transactions
+// 对于non-executable/future queue，两者有微小的差别
 type txList struct {
 	strict bool         // Whether nonces are strictly continuous or not
 	txs    *txSortedMap // Heap indexed sorted hash map of the transactions
@@ -259,6 +262,8 @@ type txList struct {
 
 // newTxList create a new transaction list for maintaining nonce-indexable fast,
 // gapped, sortable transaction lists.
+// newTxList创建一个新的transaction list用于维护nonce索引的快速、gapped以及可排序的
+// transaction lists
 func newTxList(strict bool) *txList {
 	return &txList{
 		strict:  strict,
@@ -511,6 +516,7 @@ func newTxPricedList(all *txLookup) *txPricedList {
 }
 
 // Put inserts a new transaction into the heap.
+// Put插入一个新的transaction到heap
 func (l *txPricedList) Put(tx *types.Transaction, local bool) {
 	if local {
 		return

@@ -44,6 +44,8 @@ const (
 	// takes up based on its size. The slots are used as DoS protection, ensuring
 	// that validating a new transaction remains a constant operation (in reality
 	// O(maxslots), where max slots are 4 currently).
+	// txSlotSize用于计算基于它的大小，单个的transaction可以占据多少个data slots
+	// slots用于作为DoS protection，确保校验一个新的transaction依然是一个常量操作
 	txSlotSize = 32 * 1024
 
 	// txMaxSize is the maximum size a single transaction can have. This field has
@@ -273,12 +275,13 @@ type TxPool struct {
 	all    *txLookup     // All transactions to allow lookups
 	priced *txPricedList // All transactions sorted by price	// 根据price排序的所有transactions
 
-	chainHeadCh     chan ChainHeadEvent
-	chainHeadSub    event.Subscription
-	reqResetCh      chan *txpoolResetRequest
-	reqPromoteCh    chan *accountSet
-	queueTxEventCh  chan *types.Transaction
-	reorgDoneCh     chan chan struct{}
+	chainHeadCh    chan ChainHeadEvent
+	chainHeadSub   event.Subscription
+	reqResetCh     chan *txpoolResetRequest
+	reqPromoteCh   chan *accountSet
+	queueTxEventCh chan *types.Transaction
+	reorgDoneCh    chan chan struct{}
+	// 请求关闭scheduleReorgLoop
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
 	initDoneCh      chan struct{}  // is closed once the pool is initialized (for tests)
@@ -331,6 +334,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	// Start the reorg loop early so it can handle requests generated during journal loading.
 	// 尽早启动reorg，这样它可以处理在journal loading的时候处理requests
 	pool.wg.Add(1)
+	// 运行reorg loop
 	go pool.scheduleReorgLoop()
 
 	// If local transactions and journaling is enabled, load from disk
@@ -837,6 +841,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 		log.Error("Missing transaction in lookup set, please report the issue", "hash", hash)
 	}
 	if addAll {
+		// 将transaction加入
 		pool.all.Add(tx, local)
 		pool.priced.Put(tx, local)
 	}
@@ -874,6 +879,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	list := pool.pending[addr]
 
+	// 加入list中
 	inserted, old := list.Add(tx, pool.config.PriceBump)
 	if !inserted {
 		// An older transaction was better, discard this
@@ -898,6 +904,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	pool.pendingNonces.set(addr, tx.Nonce()+1)
 
 	// Successful promotion, bump the heartbeat
+	// 成功promotion，heartbeat + 1
 	pool.beats[addr] = time.Now()
 	return true
 }
@@ -928,6 +935,7 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 // reorganization and internal event propagation.
 // 这个方法用于从p2p network加入transactions，不等待pool reorganization以及内部的event propagation
 func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
+	// 第三个参数为false，表示异步添加
 	return pool.addTxs(txs, false, false)
 }
 
@@ -1110,6 +1118,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // requestReset requests a pool reset to the new head block.
 // requestReset请求一个pool reset到新的head block
 // The returned channel is closed when the reset has occurred.
+// 返回的channel被关闭，当reset发生的时候
 func (pool *TxPool) requestReset(oldHead *types.Header, newHead *types.Header) chan struct{} {
 	select {
 	case pool.reqResetCh <- &txpoolResetRequest{oldHead, newHead}:
@@ -1149,6 +1158,7 @@ func (pool *TxPool) scheduleReorgLoop() {
 	defer pool.wg.Done()
 
 	var (
+		// 当runReorg为active时为non-nil
 		curDone       chan struct{} // non-nil while runReorg is active
 		nextDone      = make(chan struct{})
 		launchNextRun bool
@@ -1162,10 +1172,13 @@ func (pool *TxPool) scheduleReorgLoop() {
 		if curDone == nil && launchNextRun {
 			// Run the background reorg and announcements
 			// 运行后台的reorg和announcements
+			log.Info("run reorg")
 			go pool.runReorg(nextDone, reset, dirtyAccounts, queuedEvents)
 
 			// Prepare everything for the next round of reorg
+			// 准备好所有，用于下一轮的reorg
 			curDone, nextDone = nextDone, make(chan struct{})
+			// 重置launchNextRun
 			launchNextRun = false
 
 			reset, dirtyAccounts = nil, nil
@@ -1183,6 +1196,7 @@ func (pool *TxPool) scheduleReorgLoop() {
 			}
 			// 下一次运行reorg
 			launchNextRun = true
+			// 返回一个nextDone的channel
 			pool.reorgDoneCh <- nextDone
 
 		case req := <-pool.reqPromoteCh:
@@ -1194,11 +1208,14 @@ func (pool *TxPool) scheduleReorgLoop() {
 				dirtyAccounts.merge(req)
 			}
 			launchNextRun = true
+			// 给reorgDoneCh发送信息
 			pool.reorgDoneCh <- nextDone
 
 		case tx := <-pool.queueTxEventCh:
 			// Queue up the event, but don't schedule a reorg. It's up to the caller to
 			// request one later if they want the events sent.
+			// 将一个event进行排队，但是不要调度一个reorg，取决于调用者之后请求，如果他们想要
+			// 发送events
 			addr, _ := types.Sender(pool.signer, tx)
 			if _, ok := queuedEvents[addr]; !ok {
 				queuedEvents[addr] = newTxSortedMap()
@@ -1210,6 +1227,7 @@ func (pool *TxPool) scheduleReorgLoop() {
 
 		case <-pool.reorgShutdownCh:
 			// Wait for current run to finish.
+			// 等待当前的运行结束
 			if curDone != nil {
 				<-curDone
 			}
@@ -1237,9 +1255,11 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	pool.mu.Lock()
 	if reset != nil {
 		// Reset from the old head to the new, rescheduling any reorged transactions
+		// 重置old head到新的，重新调度任何reorged transactions
 		pool.reset(reset.oldHead, reset.newHead)
 
 		// Nonces were reset, discard any events that became stale
+		// Nonces被重置，丢弃任何变为stale的events
 		for addr := range events {
 			events[addr].Forward(pool.pendingNonces.get(addr))
 			if events[addr].Len() == 0 {
@@ -1262,6 +1282,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	// 如果出现了一个新的block，检查pending transactions的pool，它会移除包含着在block中的所有
 	// transactions，以及任何transaction，如果gas price更高
 	if reset != nil {
+		// 移除所有非法的unexecutable transactions
 		pool.demoteUnexecutables()
 		if reset.newHead != nil && pool.chainconfig.IsLondon(new(big.Int).Add(reset.newHead.Number, big.NewInt(1))) {
 			pendingBaseFee := misc.CalcBaseFee(pool.chainconfig, reset.newHead)
@@ -1277,6 +1298,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		pool.pendingNonces.setAll(nonces)
 	}
 	// Ensure pool.queue and pool.pending sizes stay within the configured limits.
+	// 确保pool.queue和pool.pending的大小依然在配置的limits内
 	pool.truncatePending()
 	pool.truncateQueue()
 
@@ -1305,6 +1327,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
+// reset获取blockchain的当前状态并且确保transaction pool的内容是合法的，对于chian st
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
 	var reinject types.Transactions
@@ -1419,6 +1442,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		}
 		log.Trace("Removed old queued transactions", "count", len(forwards))
 		// Drop all transactions that are too costly (low balance or out of gas)
+		// 丢弃所有costly transactions（low balance或者out of gas）
 		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
@@ -1462,6 +1486,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 		// Delete the entire queue entry if it became empty.
 		// 移除整个queue entry，如果它变为空的话
 		if list.Empty() {
+			// 如果移除完了，则从pool中删除
 			delete(pool.queue, addr)
 			delete(pool.beats, addr)
 		}
@@ -1607,16 +1632,20 @@ func (pool *TxPool) truncateQueue() {
 // demoteUnexecutables removes invalid and processed transactions from the pools
 // executable/pending queue and any subsequent transactions that become unexecutable
 // are moved back into the future queue.
+// demoteUnexecutables移除非法的和处理过的transactions，从pools的executable/pending对垒
+// 并且后续的transactions变为unexecutable会被移动到future queue
 //
 // Note: transactions are not marked as removed in the priced list because re-heaping
 // is always explicitly triggered by SetBaseFee and it would be unnecessary and wasteful
 // to trigger a re-heap is this function
 func (pool *TxPool) demoteUnexecutables() {
 	// Iterate over all accounts and demote any non-executable transactions
+	// 遍历所有的accounts并且demote任何non-executable transactions
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
 		// Drop all transactions that are deemed too old (low nonce)
+		// 丢弃所有太老的transactions
 		olds := list.Forward(nonce)
 		for _, tx := range olds {
 			hash := tx.Hash()
@@ -1624,6 +1653,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			log.Trace("Removed old pending transaction", "hash", hash)
 		}
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
+		// 丢弃所有costly transactions（low balance或者out of gas）并且排队任何非法的
 		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
@@ -1644,6 +1674,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			localGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
 		}
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
+		// 如果在front有一个gap，告警（不应该发生）并且延迟所有的transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
 			gapped := list.Cap(0)
 			for _, tx := range gapped {
@@ -1861,6 +1892,7 @@ func (t *txLookup) Slots() int {
 }
 
 // Add adds a transaction to the lookup.
+// 将一个transaction加入到lookup
 func (t *txLookup) Add(tx *types.Transaction, local bool) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -1868,6 +1900,7 @@ func (t *txLookup) Add(tx *types.Transaction, local bool) {
 	t.slots += numSlots(tx)
 	slotsGauge.Update(int64(t.slots))
 
+	// 加入到locals或者remotes列表中
 	if local {
 		t.locals[tx.Hash()] = tx
 	} else {

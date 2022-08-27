@@ -553,6 +553,7 @@ func TestTransactionNonceRecovery(t *testing.T) {
 		t.Error(err)
 	}
 	// simulate some weird re-order of transactions and missing nonce(s)
+	// 模拟一些奇怪的transactions的re-order以及缺失的nonce
 	testSetNonce(pool, addr, n-1)
 	<-pool.requestReset(nil, nil)
 	if fn := pool.Nonce(addr); fn != n-1 {
@@ -562,8 +563,10 @@ func TestTransactionNonceRecovery(t *testing.T) {
 
 // Tests that if an account runs out of funds, any pending and queued transactions
 // are dropped.
+// 测试当一个account运行完funds之后，任何pending以及queued的transactions都会被丢弃
 func TestTransactionDropping(t *testing.T) {
 	t.Parallel()
+	log.Root().SetHandler(log.StdoutHandler)
 
 	// Create a test account and fund it
 	pool, key := setupTxPool()
@@ -573,6 +576,7 @@ func TestTransactionDropping(t *testing.T) {
 	testAddBalance(pool, account, big.NewInt(1000))
 
 	// Add some pending and some queued transactions
+	// 添加一些pending以及一些queued transactions
 	var (
 		tx0  = transaction(0, 100, key)
 		tx1  = transaction(1, 200, key)
@@ -598,6 +602,7 @@ func TestTransactionDropping(t *testing.T) {
 	pool.enqueueTx(tx12.Hash(), tx12, false, true)
 
 	// Check that pre and post validations leave the pool as is
+	// 检查pre以及post的validations离开了pool
 	if pool.pending[account].Len() != 3 {
 		t.Errorf("pending transaction mismatch: have %d, want %d", pool.pending[account].Len(), 3)
 	}
@@ -618,6 +623,7 @@ func TestTransactionDropping(t *testing.T) {
 		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 6)
 	}
 	// Reduce the balance of the account, and check that invalidated transactions are dropped
+	// 降低account的balance，并且检查无效的transactions都已经被丢弃了
 	testAddBalance(pool, account, big.NewInt(-650))
 	<-pool.requestReset(nil, nil)
 
@@ -639,10 +645,12 @@ func TestTransactionDropping(t *testing.T) {
 	if _, ok := pool.queue[account].txs.items[tx12.Nonce()]; ok {
 		t.Errorf("out-of-fund queued transaction present: %v", tx11)
 	}
+	// 最后剩四个transaction
 	if pool.all.Count() != 4 {
 		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), 4)
 	}
 	// Reduce the block gas limit, check that invalidated transactions are dropped
+	// 降低block的gas limit，检查非法的transactions被丢弃
 	atomic.StoreUint64(&pool.chain.(*testBlockChain).gasLimit, 100)
 	<-pool.requestReset(nil, nil)
 
@@ -666,6 +674,8 @@ func TestTransactionDropping(t *testing.T) {
 // Tests that if a transaction is dropped from the current pending pool (e.g. out
 // of fund), all consecutive (still valid, but not executable) transactions are
 // postponed back into the future queue to prevent broadcasting them.
+// 测试如果一个transaction被从当前的pending pool中丢弃（例如，out of fund），则所有连续的
+// （依然合法，但是不能执行）transactions会被推迟到future queue，来防止广播
 func TestTransactionPostponing(t *testing.T) {
 	t.Parallel()
 
@@ -677,6 +687,7 @@ func TestTransactionPostponing(t *testing.T) {
 	defer pool.Stop()
 
 	// Create two test accounts to produce different gap profiles with
+	// 创建两个test accounts来生成不同的gap profiles
 	keys := make([]*ecdsa.PrivateKey, 2)
 	accs := make([]common.Address, len(keys))
 
@@ -687,6 +698,7 @@ func TestTransactionPostponing(t *testing.T) {
 		testAddBalance(pool, crypto.PubkeyToAddress(keys[i].PublicKey), big.NewInt(50100))
 	}
 	// Add a batch consecutive pending transactions for validation
+	// 添加一批连续的transactions用于验证
 	txs := []*types.Transaction{}
 	for i, key := range keys {
 
@@ -700,6 +712,7 @@ func TestTransactionPostponing(t *testing.T) {
 			txs = append(txs, tx)
 		}
 	}
+	// 添加remote sync
 	for i, err := range pool.AddRemotesSync(txs) {
 		if err != nil {
 			t.Fatalf("tx %d: failed to add transactions: %v", i, err)
@@ -726,13 +739,16 @@ func TestTransactionPostponing(t *testing.T) {
 		t.Errorf("total transaction mismatch: have %d, want %d", pool.all.Count(), len(txs))
 	}
 	// Reduce the balance of the account, and check that transactions are reorganised
+	// 减小account的balance，并且检查transactions被reorg了
 	for _, addr := range accs {
+		// 减小balance
 		testAddBalance(pool, addr, big.NewInt(-1))
 	}
 	<-pool.requestReset(nil, nil)
 
 	// The first account's first transaction remains valid, check that subsequent
 	// ones are either filtered out, or queued up for later.
+	// 第一个account的第一个transaction依然保持合法，检查后面的要么被清理或者排队
 	if _, ok := pool.pending[accs[0]].txs.items[txs[0].Nonce()]; !ok {
 		t.Errorf("tx %d: valid and funded transaction missing from pending pool: %v", 0, txs[0])
 	}
@@ -758,6 +774,7 @@ func TestTransactionPostponing(t *testing.T) {
 	}
 	// The second account's first transaction got invalid, check that all transactions
 	// are either filtered out, or queued up for later.
+	// 第二个account的第一个transaction是合法的，检查所有的transactions要么清理或者排队了
 	if pool.pending[accs[1]] != nil {
 		t.Errorf("invalidated account still has pending transactions")
 	}
@@ -780,6 +797,8 @@ func TestTransactionPostponing(t *testing.T) {
 // Tests that if the transaction pool has both executable and non-executable
 // transactions from an origin account, filling the nonce gap moves all queued
 // ones into the pending pool.
+// 测试如果transaction pool中同时有可执行和不可执行的transactions，来自同一个account
+// 填充nonce gap之后，移动所有排队的transactions加入到pending pool
 func TestTransactionGapFilling(t *testing.T) {
 	t.Parallel()
 
@@ -791,11 +810,13 @@ func TestTransactionGapFilling(t *testing.T) {
 	testAddBalance(pool, account, big.NewInt(1000000))
 
 	// Keep track of transaction events to ensure all executables get announced
+	// 追踪transaction events来确保所有的executables都声明了
 	events := make(chan NewTxsEvent, testTxPoolConfig.AccountQueue+5)
 	sub := pool.txFeed.Subscribe(events)
 	defer sub.Unsubscribe()
 
 	// Create a pending and a queued transaction with a nonce-gap in between
+	// 创建一个pending以及一个queued transaction，其中有一个nonce-gap
 	pool.AddRemotesSync([]*types.Transaction{
 		transaction(0, 100000, key),
 		transaction(2, 100000, key),
@@ -814,6 +835,7 @@ func TestTransactionGapFilling(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Fill the nonce gap and ensure all transactions become pending
+	// 填充nonce gap并且确保所有transactions都变为pending
 	if err := pool.addRemoteSync(transaction(1, 100000, key)); err != nil {
 		t.Fatalf("failed to add gapped transaction: %v", err)
 	}
