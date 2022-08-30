@@ -23,9 +23,11 @@ import (
 )
 
 type DynamicFeeTx struct {
-	ChainID    *big.Int
-	Nonce      uint64
-	GasTipCap  *big.Int // a.k.a. maxPriorityFeePerGas
+	ChainID *big.Int
+	Nonce   uint64
+	// 每个Gas的优先的最高的fee
+	GasTipCap *big.Int // a.k.a. maxPriorityFeePerGas
+	// 每个gas最高的fee
 	GasFeeCap  *big.Int // a.k.a. maxFeePerGas
 	Gas        uint64
 	To         *common.Address `rlp:"nil"` // nil means contract creation

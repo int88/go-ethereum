@@ -167,10 +167,14 @@ type TxPoolConfig struct {
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
 	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
+	// 买个account保证的executable transaction slots的数目
 	AccountSlots uint64 // Number of executable transaction slots guaranteed per account
-	GlobalSlots  uint64 // Maximum number of executable transaction slots for all accounts
+	// 对于所有的accounts，最大的executable transaction slots的数目
+	GlobalSlots uint64 // Maximum number of executable transaction slots for all accounts
+	// 每个account允许有的最大的non-executable transaction slots的数目
 	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
-	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
+	// 对于所有account的最大的non-executable transaction slots的数目
+	GlobalQueue uint64 // Maximum number of non-executable transaction slots for all accounts
 
 	// non-executalb transaction排队的最长时间
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
@@ -1033,8 +1037,10 @@ func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error,
 
 // Status returns the status (unknown/pending/queued) of a batch of transactions
 // identified by their hashes.
+// Status返回一系列transactions的状态（unknown/pending/queued），通过它们的哈希值进行标识
 func (pool *TxPool) Status(hashes []common.Hash) []TxStatus {
 	status := make([]TxStatus, len(hashes))
+	log.Info("Status", "length", len(status))
 	for i, hash := range hashes {
 		tx := pool.Get(hash)
 		if tx == nil {

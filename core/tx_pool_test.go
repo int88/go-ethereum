@@ -165,12 +165,14 @@ func validateTxPoolInternals(pool *TxPool) error {
 
 // validateEvents checks that the correct number of transaction addition events
 // were fired on the pool's event feed.
+// validateEvents检查正确数目的transaction添加事件在pool的event feed中发生
 func validateEvents(events chan NewTxsEvent, count int) error {
 	var received []*types.Transaction
 
 	for len(received) < count {
 		select {
 		case ev := <-events:
+			// 从events中获取transactions
 			received = append(received, ev.Txs...)
 		case <-time.After(time.Second):
 			return fmt.Errorf("event #%d not fired", len(received))
@@ -856,6 +858,7 @@ func TestTransactionGapFilling(t *testing.T) {
 
 // Tests that if the transaction count belonging to a single account goes above
 // some threshold, the higher transactions are dropped to prevent DOS attacks.
+// 测试如果属于单个account的transaction数目超过某个阈值，更高的transactions会被丢弃来防止DOS攻击
 func TestTransactionQueueAccountLimiting(t *testing.T) {
 	t.Parallel()
 
@@ -867,6 +870,7 @@ func TestTransactionQueueAccountLimiting(t *testing.T) {
 	testAddBalance(pool, account, big.NewInt(1000000))
 
 	// Keep queuing up transactions and make sure all above a limit are dropped
+	// 持续将transactions入队并且确保所有超过limit的都被丢弃
 	for i := uint64(1); i <= testTxPoolConfig.AccountQueue+5; i++ {
 		if err := pool.addRemoteSync(transaction(i, 100000, key)); err != nil {
 			t.Fatalf("tx %d: failed to add transaction: %v", i, err)
@@ -891,9 +895,11 @@ func TestTransactionQueueAccountLimiting(t *testing.T) {
 
 // Tests that if the transaction count belonging to multiple accounts go above
 // some threshold, the higher transactions are dropped to prevent DOS attacks.
+// 测试如果属于多个accounts的transaction超过一个阈值，更高的transactions会被丢弃来防止DOS攻击
 //
 // This logic should not hold for local transactions, unless the local tracking
 // mechanism is disabled.
+// 这个逻辑对local transactions是不成立的，除非local tracking机制别禁止了
 func TestTransactionQueueGlobalLimiting(t *testing.T) {
 	testTransactionQueueGlobalLimiting(t, false)
 }
@@ -948,6 +954,7 @@ func testTransactionQueueGlobalLimiting(t *testing.T, nolocals bool) {
 		t.Fatalf("total transactions overflow allowance: %d > %d", queued, config.GlobalQueue)
 	}
 	// Generate a batch of transactions from the local account and import them
+	// 从local account创建一批transactions并且导入它们
 	txs = txs[:0]
 	for i := uint64(0); i < 3*config.GlobalQueue; i++ {
 		txs = append(txs, transaction(i+1, 100000, local))
@@ -955,6 +962,7 @@ func testTransactionQueueGlobalLimiting(t *testing.T, nolocals bool) {
 	pool.AddLocals(txs)
 
 	// If locals are disabled, the previous eviction algorithm should apply here too
+	// 如果locals被禁止了，之前的驱逐算法在这里也要生效
 	if nolocals {
 		queued := 0
 		for addr, list := range pool.queue {
@@ -972,6 +980,7 @@ func testTransactionQueueGlobalLimiting(t *testing.T, nolocals bool) {
 			t.Errorf("multiple accounts in queue: have %v, want %v", len(pool.queue), 1)
 		}
 		// Also ensure no local transactions are ever dropped, even if above global limits
+		// 同时确保没有local transactions被丢弃，即使超过了global limits
 		if queued := pool.queue[crypto.PubkeyToAddress(local.PublicKey)].Len(); uint64(queued) != 3*config.GlobalQueue {
 			t.Fatalf("local account queued transaction count mismatch: have %v, want %v", queued, 3*config.GlobalQueue)
 		}
@@ -981,6 +990,8 @@ func testTransactionQueueGlobalLimiting(t *testing.T, nolocals bool) {
 // Tests that if an account remains idle for a prolonged amount of time, any
 // non-executable transactions queued up are dropped to prevent wasting resources
 // on shuffling them around.
+// 如果一个account在很长时间内都保持idle，任何在排队的non-executable transactions都会被丢弃
+// 来防止浪费资源
 //
 // This logic should not hold for local transactions, unless the local tracking
 // mechanism is disabled.
@@ -1094,6 +1105,7 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	time.Sleep(5 * evictionInterval) // A half lifetime pass
 
 	// Queue executable transactions, the life cycle should be restarted.
+	// 将executable transactions排队，生命周期应该重启
 	if err := pool.AddLocal(pricedTransaction(2, 100000, big.NewInt(1), local)); err != nil {
 		t.Fatalf("failed to add remote transaction: %v", err)
 	}
@@ -1137,6 +1149,8 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 // Tests that even if the transaction count belonging to a single account goes
 // above some threshold, as long as the transactions are executable, they are
 // accepted.
+// 测试如果属于一个account的transactions数目超过了一些阈值，只要这些transactions是可执行的
+// 它们都是能接收的
 func TestTransactionPendingLimiting(t *testing.T) {
 	t.Parallel()
 
@@ -1209,6 +1223,7 @@ func TestTransactionPendingGlobalLimiting(t *testing.T) {
 		}
 	}
 	// Import the batch and verify that limits have been enforced
+	// 批量导入并且确保limits已经被强制执行了
 	pool.AddRemotesSync(txs)
 
 	pending := 0
@@ -1224,6 +1239,7 @@ func TestTransactionPendingGlobalLimiting(t *testing.T) {
 }
 
 // Test the limit on transaction size is enforced correctly.
+// 测试对于transaction大小的限制被正确执行
 // This test verifies every transaction having allowed size
 // is added to the pool, and longer transactions are rejected.
 func TestTransactionAllowedTxSize(t *testing.T) {
@@ -1305,6 +1321,7 @@ func TestTransactionCapClearsFromAll(t *testing.T) {
 		txs = append(txs, transaction(uint64(j), 100000, key))
 	}
 	// Import the batch and verify that limits have been enforced
+	// 批量导入并且确保limits已经被执行了
 	pool.AddRemotes(txs)
 	if err := validateTxPoolInternals(pool); err != nil {
 		t.Fatalf("pool internal state corrupted: %v", err)
@@ -1484,8 +1501,11 @@ func TestTransactionPoolRepricing(t *testing.T) {
 // Tests that setting the transaction pool gas price to a higher value correctly
 // discards everything cheaper (legacy & dynamic fee) than that and moves any
 // gapped transactions back from the pending pool to the queue.
+// 测试设置transaction pool的gas price到一个更高值能正确丢弃任何cheaper的transaction
+// 并且移动gapped transactions从pending pool到queue
 //
 // Note, local transactions are never allowed to be dropped.
+// 注意，local transactions不会允许被丢弃
 func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 	t.Parallel()
 
@@ -1539,6 +1559,7 @@ func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Reprice the pool and check that underpriced transactions get dropped
+	// 对pool重新定价并且检查underpriced transactions别丢弃
 	pool.SetGasPrice(big.NewInt(2))
 
 	pending, queued = pool.Stats()
@@ -1555,6 +1576,7 @@ func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Check that we can't add the old transactions back
+	// 确保我们不能把old transactions重新加入
 	tx := pricedTransaction(1, 100000, big.NewInt(1), keys[0])
 	if err := pool.AddRemote(tx); err != ErrUnderpriced {
 		t.Fatalf("adding underpriced pending transaction error mismatch: have %v, want %v", err, ErrUnderpriced)
@@ -1574,6 +1596,7 @@ func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// However we can add local underpriced transactions
+	// 然而我们能添加本地的underpriced transactions
 	tx = dynamicFeeTx(1, 100000, big.NewInt(1), big.NewInt(1), keys[3])
 	if err := pool.AddLocal(tx); err != nil {
 		t.Fatalf("failed to add underpriced local transaction: %v", err)
@@ -1681,6 +1704,8 @@ func TestTransactionPoolRepricingKeepsLocals(t *testing.T) {
 // Tests that when the pool reaches its global transaction limit, underpriced
 // transactions are gradually shifted out for more expensive ones and any gapped
 // pending transactions are moved into the queue.
+// 测试当pool到达global transaction limit，underpriced transactions会逐渐被更贵的移除
+// 任何pending transactions会被移动到队列中
 //
 // Note, local transactions are never allowed to be dropped.
 func TestTransactionPoolUnderpricing(t *testing.T) {
@@ -1736,10 +1761,12 @@ func TestTransactionPoolUnderpricing(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Ensure that adding an underpriced transaction on block limit fails
+	// 确保添加一个underpriced transaction，在block limit的时候失败
 	if err := pool.AddRemote(pricedTransaction(0, 100000, big.NewInt(1), keys[1])); err != ErrUnderpriced {
 		t.Fatalf("adding underpriced pending transaction error mismatch: have %v, want %v", err, ErrUnderpriced)
 	}
 	// Ensure that adding high priced transactions drops cheap ones, but not own
+	// 确保添加high priced transactions会丢弃旧的，单不是自己拥有的
 	if err := pool.AddRemote(pricedTransaction(0, 100000, big.NewInt(3), keys[1])); err != nil { // +K1:0 => -K1:1 => Pend K0:0, K0:1, K1:0, K2:0; Que -
 		t.Fatalf("failed to add well priced transaction: %v", err)
 	}
@@ -1763,6 +1790,7 @@ func TestTransactionPoolUnderpricing(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Ensure that adding local transactions can push out even higher priced ones
+	// 确保添加local transactions可以移除higher priced ones
 	ltx = pricedTransaction(1, 100000, big.NewInt(0), keys[2])
 	if err := pool.AddLocal(ltx); err != nil {
 		t.Fatalf("failed to append underpriced local transaction: %v", err)
@@ -1789,6 +1817,8 @@ func TestTransactionPoolUnderpricing(t *testing.T) {
 // Tests that more expensive transactions push out cheap ones from the pool, but
 // without producing instability by creating gaps that start jumping transactions
 // back and forth between queued/pending.
+// 测试更贵的transactions会将便宜的从pool中退出，但是不会产生不稳定性，通过创建gaps导致transactions
+// 在queued/pending反复跳跃
 func TestTransactionPoolStableUnderpricing(t *testing.T) {
 	t.Parallel()
 
@@ -1835,6 +1865,7 @@ func TestTransactionPoolStableUnderpricing(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Ensure that adding high priced transactions drops a cheap, but doesn't produce a gap
+	// 确保添加更高价格的transactions，丢弃便宜的，但是不会产生gap
 	if err := pool.addRemoteSync(pricedTransaction(0, 100000, big.NewInt(3), keys[1])); err != nil {
 		t.Fatalf("failed to add well priced transaction: %v", err)
 	}
@@ -1856,8 +1887,11 @@ func TestTransactionPoolStableUnderpricing(t *testing.T) {
 // Tests that when the pool reaches its global transaction limit, underpriced
 // transactions (legacy & dynamic fee) are gradually shifted out for more
 // expensive ones and any gapped pending transactions are moved into the queue.
+// 测试当pool到达global transaction limit，underpriced transactions（老的以及dynamic fee的）
+// 会逐渐被更贵的替代，任何gapped pendign transactions会被移到queue中
 //
 // Note, local transactions are never allowed to be dropped.
+// 注意，local transactions不应该被丢弃
 func TestTransactionPoolUnderpricingDynamicFee(t *testing.T) {
 	t.Parallel()
 
@@ -1907,12 +1941,14 @@ func TestTransactionPoolUnderpricingDynamicFee(t *testing.T) {
 	}
 
 	// Ensure that adding an underpriced transaction fails
+	// 确保添加一个underpriced transaction失败
 	tx := dynamicFeeTx(0, 100000, big.NewInt(2), big.NewInt(1), keys[1])
 	if err := pool.AddRemote(tx); err != ErrUnderpriced { // Pend K0:0, K0:1, K2:0; Que K1:1
 		t.Fatalf("adding underpriced pending transaction error mismatch: have %v, want %v", err, ErrUnderpriced)
 	}
 
 	// Ensure that adding high priced transactions drops cheap ones, but not own
+	// 确保添加一个high priced transactions会丢弃便宜的
 	tx = pricedTransaction(0, 100000, big.NewInt(2), keys[1])
 	if err := pool.AddRemote(tx); err != nil { // +K1:0, -K1:1 => Pend K0:0, K0:1, K1:0, K2:0; Que -
 		t.Fatalf("failed to add well priced transaction: %v", err)
@@ -1940,6 +1976,7 @@ func TestTransactionPoolUnderpricingDynamicFee(t *testing.T) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Ensure that adding local transactions can push out even higher priced ones
+	// 确保添加local transactions会推送甚至higher priced transactions
 	ltx = dynamicFeeTx(1, 100000, big.NewInt(0), big.NewInt(0), keys[2])
 	if err := pool.AddLocal(ltx); err != nil {
 		t.Fatalf("failed to append underpriced local transaction: %v", err)
@@ -2021,6 +2058,7 @@ func TestDualHeapEviction(t *testing.T) {
 }
 
 // Tests that the pool rejects duplicate transactions.
+// 测试pool拒绝重复的transactions
 func TestTransactionDeduplication(t *testing.T) {
 	t.Parallel()
 
@@ -2277,6 +2315,7 @@ func TestTransactionReplacementDynamicFee(t *testing.T) {
 
 // Tests that local transactions are journaled to disk, but remote transactions
 // get discarded between restarts.
+// 测试local transactions会被记录到磁盘，但是remote transactions会在重启之后丢弃
 func TestTransactionJournaling(t *testing.T)         { testTransactionJournaling(t, false) }
 func TestTransactionJournalingNoLocals(t *testing.T) { testTransactionJournaling(t, true) }
 
@@ -2337,6 +2376,7 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Terminate the old pool, bump the local nonce, create a new pool and ensure relevant transaction survive
+	// 终结老的pool，bump the local nonce，创建一个新的pool并且确保相关的transaction能存活下来
 	pool.Stop()
 	statedb.SetNonce(crypto.PubkeyToAddress(local.PublicKey), 1)
 	blockchain = &testBlockChain{1000000, statedb, new(event.Feed)}
@@ -2360,6 +2400,7 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
 	// Bump the nonce temporarily and ensure the newly invalidated transaction is removed
+	// 临时对nonce进行bump并且确保新的invalidated transaction被移除
 	statedb.SetNonce(crypto.PubkeyToAddress(local.PublicKey), 2)
 	<-pool.requestReset(nil, nil)
 	time.Sleep(2 * config.Rejournal)
@@ -2390,8 +2431,10 @@ func testTransactionJournaling(t *testing.T, nolocals bool) {
 
 // TestTransactionStatusCheck tests that the pool can correctly retrieve the
 // pending status of individual transactions.
+// TestTransactionStatusCheck测试pool能正确获取单个transaction的pending status
 func TestTransactionStatusCheck(t *testing.T) {
 	t.Parallel()
+	log.Root().SetHandler(log.StdoutHandler)
 
 	// Create the pool to test the status retrievals with
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(rawdb.NewMemoryDatabase()), nil)
@@ -2415,6 +2458,7 @@ func TestTransactionStatusCheck(t *testing.T) {
 	txs = append(txs, pricedTransaction(2, 100000, big.NewInt(1), keys[2])) // Queued only
 
 	// Import the transaction and ensure they are correctly added
+	// 导入transaction并且确保它们被正确添加
 	pool.AddRemotesSync(txs)
 
 	pending, queued := pool.Stats()
@@ -2427,11 +2471,14 @@ func TestTransactionStatusCheck(t *testing.T) {
 	if err := validateTxPoolInternals(pool); err != nil {
 		t.Fatalf("pool internal state corrupted: %v", err)
 	}
+	log.Info("len(txs) is", "length", len(txs))
 	// Retrieve the status of each transaction and validate them
+	// 获取每个transaction的状态并且校验它们
 	hashes := make([]common.Hash, len(txs))
 	for i, tx := range txs {
 		hashes[i] = tx.Hash()
 	}
+	// 添加了一个空的hash
 	hashes = append(hashes, common.Hash{})
 
 	statuses := pool.Status(hashes)
@@ -2445,6 +2492,7 @@ func TestTransactionStatusCheck(t *testing.T) {
 }
 
 // Test the transaction slots consumption is computed correctly
+// 测试transaction slots的消费被正确地计算
 func TestTransactionSlotCount(t *testing.T) {
 	t.Parallel()
 
