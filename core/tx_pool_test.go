@@ -1026,6 +1026,7 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	testAddBalance(pool, crypto.PubkeyToAddress(remote.PublicKey), big.NewInt(1000000000))
 
 	// Add the two transactions and ensure they both are queued up
+	// 添加两个transactions并且确保它们都排队
 	if err := pool.AddLocal(pricedTransaction(1, 100000, big.NewInt(1), local)); err != nil {
 		t.Fatalf("failed to add local transaction: %v", err)
 	}
@@ -1044,9 +1045,11 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	}
 
 	// Allow the eviction interval to run
+	// 允许eviction interval运行
 	time.Sleep(2 * evictionInterval)
 
 	// Transactions should not be evicted from the queue yet since lifetime duration has not passed
+	// tx不应从queue中驱逐，因为lifetime duration还没有过去
 	pending, queued = pool.Stats()
 	if pending != 0 {
 		t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 0)
@@ -1059,6 +1062,7 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	}
 
 	// Wait a bit for eviction to run and clean up any leftovers, and ensure only the local remains
+	// 等待一会儿来运行eviction并且清除剩余的，并且确保local的还在
 	time.Sleep(2 * config.Lifetime)
 
 	pending, queued = pool.Stats()
@@ -1079,11 +1083,13 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	}
 
 	// remove current transactions and increase nonce to prepare for a reset and cleanup
+	// 移除当前的transactions并且增加nonce来准备一个reset以及cleanup
 	statedb.SetNonce(crypto.PubkeyToAddress(remote.PublicKey), 2)
 	statedb.SetNonce(crypto.PubkeyToAddress(local.PublicKey), 2)
 	<-pool.requestReset(nil, nil)
 
 	// make sure queue, pending are cleared
+	// 确保queue和pending都被清理了
 	pending, queued = pool.Stats()
 	if pending != 0 {
 		t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 0)
@@ -1115,6 +1121,7 @@ func testTransactionQueueTimeLimiting(t *testing.T, nolocals bool) {
 	time.Sleep(6 * evictionInterval)
 
 	// All gapped transactions shouldn't be kicked out
+	// 所有gapped transactions不应被移除
 	pending, queued = pool.Stats()
 	if pending != 2 {
 		t.Fatalf("pending transactions mismatched: have %d, want %d", pending, 2)
@@ -1633,6 +1640,7 @@ func TestTransactionPoolRepricingDynamicFee(t *testing.T) {
 
 // Tests that setting the transaction pool gas price to a higher value does not
 // remove local transactions (legacy & dynamic fee).
+// 测试当设置transaction pool的gas price为一个比较高的值时，不会移除local transactions
 func TestTransactionPoolRepricingKeepsLocals(t *testing.T) {
 	t.Parallel()
 
@@ -1650,24 +1658,29 @@ func TestTransactionPoolRepricingKeepsLocals(t *testing.T) {
 		testAddBalance(pool, crypto.PubkeyToAddress(keys[i].PublicKey), big.NewInt(1000*1000000))
 	}
 	// Create transaction (both pending and queued) with a linearly growing gasprice
+	// 创建transaction（pending和queued都有），以及有一个线性增长的gasprice
 	for i := uint64(0); i < 500; i++ {
 		// Add pending transaction.
+		// 添加pending transaction
 		pendingTx := pricedTransaction(i, 100000, big.NewInt(int64(i)), keys[2])
 		if err := pool.AddLocal(pendingTx); err != nil {
 			t.Fatal(err)
 		}
 		// Add queued transaction.
+		// 添加queued transaction
 		queuedTx := pricedTransaction(i+501, 100000, big.NewInt(int64(i)), keys[2])
 		if err := pool.AddLocal(queuedTx); err != nil {
 			t.Fatal(err)
 		}
 
 		// Add pending dynamic fee transaction.
+		// 添加pending dynamic fee transaction
 		pendingTx = dynamicFeeTx(i, 100000, big.NewInt(int64(i)+1), big.NewInt(int64(i)), keys[1])
 		if err := pool.AddLocal(pendingTx); err != nil {
 			t.Fatal(err)
 		}
 		// Add queued dynamic fee transaction.
+		// 添加queued dynamic fee transaction
 		queuedTx = dynamicFeeTx(i+501, 100000, big.NewInt(int64(i)+1), big.NewInt(int64(i)), keys[1])
 		if err := pool.AddLocal(queuedTx); err != nil {
 			t.Fatal(err)
@@ -1691,6 +1704,7 @@ func TestTransactionPoolRepricingKeepsLocals(t *testing.T) {
 	validate()
 
 	// Reprice the pool and check that nothing is dropped
+	//检查重置pool price而且没有东西被丢弃
 	pool.SetGasPrice(big.NewInt(2))
 	validate()
 

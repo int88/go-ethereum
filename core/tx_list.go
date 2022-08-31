@@ -274,6 +274,7 @@ func newTxList(strict bool) *txList {
 
 // Overlaps returns whether the transaction specified has the same nonce as one
 // already contained within the list.
+// Overlaps返回指定的transaction是不是和list中已经存在的transaction有着相同的nonce
 func (l *txList) Overlaps(tx *types.Transaction) bool {
 	return l.txs.Get(tx.Nonce()) != nil
 }
@@ -395,10 +396,14 @@ func (l *txList) Remove(tx *types.Transaction) (bool, types.Transactions) {
 // Ready retrieves a sequentially increasing list of transactions starting at the
 // provided nonce that is ready for processing. The returned transactions will be
 // removed from the list.
+// Ready获取一系列顺序增加准备好用于处理的transactions，从提供的nonce开始，返回的transactions
+// 会被从list移除
 //
 // Note, all transactions with nonces lower than start will also be returned to
 // prevent getting into and invalid state. This is not something that should ever
 // happen but better to be self correcting than failing!
+// 注意，所有nonces比start更小的transactions会被返回来防止进入非法状态
+// 这是不应该发生的，但是最好能self correcting而不是failing
 func (l *txList) Ready(start uint64) types.Transactions {
 	return l.txs.Ready(start)
 }

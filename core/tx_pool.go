@@ -71,6 +71,7 @@ var (
 
 	// ErrTxPoolOverflow is returned if the transaction pool is full and can't accpet
 	// another remote transaction.
+	// ErrTxPoolOverflow被返回如果transaction pool已经满了并且不能接受另一个remote transaction
 	ErrTxPoolOverflow = errors.New("txpool is full")
 
 	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
@@ -164,8 +165,10 @@ type TxPoolConfig struct {
 	Journal   string        // Journal of local transactions to survive node restarts
 	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 
+	// 最小的gas price来执行接收入pool
 	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
-	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
+	// 最小的price bump percentage来替换一个已经存在的transaction
+	PriceBump uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
 
 	// 买个account保证的executable transaction slots的数目
 	AccountSlots uint64 // Number of executable transaction slots guaranteed per account
@@ -543,6 +546,8 @@ func (pool *TxPool) stats() (int, int) {
 
 // Content retrieves the data content of the transaction pool, returning all the
 // pending as well as queued transactions, grouped by account and sorted by nonce.
+// Content获取transaction pool的data content，返回所有的pending以及queued transactions
+// 根据account分组并且按照nonce排序
 func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -716,6 +721,8 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	}
 	// Make the local flag. If it's from local source or it's from the network but
 	// the sender is marked as local previously, treat it as the local transaction.
+	// 设置local标记，如果它来自local source或者来自network但是sender之前被标记为local
+	// 将它作为local transaction对待
 	isLocal := local || pool.locals.containsTx(tx)
 
 	// If the transaction fails basic validation, discard it
@@ -725,8 +732,10 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		return false, err
 	}
 	// If the transaction pool is full, discard underpriced transactions
+	// 如果transaction pool已经满了，丢弃underpriced transactions
 	if uint64(pool.all.Slots()+numSlots(tx)) > pool.config.GlobalSlots+pool.config.GlobalQueue {
 		// If the new transaction is underpriced, don't accept it
+		// 如果新的transaction是underpriced，不要接受它
 		if !isLocal && pool.priced.Underpriced(tx) {
 			log.Trace("Discarding underpriced transaction", "hash", hash, "gasTipCap", tx.GasTipCap(), "gasFeeCap", tx.GasFeeCap())
 			underpricedTxMeter.Mark(1)
@@ -736,17 +745,24 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		// analysis of what to remove and how, but it runs async. We don't want to
 		// do too many replacements between reorg-runs, so we cap the number of
 		// replacements to 25% of the slots
+		// 我们准备替换一个transaction，reorg会做更完整的分析，关于移除什么以及怎么移除
+		// 但是它是异步运行的，我们不希望在reorg-runs之间做太多的replacements，因此
+		// 我们将replacements的数目限制到slots的25%
 		if pool.changesSinceReorg > int(pool.config.GlobalSlots/4) {
 			throttleTxMeter.Mark(1)
 			return false, ErrTxPoolOverflow
 		}
 
 		// New transaction is better than our worse ones, make room for it.
+		// 新的transaction比我们最差的要好，为它make room
 		// If it's a local transaction, forcibly discard all available transactions.
 		// Otherwise if we can't make enough room for new one, abort the operation.
+		// 如果这是一个local transaction，强制丢弃所有可用的transactions
+		// 否则，如果我们不能为新的transaction制造空间，则中止操作
 		drop, success := pool.priced.Discard(pool.all.Slots()-int(pool.config.GlobalSlots+pool.config.GlobalQueue)+numSlots(tx), isLocal)
 
 		// Special case, we still can't make the room for the new remote one.
+		// 特殊情况，我们还是不能容纳新的remote one
 		if !isLocal && !success {
 			log.Trace("Discarding overflown transaction", "hash", hash)
 			overflowedTxMeter.Mark(1)
@@ -755,9 +771,11 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		// Bump the counter of rejections-since-reorg
 		pool.changesSinceReorg += len(drop)
 		// Kick out the underpriced remote transactions.
+		// 移除underpriced remote transactions
 		for _, tx := range drop {
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "gasTipCap", tx.GasTipCap(), "gasFeeCap", tx.GasFeeCap())
 			underpricedTxMeter.Mark(1)
+			// 将tx从pool中移除
 			pool.removeTx(tx.Hash(), false)
 		}
 	}
@@ -766,12 +784,14 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	from, _ := types.Sender(pool.signer, tx) // already validated
 	if list := pool.pending[from]; list != nil && list.Overlaps(tx) {
 		// Nonce already pending, check if required price bump is met
+		// Nonce已经处于pending，检查是否需要price bump
 		inserted, old := list.Add(tx, pool.config.PriceBump)
 		if !inserted {
 			pendingDiscardMeter.Mark(1)
 			return false, ErrReplaceUnderpriced
 		}
 		// New transaction is better, replace old one
+		// 新的transaction更好，替换旧的
 		if old != nil {
 			pool.all.Remove(old.Hash())
 			pool.priced.Removed(1)
@@ -784,6 +804,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
 		// Successful promotion, bump the heartbeat
+		// 成功promotion，撞击心跳
 		pool.beats[from] = time.Now()
 		return old != nil, nil
 	}
@@ -805,6 +826,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (replaced bool, err e
 	}
 	pool.journalTx(from, tx)
 
+	// 将新的future transaction加入到pool
 	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.To())
 	return replaced, nil
 }
@@ -820,6 +842,7 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 	if pool.queue[from] == nil {
 		pool.queue[from] = newTxList(false)
 	}
+	// 将tx加入队列中
 	inserted, old := pool.queue[from].Add(tx, pool.config.PriceBump)
 	if !inserted {
 		// An older transaction was better, discard this
@@ -859,8 +882,10 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction, local boo
 
 // journalTx adds the specified transaction to the local disk journal if it is
 // deemed to have been sent from a local account.
+// journalTx添加特定的transaction到本地的disk journal，如果它被认为是本地发送的
 func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 	// Only journal if it's enabled and the transaction is local
+	// 只有在enabled并且transaction是local的情况下，才journal
 	if pool.journal == nil || !pool.locals.contains(from) {
 		return
 	}
@@ -925,6 +950,8 @@ func (pool *TxPool) AddLocals(txs []*types.Transaction) []error {
 
 // AddLocal enqueues a single local transaction into the pool if it is valid. This is
 // a convenience wrapper aroundd AddLocals.
+// AddLocal将单个的local transaction加入到pool，如果它是合法的话，这是AddLocals的一个方便的
+// wrapper
 func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 	errs := pool.AddLocals([]*types.Transaction{tx})
 	return errs[0]
@@ -975,6 +1002,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	)
 	for i, tx := range txs {
 		// If the transaction is known, pre-set the error slot
+		// 如果transaction是已知的，提前设置error slot
 		if pool.all.Get(tx.Hash()) != nil {
 			errs[i] = ErrAlreadyKnown
 			knownTxMeter.Mark(1)
@@ -990,6 +1018,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			continue
 		}
 		// Accumulate all unknown transactions for deeper processing
+		// 累计所有未知的transactions用于进一步处理
 		news = append(news, tx)
 	}
 	if len(news) == 0 {
@@ -1021,10 +1050,12 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid.
 // The transaction pool lock must be held.
+// addTxsLocked试着将一批的transactions入队，如果他们是合法的话
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
+		// 将transaction加入到pool中
 		replaced, err := pool.add(tx, local)
 		errs[i] = err
 		if err == nil && !replaced {
@@ -1073,8 +1104,10 @@ func (pool *TxPool) Has(hash common.Hash) bool {
 
 // removeTx removes a single transaction from the queue, moving all subsequent
 // transactions back to the future queue.
+// removeTx从队列中移除单个transaction，将所有后续的transactions移入future queue
 func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	// Fetch the transaction we wish to delete
+	// 找到我们希望移除的transaction
 	tx := pool.all.Get(hash)
 	if tx == nil {
 		return
@@ -1082,6 +1115,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 	addr, _ := types.Sender(pool.signer, tx) // already validated during insertion
 
 	// Remove it from the list of known transactions
+	// 从已知的transactions list中移除
 	pool.all.Remove(hash)
 	if outofbound {
 		pool.priced.Removed(1)
@@ -1090,6 +1124,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 		localGauge.Dec(1)
 	}
 	// Remove the transaction from the pending lists and reset the account nonce
+	// 从pending lists中移除transaction并且重置account nonce
 	if pending := pool.pending[addr]; pending != nil {
 		if removed, invalids := pending.Remove(tx); removed {
 			// If no more pending transactions are left, remove the list
@@ -1097,11 +1132,14 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 				delete(pool.pending, addr)
 			}
 			// Postpone any invalidated transactions
+			// 推迟任何非法的transactions
 			for _, tx := range invalids {
 				// Internal shuffle shouldn't touch the lookup set.
+				// 内部的shuffle不应该触碰lookup set
 				pool.enqueueTx(tx.Hash(), tx, false, false)
 			}
 			// Update the account nonce if needed
+			// 更新account nonce，如果需要的话
 			pool.pendingNonces.setIfLower(addr, tx.Nonce())
 			// Reduce the pending counter
 			pendingGauge.Dec(int64(1 + len(invalids)))
@@ -1109,6 +1147,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 		}
 	}
 	// Transaction is in the future queue
+	// Transaction处于future queue中
 	if future := pool.queue[addr]; future != nil {
 		if removed, _ := future.Remove(tx); removed {
 			// Reduce the queued counter
@@ -1140,6 +1179,7 @@ func (pool *TxPool) requestReset(oldHead *types.Header, newHead *types.Header) c
 func (pool *TxPool) requestPromoteExecutables(set *accountSet) chan struct{} {
 	select {
 	case pool.reqPromoteCh <- set:
+		// 等待reorg完成
 		return <-pool.reorgDoneCh
 	case <-pool.reorgShutdownCh:
 		return pool.reorgShutdownCh
@@ -1237,6 +1277,7 @@ func (pool *TxPool) scheduleReorgLoop() {
 			if curDone != nil {
 				<-curDone
 			}
+			// 关闭nextDone
 			close(nextDone)
 			return
 		}
@@ -1249,6 +1290,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	defer func(t0 time.Time) {
 		reorgDurationTimer.Update(time.Since(t0))
 	}(time.Now())
+	// 当reorg运行结束的时候，关闭done
 	defer close(done)
 
 	var promoteAddrs []common.Address
@@ -1256,6 +1298,8 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		// Only dirty accounts need to be promoted, unless we're resetting.
 		// For resets, all addresses in the tx queue will be promoted and
 		// the flatten operation can be avoided.
+		// 只有dirty accounts需要被promoted，除非我们正在重置
+		// 对于重置，tx queue中的所有地址都会被promoted并且flatten操作会被避免
 		promoteAddrs = dirtyAccounts.flatten()
 	}
 	pool.mu.Lock()
@@ -1273,6 +1317,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 			}
 		}
 		// Reset needs promote for all addresses
+		// Reset需要重置所有地址
 		promoteAddrs = make([]common.Address, 0, len(pool.queue))
 		for addr := range pool.queue {
 			promoteAddrs = append(promoteAddrs, addr)
@@ -1336,10 +1381,12 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 // reset获取blockchain的当前状态并且确保transaction pool的内容是合法的，对于chian st
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// If we're reorging an old state, reinject all dropped transactions
+	// 如果我们要reorg一个old state，重新注入所有丢弃的transactions
 	var reinject types.Transactions
 
 	if oldHead != nil && oldHead.Hash() != newHead.ParentHash {
 		// If the reorg is too deep, avoid doing it (will happen during fast sync)
+		// 如果reorg太深，避免进行操作
 		oldNum := oldHead.Number.Uint64()
 		newNum := newHead.Number.Uint64()
 
@@ -1347,6 +1394,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			log.Debug("Skipping deep transaction reorg", "depth", depth)
 		} else {
 			// Reorg seems shallow enough to pull in all transactions into memory
+			// Reorg看起来足够浅，能够将所有transactions加入到内存中
 			var discarded, included types.Transactions
 			var (
 				rem = pool.chain.GetBlock(oldHead.Hash(), oldHead.Number.Uint64())
@@ -1355,8 +1403,10 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			if rem == nil {
 				// This can happen if a setHead is performed, where we simply discard the old
 				// head from the chain.
+				// 如果执行了一个setHead的时候会发生，我们简单的从chain中丢弃old head
 				// If that is the case, we don't have the lost transactions any more, and
 				// there's nothing to add
+				// 如果是这样的话，我们不再拥有lost transactions，并且没有东西需要添加
 				if newNum >= oldNum {
 					// If we reorged to a same or higher number, then it's not a case of setHead
 					log.Warn("Transaction pool reset with missing oldhead",
@@ -1399,6 +1449,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 		}
 	}
 	// Initialize the internal state to the current head
+	// 将internal state初始化到当前的head
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
@@ -1412,11 +1463,13 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.currentMaxGas = newHead.GasLimit
 
 	// Inject any transactions discarded due to reorgs
+	// 注入任何在reorgs期间丢弃的transactions
 	log.Debug("Reinjecting stale transactions", "count", len(reinject))
 	senderCacher.recover(pool.signer, reinject)
 	pool.addTxsLocked(reinject, false)
 
 	// Update all fork indicator by next pending block number.
+	// 更新所有的fork indicator，通过下一个pending block number
 	next := new(big.Int).Add(newHead.Number, big.NewInt(1))
 	pool.istanbul = pool.chainconfig.IsIstanbul(next)
 	pool.eip2718 = pool.chainconfig.IsBerlin(next)
@@ -1430,6 +1483,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 // 在这个过程中，所有非法的transactions（low nonce, low balance）都会被删除
 func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Transaction {
 	// Track the promoted transactions to broadcast them at once
+	// 追踪promoted transactions来立刻广播它们
 	var promoted []*types.Transaction
 
 	// Iterate over all accounts and promote any executable transactions
@@ -1754,6 +1808,7 @@ func (as *accountSet) containsTx(tx *types.Transaction) bool {
 }
 
 // add inserts a new address into the set to track.
+// add插入一个新的地址到集合中用于追踪
 func (as *accountSet) add(addr common.Address) {
 	as.accounts[addr] = struct{}{}
 	as.cache = nil
@@ -1964,6 +2019,7 @@ func (t *txLookup) RemotesBelowTip(threshold *big.Int) types.Transactions {
 }
 
 // numSlots calculates the number of slots needed for a single transaction.
+// numSlots计算单个transaction所需的slots的数目
 func numSlots(tx *types.Transaction) int {
 	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
 }
