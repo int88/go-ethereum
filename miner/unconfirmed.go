@@ -58,6 +58,7 @@ type unconfirmedBlocks struct {
 }
 
 // newUnconfirmedBlocks returns new data structure to track currently unconfirmed blocks.
+// newUnconfirmedBlocks返回新的数据结构用于追踪当前未确认的blocks
 func newUnconfirmedBlocks(chain chainRetriever, depth uint) *unconfirmedBlocks {
 	return &unconfirmedBlocks{
 		chain: chain,
@@ -66,6 +67,7 @@ func newUnconfirmedBlocks(chain chainRetriever, depth uint) *unconfirmedBlocks {
 }
 
 // Insert adds a new block to the set of unconfirmed ones.
+// Insert添加一个新的block到unconfirmed block的集合
 func (set *unconfirmedBlocks) Insert(index uint64, hash common.Hash) {
 	// If a new block was mined locally, shift out any old enough blocks
 	set.Shift(index)
@@ -86,6 +88,7 @@ func (set *unconfirmedBlocks) Insert(index uint64, hash common.Hash) {
 		set.blocks.Move(-1).Link(item)
 	}
 	// Display a log for the user to notify of a new mined block unconfirmed
+	// 为用户显示一个log，来通知一个新的mined block还未确认
 	log.Info("🔨 mined potential block", "number", index, "hash", hash)
 }
 

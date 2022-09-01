@@ -1411,12 +1411,14 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		status = SideStatTy
 	}
 	// Set new head.
+	// 设置新的head
 	if status == CanonStatTy {
 		bc.writeHeadBlock(block)
 	}
 	bc.futureBlocks.Remove(block.Hash())
 
 	if status == CanonStatTy {
+		// 发送一个新的chain event
 		bc.chainFeed.Send(ChainEvent{Block: block, Hash: block.Hash(), Logs: logs})
 		if len(logs) > 0 {
 			bc.logsFeed.Send(logs)
@@ -1426,6 +1428,9 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		// canonicial blocks. Avoid firing too many ChainHeadEvents,
 		// we will fire an accumulated ChainHeadEvent and disable fire
 		// event here.
+		// 理论上在我们注入一个canonical block的时候我们应该触发一个ChainHeadEvent
+		// 但是有的时候我们会注入一批的canonical blocks，避免触发太多ChainHeadEvents
+		// 我们会触发一个累计的ChainHeadEvent并且在这里禁止触发
 		if emitHeadEvent {
 			bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 		}

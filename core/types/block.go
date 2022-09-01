@@ -375,6 +375,7 @@ func (b *Block) WithSeal(header *Header) *Block {
 	cpy := *header
 
 	return &Block{
+		// 生成一个新的block
 		header:       &cpy,
 		transactions: b.transactions,
 		uncles:       b.uncles,

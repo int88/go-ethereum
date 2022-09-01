@@ -39,6 +39,7 @@ const statsReportLimit = 8 * time.Second
 
 // report prints statistics if some number of blocks have been processed
 // or more than a few seconds have passed since the last message.
+// report报告数据，如果有的blocks已经被处理，或者超过一些秒数，在上一个message之后
 func (st *insertStats) report(chain []*types.Block, index int, dirty common.StorageSize, setHead bool) {
 	// Fetch the timings for the batch
 	var (

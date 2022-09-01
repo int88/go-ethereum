@@ -51,10 +51,13 @@ func (h *nonceHeap) Pop() interface{} {
 
 // txSortedMap is a nonce->transaction hash map with a heap based index to allow
 // iterating over the contents in a nonce-incrementing way.
+// txSortedMap是一个nonce到transactio hash的映射，有一个基于heap的索引，来运行
+// 遍历内容，以一个nonce增加的方式
 type txSortedMap struct {
 	items map[uint64]*types.Transaction // Hash map storing the transaction data
 	index *nonceHeap                    // Heap of nonces of all the stored transactions (non-strict mode)
-	cache types.Transactions            // Cache of the transactions already sorted
+	// 已经排好序的transactions的缓存
+	cache types.Transactions // Cache of the transactions already sorted
 }
 
 // newTxSortedMap creates a new nonce-sorted transaction map.

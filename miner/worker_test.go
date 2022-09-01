@@ -66,6 +66,7 @@ var (
 	testUserAddress = crypto.PubkeyToAddress(testUserKey.PublicKey)
 
 	// Test transactions
+	// 测试的transactions，pendingTxs为空
 	pendingTxs []*types.Transaction
 	newTxs     []*types.Transaction
 
@@ -200,9 +201,12 @@ func (b *testWorkerBackend) newRandomUncle() *types.Block {
 func (b *testWorkerBackend) newRandomTx(creation bool) *types.Transaction {
 	var tx *types.Transaction
 	gasPrice := big.NewInt(10 * params.InitialBaseFee)
+	// 生成transaction
 	if creation {
+		// 构建一个创建contract的tx
 		tx, _ = types.SignTx(types.NewContractCreation(b.txPool.Nonce(testBankAddress), big.NewInt(0), testGas, gasPrice, common.FromHex(testCode)), types.HomesteadSigner{}, testBankKey)
 	} else {
+		// 构建一个普通的tx
 		tx, _ = types.SignTx(types.NewTransaction(b.txPool.Nonce(testBankAddress), testUserAddress, big.NewInt(1000), params.TxGas, gasPrice, nil), types.HomesteadSigner{}, testBankKey)
 	}
 	return tx
@@ -272,7 +276,9 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 
 	for i := 0; i < 5; i++ {
 		// 在tx pool中添加local tx
+		log.Info("add local contract creat tx")
 		b.txPool.AddLocal(b.newRandomTx(true))
+		log.Info("add local ordinary tx")
 		b.txPool.AddLocal(b.newRandomTx(false))
 		// 发送side block，构建random uncle
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
