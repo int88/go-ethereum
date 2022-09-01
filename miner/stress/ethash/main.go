@@ -47,14 +47,17 @@ func main() {
 	fdlimit.Raise(2048)
 
 	// Generate a batch of accounts to seal and fund with
+	// 生成一批的accounts用于seal并且给它们fund
 	faucets := make([]*ecdsa.PrivateKey, 128)
 	for i := 0; i < len(faucets); i++ {
 		faucets[i], _ = crypto.GenerateKey()
 	}
 	// Pre-generate the ethash mining DAG so we don't race
+	// 提前生成ethash mining DAG，这样我们就不会产生冲突
 	ethash.MakeDataset(1, ethconfig.Defaults.Ethash.DatasetDir)
 
 	// Create an Ethash network based off of the Ropsten config
+	// 基于Ropsten config创建一个Ethash网络
 	genesis := makeGenesis(faucets)
 
 	// Handle interrupts.
@@ -68,6 +71,7 @@ func main() {
 	)
 	for i := 0; i < 4; i++ {
 		// Start the node and wait until it's up
+		// 启动node并且等待它们运行
 		stack, ethBackend, err := makeMiner(genesis)
 		if err != nil {
 			panic(err)
@@ -78,16 +82,19 @@ func main() {
 			time.Sleep(250 * time.Millisecond)
 		}
 		// Connect the node to all the previous ones
+		// 将node和之前所有的node相连
 		for _, n := range enodes {
 			stack.Server().AddPeer(n)
 		}
 		// Start tracking the node and its enode
+		// 开始追踪node以及它的enode
 		stacks = append(stacks, stack)
 		nodes = append(nodes, ethBackend)
 		enodes = append(enodes, stack.Server().Self())
 	}
 
 	// Iterate over all the nodes and start mining
+	// 遍历所有的节点并且开始mining
 	time.Sleep(3 * time.Second)
 	for _, node := range nodes {
 		if err := node.StartMining(1); err != nil {
@@ -97,6 +104,7 @@ func main() {
 	time.Sleep(3 * time.Second)
 
 	// Start injecting transactions from the faucets like crazy
+	// 开始注入transactions，来自faucets，就像crazy
 	nonces := make([]uint64, len(faucets))
 	for {
 		// Stop when interrupted.
@@ -110,10 +118,12 @@ func main() {
 		}
 
 		// Pick a random mining node
+		// 挑选一个随机的mining node
 		index := rand.Intn(len(faucets))
 		backend := nodes[index%len(nodes)]
 
 		// Create a self transaction and inject into the pool
+		// 创建一个self transaction并且注入到pool中
 		tx, err := types.SignTx(types.NewTransaction(nonces[index], crypto.PubkeyToAddress(faucets[index].PublicKey), new(big.Int), 21000, big.NewInt(100000000000+rand.Int63n(65536)), nil), types.HomesteadSigner{}, faucets[index])
 		if err != nil {
 			panic(err)
@@ -124,6 +134,7 @@ func main() {
 		nonces[index]++
 
 		// Wait if we're too saturated
+		// 等待，如果我们太饱和了
 		if pend, _ := backend.TxPool().Stats(); pend > 2048 {
 			time.Sleep(100 * time.Millisecond)
 		}
@@ -132,6 +143,7 @@ func main() {
 
 // makeGenesis creates a custom Ethash genesis block based on some pre-defined
 // faucet accounts.
+// makeGenesis创建一个自定义的Ethash genesis block，基于一些之前定义的faucet accounts
 func makeGenesis(faucets []*ecdsa.PrivateKey) *core.Genesis {
 	genesis := core.DefaultRopstenGenesisBlock()
 	genesis.Difficulty = params.MinimumDifficulty

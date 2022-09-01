@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -56,6 +57,7 @@ var (
 	cliqueChainConfig *params.ChainConfig
 
 	// Test accounts
+	// 测试账户
 	testBankKey, _  = crypto.GenerateKey()
 	testBankAddress = crypto.PubkeyToAddress(testBankKey.PublicKey)
 	testBankFunds   = big.NewInt(1000000000000000000)
@@ -109,6 +111,7 @@ func init() {
 }
 
 // testWorkerBackend implements worker.Backend interfaces and wraps all information needed during the testing.
+// testWorkerBackend实现了worker.Backend接口并且封装了测试所需的所有信息
 type testWorkerBackend struct {
 	db         ethdb.Database
 	txPool     *core.TxPool
@@ -137,10 +140,13 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	}
 	genesis := gspec.MustCommit(db)
 
+	// 构建一个block chain
 	chain, _ := core.NewBlockChain(db, &core.CacheConfig{TrieDirtyDisabled: true}, gspec.Config, engine, vm.Config{}, nil, nil)
+	// 构建一个txpool
 	txpool := core.NewTxPool(testTxPoolConfig, chainConfig, chain)
 
 	// Generate a small n-block chain and an uncle block for it
+	// 生成一个小的n个block的chain以及一个uncle block
 	if n > 0 {
 		blocks, _ := core.GenerateChain(chainConfig, genesis, engine, db, n, func(i int, gen *core.BlockGen) {
 			gen.SetCoinbase(testBankAddress)
@@ -153,6 +159,7 @@ func newTestWorkerBackend(t *testing.T, chainConfig *params.ChainConfig, engine 
 	if n > 0 {
 		parent = chain.GetBlockByHash(chain.CurrentBlock().ParentHash())
 	}
+	// 创建uncle
 	blocks, _ := core.GenerateChain(chainConfig, parent, engine, db, 1, func(i int, gen *core.BlockGen) {
 		gen.SetCoinbase(testUserAddress)
 	})
@@ -174,12 +181,14 @@ func (b *testWorkerBackend) StateAtBlock(block *types.Block, reexec uint64, base
 
 func (b *testWorkerBackend) newRandomUncle() *types.Block {
 	var parent *types.Block
+	// 获取当前的block
 	cur := b.chain.CurrentBlock()
 	if cur.NumberU64() == 0 {
 		parent = b.chain.Genesis()
 	} else {
 		parent = b.chain.GetBlockByHash(b.chain.CurrentBlock().ParentHash())
 	}
+	// 构建一个block
 	blocks, _ := core.GenerateChain(b.chain.Config(), parent, b.chain.Engine(), b.db, 1, func(i int, gen *core.BlockGen) {
 		var addr = make([]byte, common.AddressLength)
 		rand.Read(addr)
@@ -218,6 +227,7 @@ func TestGenerateBlockAndImportClique(t *testing.T) {
 }
 
 func testGenerateBlockAndImport(t *testing.T, isClique bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	var (
 		engine      consensus.Engine
 		chainConfig *params.ChainConfig
@@ -245,7 +255,9 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 	defer chain.Stop()
 
 	// Ignore empty commit here for less noise.
+	// 忽略empty commit，为了更少的噪音
 	w.skipSealHook = func(task *task) bool {
+		// 没有receipts则直接跳过
 		return len(task.receipts) == 0
 	}
 
@@ -262,13 +274,14 @@ func testGenerateBlockAndImport(t *testing.T, isClique bool) {
 		// 在tx pool中添加local tx
 		b.txPool.AddLocal(b.newRandomTx(true))
 		b.txPool.AddLocal(b.newRandomTx(false))
-		// 发送side block
+		// 发送side block，构建random uncle
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 		w.postSideBlock(core.ChainSideEvent{Block: b.newRandomUncle()})
 
 		select {
 		case ev := <-sub.Chan():
 			block := ev.Data.(core.NewMinedBlockEvent).Block
+			// 将block插入chain
 			if _, err := chain.InsertChain([]*types.Block{block}); err != nil {
 				t.Fatalf("failed to insert new mined block %d: %v", block.NumberU64(), err)
 			}
@@ -345,6 +358,8 @@ func TestStreamUncleBlock(t *testing.T) {
 			// The first task is an empty task, the second
 			// one has 1 pending tx, the third one has 1 tx
 			// and 1 uncle.
+			// 第一个是一个空的task，第二个有1个pending tx
+			// 第三个有1个tx和1个uncle
 			if taskIndex == 2 {
 				have := task.block.Header().UncleHash
 				want := types.CalcUncleHash([]*types.Header{b.uncleBlock.Header()})
@@ -646,6 +661,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 
 	// This API should work even when the automatic sealing is not enabled
+	// 这个API应该能工作，即使自动化的sealing被关闭
 	for _, c := range cases {
 		resChan, errChan, _ := w.getSealingBlock(c.parent, timestamp, c.coinbase, c.random, false)
 		block := <-resChan

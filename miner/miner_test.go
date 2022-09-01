@@ -134,10 +134,13 @@ func TestMinerDownloaderFirstFails(t *testing.T) {
 
 	// Since the downloader hasn't yet emitted a successful DoneEvent,
 	// we expect the miner to stop on next StartEvent.
+	// 因为downloader还没有发出一个成功的DoneEvent，我们期望miner在下一个StartEvent
+	// 的时候停止
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, false)
 
 	// Downloader finally succeeds.
+	// Downloader最终成功了
 	mux.Post(downloader.DoneEvent{})
 	waitForMiningState(t, miner, true)
 

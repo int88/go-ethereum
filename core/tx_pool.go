@@ -583,6 +583,8 @@ func (pool *TxPool) ContentFrom(addr common.Address) (types.Transactions, types.
 // Pending retrieves all currently processable transactions, grouped by origin
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
+// Pending获取所有当前可以处理的transactions，由origin account聚合并且由nonce排序
+// 返回的transaction set是一个拷贝并且可以由调用代码释放
 //
 // The enforceTips parameter can be used to do an extra filtering on the pending
 // transactions and only return those whose **effective** tip is large enough in
@@ -612,6 +614,7 @@ func (pool *TxPool) Pending(enforceTips bool) map[common.Address]types.Transacti
 }
 
 // Locals retrieves the accounts currently considered local by the pool.
+// Locals返回当前pool认为是local的账号
 func (pool *TxPool) Locals() []common.Address {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()

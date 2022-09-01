@@ -37,6 +37,7 @@ import (
 
 // Backend wraps all methods required for mining. Only full node is capable
 // to offer all the functions here.
+// Backend封装了所有在mining期间需要的方法，只有full node能够提供这里所有的方法
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
@@ -74,7 +75,8 @@ type Miner struct {
 
 func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool) *Miner {
 	miner := &Miner{
-		eth:     eth,
+		eth: eth,
+		// 传入了一个mux用于信息订阅
 		mux:     mux,
 		engine:  engine,
 		exitCh:  make(chan struct{}),
@@ -139,6 +141,7 @@ func (miner *Miner) update() {
 					miner.worker.start()
 				}
 			case downloader.DoneEvent:
+				// downloader运行完成或者失败，就可以开始启动worker
 				canStart = true
 				if shouldStart {
 					miner.SetEtherbase(miner.coinbase)
@@ -263,6 +266,9 @@ func (miner *Miner) SubscribePendingLogs(ch chan<- []*types.Log) event.Subscript
 // there is always a result that will be returned through the result channel.
 // The difference is that if the execution fails, the returned result is nil
 // and the concrete error is dropped silently.
+// GetSealingBlockAsync请求生成一个sealing block，根据给定的参数，不管生成成功还是失败
+// 总是有一个结果通过result channel返回，不同的是，如果执行失败，返回的结果为nil
+// 而具体的错误会默默被丢弃
 func (miner *Miner) GetSealingBlockAsync(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (chan *types.Block, error) {
 	resCh, _, err := miner.worker.getSealingBlock(parent, timestamp, coinbase, random, noTxs)
 	if err != nil {
@@ -274,6 +280,8 @@ func (miner *Miner) GetSealingBlockAsync(parent common.Hash, timestamp uint64, c
 // GetSealingBlockSync creates a sealing block according to the given parameters.
 // If the generation is failed or the underlying work is already closed, an error
 // will be returned.
+// GetSealingBlockSync创建一个sealing block，根据给定的参数，如果generation失败或者底层的work已经关闭了
+// 返回一个error
 func (miner *Miner) GetSealingBlockSync(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (*types.Block, error) {
 	resCh, errCh, err := miner.worker.getSealingBlock(parent, timestamp, coinbase, random, noTxs)
 	if err != nil {

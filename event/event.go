@@ -52,6 +52,8 @@ var ErrMuxClosed = errors.New("event: mux closed")
 // Subscribe creates a subscription for events of the given types. The
 // subscription's channel is closed when it is unsubscribed
 // or the mux is closed.
+// Subscribe创建对于给定类型的事件的订阅，订阅的channel被关闭，当它不订阅或者mux
+// 被关闭的时候
 func (mux *TypeMux) Subscribe(types ...interface{}) *TypeMuxSubscription {
 	sub := newsub(mux)
 	mux.mutex.Lock()

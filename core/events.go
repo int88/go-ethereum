@@ -26,6 +26,7 @@ import (
 type NewTxsEvent struct{ Txs []*types.Transaction }
 
 // NewMinedBlockEvent is posted when a block has been imported.
+// NewMinedBlockEvent被发送，当一个block被导入的时候
 type NewMinedBlockEvent struct{ Block *types.Block }
 
 // RemovedLogsEvent is posted when a reorg happens

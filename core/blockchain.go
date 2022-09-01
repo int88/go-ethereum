@@ -1387,17 +1387,21 @@ func (bc *BlockChain) WriteBlockAndSetHead(block *types.Block, receipts []*types
 // This function expects the chain mutex to be held.
 // writeBlockAndSetHead是WriteBlockAndSetHead的内部实现，这个函数期望持有chain mutex
 func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+	// 将block以及state写入
 	if err := bc.writeBlockWithState(block, receipts, logs, state); err != nil {
 		return NonStatTy, err
 	}
 	currentBlock := bc.CurrentBlock()
+	// 是否需要reorg
 	reorg, err := bc.forker.ReorgNeeded(currentBlock.Header(), block.Header())
 	if err != nil {
 		return NonStatTy, err
 	}
 	if reorg {
 		// Reorganise the chain if the parent is not the head block
+		// 重新组织chain，如果parent不是head block
 		if block.ParentHash() != currentBlock.Hash() {
+			// 对chain进行reorg
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}

@@ -63,6 +63,7 @@ var (
 
 	// ErrGasLimitReached is returned by the gas pool if the amount of gas required
 	// by a transaction is higher than what's left in the block.
+	// ErrGasLimitReached由gas pool返回，如果一个transaction所需的gas高于block中剩下的
 	ErrGasLimitReached = errors.New("gas limit reached")
 
 	// ErrInsufficientFundsForTransfer is returned if the transaction sender doesn't
