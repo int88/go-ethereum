@@ -41,6 +41,7 @@ import (
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	// 获取某个block的statedb
 	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error)
 }
 
@@ -126,6 +127,8 @@ func (miner *Miner) update() {
 				wasMining := miner.Mining()
 				// 停止worker
 				miner.worker.stop()
+				// 有download事件之后，设置canStart为false，miner不能先启动
+				// 如果已经启动了要先停止
 				canStart = false
 				if wasMining {
 					// Resume mining after sync was finished
@@ -148,7 +151,7 @@ func (miner *Miner) update() {
 					miner.worker.start()
 				}
 				// Stop reacting to downloader events
-				// 停止对于downloader时间的订阅
+				// 停止对于downloader事件的订阅
 				events.Unsubscribe()
 			}
 		case addr := <-miner.startCh:

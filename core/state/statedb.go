@@ -64,12 +64,14 @@ func (n *proofList) Delete(key []byte) error {
 // StateDB用来存储merkle trie中的任何东西，StateDBs负责缓存以及存储内嵌的states
 // 它是通用的查询接口用于获取：Contracts以及Accounts
 type StateDB struct {
-	db           Database
-	prefetcher   *triePrefetcher
+	db         Database
+	prefetcher *triePrefetcher
+	// 在任何变更发生之前的pre-state root
 	originalRoot common.Hash // The pre-state root, before any changes were made
 	trie         Trie
 	hasher       crypto.KeccakState
 
+	// snapshot的结构
 	snaps         *snapshot.Tree
 	snap          snapshot.Snapshot
 	snapDestructs map[common.Hash]struct{}
@@ -87,6 +89,8 @@ type StateDB struct {
 	// unable to deal with database-level errors. Any error that occurs
 	// during a database read is memoized here and will eventually be returned
 	// by StateDB.Commit.
+	// DB错误，State对象由共识引擎和VM使用，他们不能处理数据库级别的错误，任何在一个读数据库中
+	// 产生的错误都会记录在这里，并且最后会通过StateDB.Commit返回
 	dbErr error
 
 	// The refund counter, also used by state transitioning.
@@ -104,6 +108,7 @@ type StateDB struct {
 
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
+	// state状态修改的Journal，这是Snapshot以及RevertToSnapshot的主干
 	journal        *journal
 	validRevisions []revision
 	nextRevisionId int

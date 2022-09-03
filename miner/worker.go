@@ -350,6 +350,7 @@ func (w *worker) setGasCeil(ceil uint64) {
 }
 
 // setExtra sets the content used to initialize the block extra field.
+// setExtra设置content用于初始化block额外的字段
 func (w *worker) setExtra(extra []byte) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -357,6 +358,7 @@ func (w *worker) setExtra(extra []byte) {
 }
 
 // setRecommitInterval updates the interval for miner sealing work recommitting.
+// setRecommitInterval更新interval，对于miner的sealing work的重新提交
 func (w *worker) setRecommitInterval(interval time.Duration) {
 	select {
 	case w.resubmitIntervalCh <- interval:
@@ -545,6 +547,7 @@ func (w *worker) newWorkLoop(recommit time.Duration) {
 			if adjust.inc {
 				before := recommit
 				target := float64(recommit.Nanoseconds()) / adjust.ratio
+				// 重新计算recommit的时间间隔
 				recommit = recalcRecommit(minRecommit, recommit, target, true)
 				log.Trace("Increase miner recommit interval", "from", before, "to", recommit)
 			} else {
@@ -595,6 +598,7 @@ func (w *worker) mainLoop() {
 				req.result <- nil
 			} else {
 				req.err <- nil
+				// 将block发往req.result
 				req.result <- block
 			}
 		case ev := <-w.chainSideCh:
@@ -1312,6 +1316,7 @@ func (w *worker) commitWork(interrupt *int32, noempty bool, timestamp int64) {
 func (w *worker) commit(env *environment, interval func(), update bool, start time.Time) error {
 	if w.isRunning() {
 		if interval != nil {
+			// 运行interval()
 			interval()
 		}
 		// Create a local environment copy, avoid the data race with snapshot state.
@@ -1373,8 +1378,10 @@ func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase 
 	}
 	select {
 	case w.getWorkCh <- req:
+		// 返回resCh
 		return resCh, errCh, nil
 	case <-w.exitCh:
+		// miner已经关闭了
 		return nil, nil, errors.New("miner closed")
 	}
 }

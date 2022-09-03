@@ -97,6 +97,7 @@ func init() {
 		Gas:      params.TxGas,
 		GasPrice: big.NewInt(params.InitialBaseFee),
 	})
+	// 对pendingTxs进行赋值
 	pendingTxs = append(pendingTxs, tx1)
 
 	tx2 := types.MustSignNewTx(testBankKey, signer, &types.LegacyTx{
@@ -106,6 +107,7 @@ func init() {
 		Gas:      params.TxGas,
 		GasPrice: big.NewInt(params.InitialBaseFee),
 	})
+	// 对newTxs进行赋值
 	newTxs = append(newTxs, tx2)
 
 	rand.Seed(time.Now().UnixNano())
@@ -305,6 +307,7 @@ func TestEmptyWorkClique(t *testing.T) {
 }
 
 func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consensus.Engine) {
+	log.Root().SetHandler(log.StdoutHandler)
 	defer engine.Close()
 
 	w, _ := newTestWorker(t, chainConfig, engine, rawdb.NewMemoryDatabase(), 0)
@@ -316,9 +319,11 @@ func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consens
 	)
 	checkEqual := func(t *testing.T, task *task, index int) {
 		// The first empty work without any txs included
+		// 第一个空的work，没有包含txs
 		receiptLen, balance := 0, big.NewInt(0)
 		if index == 1 {
 			// The second full work with 1 tx included
+			// 第二个full work包含1个tx
 			receiptLen, balance = 1, big.NewInt(1000)
 		}
 		if len(task.receipts) != receiptLen {
@@ -329,7 +334,9 @@ func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consens
 		}
 	}
 	w.newTaskHook = func(task *task) {
+		log.Info("newTaskHook being called")
 		if task.block.NumberU64() == 1 {
+			// 第一个block检查equal
 			checkEqual(t, task, taskIndex)
 			taskIndex += 1
 			taskCh <- struct{}{}
@@ -339,11 +346,13 @@ func testEmptyWork(t *testing.T, chainConfig *params.ChainConfig, engine consens
 	w.fullTaskHook = func() {
 		time.Sleep(100 * time.Millisecond)
 	}
+	// 开始mining
 	w.start() // Start mining!
 	for i := 0; i < 2; i += 1 {
 		select {
 		case <-taskCh:
 		case <-time.NewTimer(3 * time.Second).C:
+			// 设置超时时间为3s
 			t.Error("new task timeout")
 		}
 	}
@@ -367,6 +376,7 @@ func TestStreamUncleBlock(t *testing.T) {
 			// 第一个是一个空的task，第二个有1个pending tx
 			// 第三个有1个tx和1个uncle
 			if taskIndex == 2 {
+				// 其实是第三个task有uncle
 				have := task.block.Header().UncleHash
 				want := types.CalcUncleHash([]*types.Header{b.uncleBlock.Header()})
 				if have != want {
@@ -424,6 +434,8 @@ func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, en
 		if task.block.NumberU64() == 1 {
 			// The first task is an empty task, the second
 			// one has 1 pending tx, the third one has 2 txs
+			// 第一个task是一个空的task，第二个有一个pending tx，第三个
+			// 有2个txs
 			if taskIndex == 2 {
 				receiptLen, balance := 2, big.NewInt(2000)
 				if len(task.receipts) != receiptLen {
@@ -446,6 +458,7 @@ func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, en
 
 	w.start()
 	// Ignore the first two works
+	// 忽略前两个works
 	for i := 0; i < 2; i += 1 {
 		select {
 		case <-taskCh:
@@ -453,6 +466,7 @@ func testRegenerateMiningBlock(t *testing.T, chainConfig *params.ChainConfig, en
 			t.Error("new task timeout")
 		}
 	}
+	// 在txpool中添加新的txs
 	b.txPool.AddLocals(newTxs)
 	time.Sleep(time.Second)
 
@@ -491,6 +505,7 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	)
 	w.resubmitHook = func(minInterval time.Duration, recommitInterval time.Duration) {
 		// Short circuit if interval checking hasn't started.
+		// 如果interval checking没有启动的话，直接短路
 		if atomic.LoadUint32(&start) == 0 {
 			return
 		}
@@ -525,9 +540,11 @@ func testAdjustInterval(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 	w.start()
 
+	// 确认因为start操作，两个tasks已经被提交了
 	time.Sleep(time.Second) // Ensure two tasks have been summitted due to start opt
 	atomic.StoreUint32(&start, 1)
 
+	// 重新设置recommit interval
 	w.setRecommitInterval(3 * time.Second)
 	select {
 	case <-progress:
@@ -616,6 +633,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 			}
 		}
 		if block.Nonce() != 0 {
+			// 对于测试环境，其实没有计算
 			t.Error("Unexpected block nonce")
 		}
 		if block.NumberU64() != number {
@@ -669,6 +687,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 	// This API should work even when the automatic sealing is not enabled
 	// 这个API应该能工作，即使自动化的sealing被关闭
 	for _, c := range cases {
+		// 不用worker启动，也能运行
 		resChan, errChan, _ := w.getSealingBlock(c.parent, timestamp, c.coinbase, c.random, false)
 		block := <-resChan
 		err := <-errChan
@@ -685,6 +704,7 @@ func testGetSealingWork(t *testing.T, chainConfig *params.ChainConfig, engine co
 	}
 
 	// This API should work even when the automatic sealing is enabled
+	// 这个API应该能工作，即使自动的sealing是使能的
 	w.start()
 	for _, c := range cases {
 		resChan, errChan, _ := w.getSealingBlock(c.parent, timestamp, c.coinbase, c.random, false)

@@ -166,6 +166,7 @@ func TestMinerStartStopAfterDownloaderEvents(t *testing.T) {
 	waitForMiningState(t, miner, false)
 
 	// Downloader finally succeeds.
+	// Downloader最后成功了
 	mux.Post(downloader.DoneEvent{})
 	waitForMiningState(t, miner, true)
 
@@ -186,9 +187,11 @@ func TestStartWhileDownload(t *testing.T) {
 	miner.Start(common.HexToAddress("0x12345"))
 	waitForMiningState(t, miner, true)
 	// Stop the downloader and wait for the update loop to run
+	// 启动downloader并且等待update loop运行
 	mux.Post(downloader.StartEvent{})
 	waitForMiningState(t, miner, false)
 	// Starting the miner after the downloader should not work
+	// 在downloader之后启动miner，不应该能运行
 	miner.Start(common.HexToAddress("0x12345"))
 	waitForMiningState(t, miner, false)
 }
@@ -211,6 +214,7 @@ func TestCloseMiner(t *testing.T) {
 	miner.Start(common.HexToAddress("0x12345"))
 	waitForMiningState(t, miner, true)
 	// Terminate the miner and wait for the update loop to run
+	// 终止miner并且等待update loop开始运行？
 	miner.Close()
 	waitForMiningState(t, miner, false)
 }
