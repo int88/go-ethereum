@@ -505,7 +505,7 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-// Dereference移出一个root node中一个已经存在的应用
+// Dereference移出一个root node中一个已经存在的引用
 func (db *Database) Dereference(root common.Hash) {
 	// Sanity check to ensure that the meta-root is not removed
 	if root == (common.Hash{}) {

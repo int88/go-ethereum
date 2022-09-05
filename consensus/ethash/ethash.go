@@ -542,6 +542,8 @@ func NewFakeDelayer(delay time.Duration) *Ethash {
 
 // NewFullFaker creates an ethash consensus engine with a full fake scheme that
 // accepts all blocks as valid, without checking any consensus rules whatsoever.
+// NewFullFaker创建一个ethash共识引擎，有一个完整的fake scheme，将所有blocks都作为合法的接收
+// 而不用检查共识规则
 func NewFullFaker() *Ethash {
 	return &Ethash{
 		config: Config{

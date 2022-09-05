@@ -44,6 +44,7 @@ import (
 )
 
 // So we can deterministically seed different blockchains
+// 这样我们可以为不同的blockchains提供确定性的seed
 var (
 	canonicalSeed = 1
 	forkSeed      = 2
@@ -113,6 +114,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		hash2 = blockchain2.GetHeaderByNumber(uint64(i)).Hash()
 	}
 	if hash1 != hash2 {
+		// 两个blockchain的head的哈希值是相等的
 		t.Errorf("chain content mismatch at %d: have hash %v, want hash %v", i, hash2, hash1)
 	}
 	// Extend the newly created chain
@@ -124,6 +126,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	if full {
 		// 再创建n个blocks
 		blockChainB = makeBlockChain(blockchain2.CurrentBlock(), n, ethash.NewFaker(), db, forkSeed)
+		// 给blockchain2插入一些blocks
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
 		}
@@ -135,7 +138,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	}
 	// Sanity check that the forked chain can be imported into the original
 	// 健全性检查，forked chain能否发导入到原来的chain中
-	var tdPre, tdPost *big.Int
+	var tdPre, tdPost, tdPost2 *big.Int
 
 	if full {
 		cur := blockchain.CurrentBlock()
@@ -158,6 +161,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	}
 	// Compare the total difficulties of the chains
 	// 比较chains的totoal difficulties
+	log.Info("compare tdPre and tdPost", "tdPre", tdPre.String(), "tdPOst", tdPost.String())
 	comparator(tdPre, tdPost)
 }
 
@@ -175,6 +179,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		}
 		if err != nil {
 			if err == ErrKnownBlock {
+				// 如果是已知的block则跳过
 				continue
 			}
 			return err
@@ -237,6 +242,7 @@ func TestLastBlock(t *testing.T) {
 	if _, err := blockchain.InsertChain(blocks); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)
 	}
+	log.Info("successfully insert blocks")
 	// 插入的blocks的哈希和db中的head block的哈希一致
 	if blocks[len(blocks)-1].Hash() != rawdb.ReadHeadBlockHash(blockchain.db) {
 		t.Fatalf("Write/Get HeadBlockHash failed")
@@ -304,6 +310,7 @@ func TestExtendCanonicalHeaders(t *testing.T) { testExtendCanonical(t, false) }
 func TestExtendCanonicalBlocks(t *testing.T)  { testExtendCanonical(t, true) }
 
 func testExtendCanonical(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	length := 5
 
 	// Make first chain starting from genesis
@@ -315,17 +322,19 @@ func testExtendCanonical(t *testing.T, full bool) {
 	defer processor.Stop()
 
 	// Define the difficulty comparator
+	// 定义difficulty comparator
 	better := func(td1, td2 *big.Int) {
 		if td2.Cmp(td1) <= 0 {
+			// 期望td2大于td1
 			t.Errorf("total difficulty mismatch: have %v, expected more than %v", td2, td1)
 		}
 	}
 	// Start fork from current height
 	// 从当前的height开始fork
 	testFork(t, processor, length, 1, full, better)
-	testFork(t, processor, length, 2, full, better)
-	testFork(t, processor, length, 5, full, better)
-	testFork(t, processor, length, 10, full, better)
+	// testFork(t, processor, length, 2, full, better)
+	// testFork(t, processor, length, 5, full, better)
+	// testFork(t, processor, length, 10, full, better)
 }
 
 // Tests that given a starting canonical chain of a given size, it can be extended

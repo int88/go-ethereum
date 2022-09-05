@@ -47,6 +47,7 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 		elapsed = now.Sub(st.startTime)
 	)
 	// If we're at the last block of the batch or report period reached, log
+	// 如果我们在batch的最后一个block或者到了report period，则记录日志
 	if index == len(chain)-1 || elapsed >= statsReportLimit {
 		// Count the number of transactions in this segment
 		var txs int
@@ -56,6 +57,7 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 		end := chain[index]
 
 		// Assemble the log context and send it to the logger
+		// 组建log context并且发送到logger
 		context := []interface{}{
 			"blocks", st.processed, "txs", txs, "mgas", float64(st.usedGas) / 1000000,
 			"elapsed", common.PrettyDuration(elapsed), "mgasps", float64(st.usedGas) * 1000 / float64(elapsed),
@@ -78,6 +80,7 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 			log.Info("Imported new potential chain segment", context...)
 		}
 		// Bump the stats reported to the next section
+		// 将报告的stats跳到下一个section
 		*st = insertStats{startTime: now, lastIndex: index + 1}
 	}
 }
@@ -85,8 +88,10 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 // insertIterator is a helper to assist during chain import.
 // insertIterator是一个helper用于支持chain import
 type insertIterator struct {
+	// 用于遍历的一系列blocks
 	chain types.Blocks // Chain of blocks being iterated over
 
+	// 来自于共识引擎的result channel
 	results <-chan error // Verification result sink from the consensus engine
 	errors  []error      // Header verification errors for the blocks
 

@@ -33,6 +33,7 @@ import (
 // BlockGen creates blocks for testing.
 // BlockGen创建blocks用于测试
 // See GenerateChain for a detailed explanation.
+// 查看GenerateChain，关于更详细的描述
 type BlockGen struct {
 	i       int
 	parent  *types.Block
@@ -299,6 +300,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			if err != nil {
 				panic(fmt.Sprintf("state write error: %v", err))
 			}
+			// 将TrieDB提交
 			if err := statedb.Database().TrieDB().Commit(root, false, nil); err != nil {
 				panic(fmt.Sprintf("trie write error: %v", err))
 			}
@@ -327,6 +329,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 	if parent.Time() == 0 {
 		time = 10
 	} else {
+		// block的时间固定在10秒
 		time = parent.Time() + 10 // block time is fixed at 10 seconds
 	}
 	header := &types.Header{

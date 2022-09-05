@@ -127,10 +127,11 @@ type CacheConfig struct {
 	TrieCleanRejournal  time.Duration // Time interval to dump clean cache to disk periodically
 	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
 	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
-	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
-	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
-	SnapshotLimit       int           // Memory allowance (MB) to use for caching snapshot entries in memory
-	Preimages           bool          // Whether to store preimage of trie key to the disk
+	// 是否禁止trie write caching以及GC
+	TrieDirtyDisabled bool          // Whether to disable trie write caching and GC altogether (archive node)
+	TrieTimeLimit     time.Duration // Time limit after which to flush the current in-memory trie to disk
+	SnapshotLimit     int           // Memory allowance (MB) to use for caching snapshot entries in memory
+	Preimages         bool          // Whether to store preimage of trie key to the disk
 
 	SnapshotWait bool // Wait for snapshot construction on startup. TODO(karalabe): This is a dirty hack for testing, nuke it
 }
@@ -819,6 +820,7 @@ func (bc *BlockChain) ExportN(w io.Writer, first uint64, last uint64) error {
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) writeHeadBlock(block *types.Block) {
+	log.Info("writeHeadBlock is being called")
 	// Add the block to the canonical chain number scheme and mark as the head
 	// 添加block到canonical chain number scheme并且标记为head
 	batch := bc.db.NewBatch()
@@ -848,19 +850,24 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
+// Stop停止blockchain服务，如果当前有任何的imports，它会使用procInterrupt中止
 func (bc *BlockChain) Stop() {
+	log.Info("BlockChain.Stop() is being called")
 	if !atomic.CompareAndSwapInt32(&bc.running, 0, 1) {
 		return
 	}
 
 	// Unsubscribe all subscriptions registered from blockchain.
+	// 停止所有对blockchain的订阅
 	bc.scope.Close()
 
 	// Signal shutdown to all goroutines.
+	// 通知关闭所有的goroutine
 	close(bc.quit)
 	bc.StopInsert()
 
 	// Now wait for all chain modifications to end and persistent goroutines to exit.
+	// 现在等待所有的chain modifications结束并且持续性goroutines退出
 	//
 	// Note: Close waits for the mutex to become available, i.e. any running chain
 	// modification will have exited when Close returns. Since we also called StopInsert,
@@ -870,6 +877,7 @@ func (bc *BlockChain) Stop() {
 	bc.wg.Wait()
 
 	// Ensure that the entirety of the state snapshot is journalled to disk.
+	// 确保所有的state snapshot已经写入磁盘了
 	var snapBase common.Hash
 	if bc.snaps != nil {
 		var err error
@@ -879,11 +887,13 @@ func (bc *BlockChain) Stop() {
 	}
 
 	// Ensure the state of a recent block is also stored to disk before exiting.
+	// 确认最近的block的state也在退出之前存入磁盘了
 	// We're writing three different states to catch different restart scenarios:
 	//  - HEAD:     So we don't need to reprocess any blocks in the general case
 	//  - HEAD-1:   So we don't do large reorgs if our HEAD becomes an uncle
 	//  - HEAD-127: So we have a hard limit on the number of blocks reexecuted
 	if !bc.cacheConfig.TrieDirtyDisabled {
+		log.Info("bc.cacheConfig.TrieDirtyDisabled is false")
 		triedb := bc.stateCache.TrieDB()
 
 		for _, offset := range []uint64{0, 1, TriesInMemory - 1} {
@@ -898,6 +908,7 @@ func (bc *BlockChain) Stop() {
 		}
 		if snapBase != (common.Hash{}) {
 			log.Info("Writing snapshot state to disk", "root", snapBase)
+			// 将snapshot的状态写入磁盘
 			if err := triedb.Commit(snapBase, true, nil); err != nil {
 				log.Error("Failed to commit recent state trie", "err", err)
 			}
@@ -911,6 +922,8 @@ func (bc *BlockChain) Stop() {
 	}
 	// Ensure all live cached entries be saved into disk, so that we can skip
 	// cache warmup when node restarts.
+	// 确保所有的live cached entries都被存进磁盘了，这样我们可以在节点重启的时候
+	// 跳过cache warmup
 	if bc.cacheConfig.TrieCleanJournal != "" {
 		triedb := bc.stateCache.TrieDB()
 		triedb.SaveCache(bc.cacheConfig.TrieCleanJournal)
@@ -921,11 +934,14 @@ func (bc *BlockChain) Stop() {
 // StopInsert interrupts all insertion methods, causing them to return
 // errInsertionInterrupted as soon as possible. Insertion is permanently disabled after
 // calling this method.
+// StopInsert中止所有的插入操作，让它们尽快返回errInsertionInterrupted
+// 在这个操作之后，插入被永久暂停了
 func (bc *BlockChain) StopInsert() {
 	atomic.StoreInt32(&bc.procInterrupt, 1)
 }
 
 // insertStopped returns true after StopInsert has been called.
+// insertStopped在StopInsert被调用后返回true
 func (bc *BlockChain) insertStopped() bool {
 	return atomic.LoadInt32(&bc.procInterrupt) == 1
 }
@@ -1283,6 +1299,7 @@ func (bc *BlockChain) writeKnownBlock(block *types.Block) error {
 // database.
 // writeBlockWithState写入block, metadata以及相应的state数据到数据库中
 func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB) error {
+	log.Info("writeBlockWithState is being called")
 	// Calculate the total difficulty of the block
 	// 计算block的td
 	ptd := bc.GetTd(block.ParentHash(), block.NumberU64()-1)
@@ -1302,6 +1319,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// 注意所有的block的组件（td, hash->number map, header, body以及receipts）应该原子写入
 	blockBatch := bc.db.NewBatch()
 	// 写入TD
+	log.Info("writeBlockWithState write block batch into rawdb")
 	rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
 	rawdb.WriteBlock(blockBatch, block)
 	rawdb.WriteReceipts(blockBatch, block.Hash(), block.NumberU64(), receipts)
@@ -1387,6 +1405,7 @@ func (bc *BlockChain) WriteBlockAndSetHead(block *types.Block, receipts []*types
 // This function expects the chain mutex to be held.
 // writeBlockAndSetHead是WriteBlockAndSetHead的内部实现，这个函数期望持有chain mutex
 func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types.Receipt, logs []*types.Log, state *state.StateDB, emitHeadEvent bool) (status WriteStatus, err error) {
+	log.Info("writeBlockAndSetHead is being called")
 	// 将block以及state写入
 	if err := bc.writeBlockWithState(block, receipts, logs, state); err != nil {
 		return NonStatTy, err
@@ -1398,6 +1417,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		return NonStatTy, err
 	}
 	if reorg {
+		log.Info("writeBlockAndSetHead: the chain need to be reorged")
 		// Reorganise the chain if the parent is not the head block
 		// 重新组织chain，如果parent不是head block
 		if block.ParentHash() != currentBlock.Hash() {
@@ -1405,13 +1425,15 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 			if err := bc.reorg(currentBlock, block); err != nil {
 				return NonStatTy, err
 			}
+		} else {
+			log.Info("writeBlockAndSetHead: parent is head block, not need to reorg")
 		}
 		status = CanonStatTy
 	} else {
 		status = SideStatTy
 	}
 	// Set new head.
-	// 设置新的head
+	// 设置新的head block
 	if status == CanonStatTy {
 		bc.writeHeadBlock(block)
 	}
@@ -1432,6 +1454,7 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		// 但是有的时候我们会注入一批的canonical blocks，避免触发太多ChainHeadEvents
 		// 我们会触发一个累计的ChainHeadEvent并且在这里禁止触发
 		if emitHeadEvent {
+			// 触发ChainHeadFeed
 			bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 		}
 	} else {
@@ -1513,6 +1536,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 // is imported, but then new canon-head is added before the actual sidechain
 // completes, then the historic state could be pruned again
 func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool) (int, error) {
+	log.Info("insertChain being called", "setHead", setHead)
 	// If the chain is terminating, don't even bother starting up.
 	if bc.insertStopped() {
 		return 0, nil
@@ -1526,6 +1550,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		lastCanon *types.Block
 	)
 	// Fire a single chain head event if we've progressed the chain
+	// 触发一个chain head event，如果我们已经处理过了这个chain
 	defer func() {
 		if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
 			bc.chainHeadFeed.Send(ChainHeadEvent{lastCanon})
@@ -1651,6 +1676,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		return it.index, err
 	}
 	// No validation errors for the first block (or chain prefix skipped)
+	// 对于第一个block没有validation errors
 	var activeState *state.StateDB
 	defer func() {
 		// The chain importer is starting and stopping trie prefetchers. If a bad
@@ -1664,6 +1690,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 
 	// 没有遇到错误或者是已知的block
 	for ; block != nil && err == nil || errors.Is(err, ErrKnownBlock); block, err = it.next() {
+		log.Info("insertChain: iterate the blocks")
 		// If the chain is terminating, stop processing blocks
 		if bc.insertStopped() {
 			log.Debug("Abort during block processing")
@@ -1721,6 +1748,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		if parent == nil {
 			parent = bc.GetHeader(block.ParentHash(), block.NumberU64()-1)
 		}
+		// 构建一个新的statedb
 		statedb, err := state.New(parent.Root, bc.stateCache, bc.snaps)
 		if err != nil {
 			return it.index, err
@@ -1752,6 +1780,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		// Process block using the parent state as reference point
 		// 处理block，使用parent state作为reference point
 		substart := time.Now()
+		log.Info("insertChain: bc.process.Process process block")
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -1760,6 +1789,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		}
 
 		// Update the metrics touched during block processing
+		// 在block处理期间更新metric
 		accountReadTimer.Update(statedb.AccountReads)                 // Account reads are complete, we can mark them
 		storageReadTimer.Update(statedb.StorageReads)                 // Storage reads are complete, we can mark them
 		accountUpdateTimer.Update(statedb.AccountUpdates)             // Account updates are complete, we can mark them
@@ -1791,6 +1821,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		// 将block写入chain并且获取status
 		substart = time.Now()
 		var status WriteStatus
+		log.Info("insertChain: write the block to the chain and get the status")
 		if !setHead {
 			// Don't set the head, only insert the block
 			// 不要设置head，只是插入block
@@ -1812,10 +1843,12 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		blockInsertTimer.UpdateSince(start)
 
 		// Report the import stats before returning the various results
+		// 在返回各种结果之前，报告import stats
 		stats.processed++
 		stats.usedGas += usedGas
 
 		dirty, _ := bc.stateCache.TrieDB().Size()
+		// 对stats进行report
 		stats.report(chain, it.index, dirty, setHead)
 
 		if !setHead {
@@ -1835,6 +1868,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			bc.gcproc += proctime
 
 		case SideStatTy:
+			// 插入forked block
 			log.Debug("Inserted forked block", "number", block.Number(), "hash", block.Hash(),
 				"diff", block.Difficulty(), "elapsed", common.PrettyDuration(time.Since(start)),
 				"txs", len(block.Transactions()), "gas", block.GasUsed(), "uncles", len(block.Uncles()),
@@ -2123,6 +2157,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	)
 	// Reduce the longer chain to the same number as the shorter one
 	// 将longer chain减小到和shorter one同样的大小
+	log.Info("reorg is being called", "oldBlock number", oldBlock.NumberU64(), "newBlock number", newBlock.NumberU64())
 	if oldBlock.NumberU64() > newBlock.NumberU64() {
 		// Old chain is longer, gather all transactions and logs as deleted ones
 		// Old chain更长，收集所有的transactions以及logs作为deleted ones
@@ -2163,6 +2198,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 			break
 		}
 		// Remove an old block as well as stash away a new block
+		// 移除一个老的block以及把一个新的block藏起来
 		oldChain = append(oldChain, oldBlock)
 		deletedTxs = append(deletedTxs, oldBlock.Transactions()...)
 
@@ -2234,6 +2270,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// transaction indexes, canonical chain indexes which above the head.
 	// 立即删除没用的索引，其中包含non-canonical transaction indexes
 	// 以及head之上的non-canonical transaction
+	log.Info("reorg: Delete useless indexes right now")
 	indexesBatch := bc.db.NewBatch()
 	for _, tx := range types.TxDifference(deletedTxs, addedTxs) {
 		// 移除tx lookup entry
@@ -2257,6 +2294,9 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// this goroutine if there are no events to fire, but realistcally that only
 	// ever happens if we're reorging empty blocks, which will only happen on idle
 	// networks where performance is not an issue either way.
+	// 如果有任何logs需要触发的，现在就做，理论上来说，我们可以避免创建这个goroutine，如果没有
+	// events需要触发的话，但是现实是，这只会在我们reorg空的blocks的时候发生，这只会发生在
+	// idle networks，那里性能也不再是问题
 	if len(deletedLogs) > 0 {
 		bc.rmLogsFeed.Send(RemovedLogsEvent{mergeLogs(deletedLogs, true)})
 	}
@@ -2265,6 +2305,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	}
 	if len(oldChain) > 0 {
 		for i := len(oldChain) - 1; i >= 0; i-- {
+			// oldChain变为了side chain
 			bc.chainSideFeed.Send(ChainSideEvent{Block: oldChain[i]})
 		}
 	}
@@ -2385,6 +2426,8 @@ func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 	// In this case, we have the trie-state but not snapshot-state. If the parent
 	// snapshot-state exists, we need to process this in order to not get a gap
 	// in the snapshot layers.
+	// 在这种情况下，我们有trie-state，但是没有snapshot-state，如果parent的snapshot-state
+	// 存在，我们需要处理它，为了不要在snapshot layers里拿到一个gap
 	// Resolve parent block
 	if parent := it.previous(); parent != nil {
 		parentRoot = parent.Root
@@ -2497,6 +2540,7 @@ func (bc *BlockChain) maintainTxIndex(ancients uint64) {
 }
 
 // reportBlock logs a bad block error.
+// reportBlock对一个bad block的错误进行日志记录
 func (bc *BlockChain) reportBlock(block *types.Block, receipts types.Receipts, err error) {
 	rawdb.WriteBadBlock(bc.db, block)
 

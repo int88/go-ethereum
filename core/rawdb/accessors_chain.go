@@ -189,6 +189,7 @@ func WriteHeadHeaderHash(db ethdb.KeyValueWriter, hash common.Hash) {
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
+// ReadHeadBlockHash获取当前的canonical的head block
 func ReadHeadBlockHash(db ethdb.KeyValueReader) common.Hash {
 	data, _ := db.Get(headBlockKey)
 	if len(data) == 0 {

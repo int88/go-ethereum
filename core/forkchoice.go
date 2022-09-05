@@ -93,12 +93,14 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 	if localTD == nil || externTd == nil {
 		return false, errors.New("missing td")
 	}
+	log.Info("ReorgNeeded is being called", "localTD", localTD, "externTd", externTd)
 	// Accept the new header as the chain head if the transition
 	// is already triggered. We assume all the headers after the
 	// transition come from the trusted consensus layer.
 	// 接受新的header作为chain header，如果transition已经触发了，我们假设
 	// 所有transition之后的headers来自受信的consensus layer
 	if ttd := f.chain.Config().TerminalTotalDifficulty; ttd != nil && ttd.Cmp(externTd) <= 0 {
+		log.Info("ReorgNeeded: the transition is already triggered")
 		return true, nil
 	}
 	// If the total difficulty is higher than our known, add it to the canonical chain
@@ -106,6 +108,7 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
 	reorg := externTd.Cmp(localTD) > 0
+	log.Info("ReorgNeeded: externTd > localTD", "reorg", reorg)
 	if !reorg && externTd.Cmp(localTD) == 0 {
 		number, headNumber := header.Number.Uint64(), current.Number.Uint64()
 		if number < headNumber {
