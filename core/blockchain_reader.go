@@ -280,6 +280,7 @@ func (bc *BlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
 }
 
 // HasState checks if state trie is fully present in the database or not.
+// HasState检查state trie是否完整存在于数据库中
 func (bc *BlockChain) HasState(hash common.Hash) bool {
 	_, err := bc.stateCache.OpenTrie(hash)
 	return err == nil
@@ -287,8 +288,11 @@ func (bc *BlockChain) HasState(hash common.Hash) bool {
 
 // HasBlockAndState checks if a block and associated state trie is fully present
 // in the database or not, caching it if present.
+// HasBlockAndState检查是否一个block以及相关的state trie完整的存在于数据库中，如果存在的话
+// 缓存它
 func (bc *BlockChain) HasBlockAndState(hash common.Hash, number uint64) bool {
 	// Check first that the block itself is known
+	// 首先检查block是已知的
 	block := bc.GetBlock(hash, number)
 	if block == nil {
 		return false

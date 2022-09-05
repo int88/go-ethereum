@@ -124,7 +124,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		headerChainB []*types.Header
 	)
 	if full {
-		// 再创建n个blocks
+		// 再创建n个blocks，在blockchain2的基础之上
 		blockChainB = makeBlockChain(blockchain2.CurrentBlock(), n, ethash.NewFaker(), db, forkSeed)
 		// 给blockchain2插入一些blocks
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
@@ -141,6 +141,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	var tdPre, tdPost, tdPost2 *big.Int
 
 	if full {
+		log.Info("insert into the canonical chain")
 		cur := blockchain.CurrentBlock()
 		// 获取之前的td
 		tdPre = blockchain.GetTd(cur.Hash(), cur.NumberU64())
@@ -150,6 +151,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		last := blockChainB[len(blockChainB)-1]
 		// 获取当前的tdPost
 		tdPost = blockchain.GetTd(last.Hash(), last.NumberU64())
+		tdPost2 = blockchain.GetTd(last.Hash(), last.NumberU64())
 	} else {
 		cur := blockchain.CurrentHeader()
 		tdPre = blockchain.GetTd(cur.Hash(), cur.Number.Uint64())
@@ -161,7 +163,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	}
 	// Compare the total difficulties of the chains
 	// 比较chains的totoal difficulties
-	log.Info("compare tdPre and tdPost", "tdPre", tdPre.String(), "tdPOst", tdPost.String())
+	log.Info("compare tdPre and tdPost", "tdPre", tdPre.String(), "tdPost", tdPost.String(), "tdPost2", tdPost2.String())
 	comparator(tdPre, tdPost)
 }
 
@@ -205,6 +207,7 @@ func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 		// 获取chain的全局锁
 		blockchain.chainmu.MustLock()
 		// 将id，block写入db中
+		log.Info("testBlockChainImport write td and block to rawdb")
 		rawdb.WriteTd(blockchain.db, block.Hash(), block.NumberU64(), new(big.Int).Add(block.Difficulty(), blockchain.GetTd(block.ParentHash(), block.NumberU64()-1)))
 		rawdb.WriteBlock(blockchain.db, block)
 		statedb.Commit(false)
@@ -363,6 +366,7 @@ func TestShorterForkHeaders(t *testing.T) { testShorterFork(t, false) }
 func TestShorterForkBlocks(t *testing.T)  { testShorterFork(t, true) }
 
 func testShorterFork(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	length := 10
 
 	// Make first chain starting from genesis
@@ -373,6 +377,7 @@ func testShorterFork(t *testing.T, full bool) {
 	defer processor.Stop()
 
 	// Define the difficulty comparator
+	// 期望新的更差
 	worse := func(td1, td2 *big.Int) {
 		if td2.Cmp(td1) >= 0 {
 			t.Errorf("total difficulty mismatch: have %v, expected less than %v", td2, td1)
@@ -380,12 +385,13 @@ func testShorterFork(t *testing.T, full bool) {
 	}
 	// Sum of numbers must be less than `length` for this to be a shorter fork
 	// numbers的和必须小于`length`，因为这需要为一个shorter fork
+	// 第二个链创建i个，然后再往上创建n个
 	testFork(t, processor, 0, 3, full, worse)
-	testFork(t, processor, 0, 7, full, worse)
-	testFork(t, processor, 1, 1, full, worse)
-	testFork(t, processor, 1, 7, full, worse)
-	testFork(t, processor, 5, 3, full, worse)
-	testFork(t, processor, 5, 4, full, worse)
+	//testFork(t, processor, 0, 7, full, worse)
+	//testFork(t, processor, 1, 1, full, worse)
+	//testFork(t, processor, 1, 7, full, worse)
+	//testFork(t, processor, 5, 3, full, worse)
+	//testFork(t, processor, 5, 4, full, worse)
 }
 
 // Tests that given a starting canonical chain of a given size, creating shorter
@@ -461,10 +467,12 @@ func testLongerForkAfterMerge(t *testing.T, full bool) {
 
 // Tests that given a starting canonical chain of a given size, creating equal
 // forks do take canonical ownership.
+// 测试一个给定大小的starting canonical chain，创建同等的forks，也能拿到canonical ownership
 func TestEqualForkHeaders(t *testing.T) { testEqualFork(t, false) }
 func TestEqualForkBlocks(t *testing.T)  { testEqualFork(t, true) }
 
 func testEqualFork(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	length := 10
 
 	// Make first chain starting from genesis
@@ -475,18 +483,21 @@ func testEqualFork(t *testing.T, full bool) {
 	defer processor.Stop()
 
 	// Define the difficulty comparator
+	// 定义difficulty comparator
 	equal := func(td1, td2 *big.Int) {
 		if td2.Cmp(td1) != 0 {
+			// 如果不相等，则报错
 			t.Errorf("total difficulty mismatch: have %v, want %v", td2, td1)
 		}
 	}
 	// Sum of numbers must be equal to `length` for this to be an equal fork
+	// numbers的和必须和`length`相等，为了成为一个equal fork
 	testFork(t, processor, 0, 10, full, equal)
-	testFork(t, processor, 1, 9, full, equal)
-	testFork(t, processor, 2, 8, full, equal)
-	testFork(t, processor, 5, 5, full, equal)
-	testFork(t, processor, 6, 4, full, equal)
-	testFork(t, processor, 9, 1, full, equal)
+	//testFork(t, processor, 1, 9, full, equal)
+	//testFork(t, processor, 2, 8, full, equal)
+	//testFork(t, processor, 5, 5, full, equal)
+	//testFork(t, processor, 6, 4, full, equal)
+	//testFork(t, processor, 9, 1, full, equal)
 }
 
 // Tests that given a starting canonical chain of a given size, creating equal
@@ -513,10 +524,12 @@ func testEqualForkAfterMerge(t *testing.T, full bool) {
 }
 
 // Tests that chains missing links do not get accepted by the processor.
+// 测试当chains缺失links，不会被processor接受
 func TestBrokenHeaderChain(t *testing.T) { testBrokenChain(t, false) }
 func TestBrokenBlockChain(t *testing.T)  { testBrokenChain(t, true) }
 
 func testBrokenChain(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// Make chain starting from genesis
 	// 构建从genesis开始的chain
 	db, blockchain, err := newCanonical(ethash.NewFaker(), 10, full)
@@ -531,6 +544,8 @@ func testBrokenChain(t *testing.T, full bool) {
 		chain := makeBlockChain(blockchain.CurrentBlock(), 5, ethash.NewFaker(), db, forkSeed)[1:]
 		if err := testBlockChainImport(chain, blockchain); err == nil {
 			t.Errorf("broken block chain not reported")
+		} else {
+			log.Info("testBlockChainImport failed", "error", err)
 		}
 	} else {
 		chain := makeHeaderChain(blockchain.CurrentHeader(), 5, ethash.NewFaker(), db, forkSeed)[1:]
@@ -548,11 +563,14 @@ func TestReorgLongHeaders(t *testing.T) { testReorgLong(t, false) }
 func TestReorgLongBlocks(t *testing.T)  { testReorgLong(t, true) }
 
 func testReorgLong(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	testReorg(t, []int64{0, 0, -9}, []int64{0, 0, 0, -9}, 393280+params.GenesisDifficulty.Int64(), full)
 }
 
 // Tests that reorganising a short difficult chain after a long easy one
 // overwrites the canonical numbers and links in the database.
+// 测试重新reorg一个short difficult chain，在一个long easy覆盖了canonical numbers以及数据库中的
+// links之后
 func TestReorgShortHeaders(t *testing.T) { testReorgShort(t, false) }
 func TestReorgShortBlocks(t *testing.T)  { testReorgShort(t, true) }
 
@@ -560,14 +578,19 @@ func testReorgShort(t *testing.T, full bool) {
 	// Create a long easy chain vs. a short heavy one. Due to difficulty adjustment
 	// we need a fairly long chain of blocks with different difficulties for a short
 	// one to become heavyer than a long one. The 96 is an empirical value.
+	// 创建一个long easy chain和一个short heavy chain，因为难度调整，我们需要一个long chains
+	// blocks，但是有着不同的difficulties，为了让一个short chain更加heavy，96是一个经验值
 	easy := make([]int64, 96)
+	// 96个，时间戳+60
 	for i := 0; i < len(easy); i++ {
 		easy[i] = 60
 	}
 	diff := make([]int64, len(easy)-1)
+	// 95个，时间戳-9
 	for i := 0; i < len(diff); i++ {
 		diff[i] = -9
 	}
+	// 直接将最终的td进行赋值
 	testReorg(t, easy, diff, 12615120+params.GenesisDifficulty.Int64(), full)
 }
 
@@ -583,12 +606,14 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	// Insert an easy and a difficult chain afterwards
 	// 插入一个easy以及difficult chain
 	easyBlocks, _ := GenerateChain(params.TestChainConfig, blockchain.CurrentBlock(), ethash.NewFaker(), db, len(first), func(i int, b *BlockGen) {
+		// 调整offset time
 		b.OffsetTime(first[i])
 	})
 	diffBlocks, _ := GenerateChain(params.TestChainConfig, blockchain.CurrentBlock(), ethash.NewFaker(), db, len(second), func(i int, b *BlockGen) {
 		b.OffsetTime(second[i])
 	})
 	if full {
+		// 插入easyblocks和diffblocks
 		if _, err := blockchain.InsertChain(easyBlocks); err != nil {
 			t.Fatalf("failed to insert easy chain: %v", err)
 		}
@@ -615,6 +640,7 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	// 检查chain是合法的number以及link
 	if full {
 		prev := blockchain.CurrentBlock()
+		// 确认block是连续的
 		for block := blockchain.GetBlockByNumber(blockchain.CurrentBlock().NumberU64() - 1); block.NumberU64() != 0; prev, block = block, blockchain.GetBlockByNumber(block.NumberU64()-1) {
 			if prev.ParentHash() != block.Hash() {
 				t.Errorf("parent block hash mismatch: have %x, want %x", prev.ParentHash(), block.Hash())
@@ -630,9 +656,11 @@ func testReorg(t *testing.T, first, second []int64, td int64, full bool) {
 	}
 	// Make sure the chain total difficulty is the correct one
 	// 确认chain difficulty是正确的
+	log.Info("genesis difficulty", "diff", blockchain.genesisBlock.Difficulty())
 	want := new(big.Int).Add(blockchain.genesisBlock.Difficulty(), big.NewInt(td))
 	if full {
 		cur := blockchain.CurrentBlock()
+		log.Info("cur chain difficulty", "diff", want)
 		// 获取当前的td
 		if have := blockchain.GetTd(cur.Hash(), cur.NumberU64()); have.Cmp(want) != 0 {
 			t.Errorf("total difficulty mismatch: have %v, want %v", have, want)
@@ -735,12 +763,15 @@ func testReorgBadHashes(t *testing.T, full bool) {
 }
 
 // Tests chain insertions in the face of one entity containing an invalid nonce.
+// 测试链的插入，当一个entity包含非法的nonce
 func TestHeadersInsertNonceError(t *testing.T) { testInsertNonceError(t, false) }
 func TestBlocksInsertNonceError(t *testing.T)  { testInsertNonceError(t, true) }
 
 func testInsertNonceError(t *testing.T, full bool) {
+	log.Root().SetHandler(log.StdoutHandler)
 	for i := 1; i < 25 && !t.Failed(); i++ {
 		// Create a pristine chain and database
+		// 创建一个原始的链以及数据库
 		db, blockchain, err := newCanonical(ethash.NewFaker(), 0, full)
 		if err != nil {
 			t.Fatalf("failed to create pristine chain: %v", err)
@@ -748,6 +779,7 @@ func testInsertNonceError(t *testing.T, full bool) {
 		defer blockchain.Stop()
 
 		// Create and insert a chain with a failing nonce
+		// 创建并且插入一个有着failing nonce的chain
 		var (
 			failAt  int
 			failRes int
@@ -772,10 +804,12 @@ func testInsertNonceError(t *testing.T, full bool) {
 			failRes, err = blockchain.InsertHeaderChain(headers, 1)
 		}
 		// Check that the returned error indicates the failure
+		// 检查返回的错误表明了failure
 		if failRes != failAt {
 			t.Errorf("test %d: failure (%v) index mismatch: have %d, want %d", i, err, failRes, failAt)
 		}
 		// Check that all blocks after the failing block have been inserted
+		// 检查failing block之后的所有block都已经被插入了
 		for j := 0; j < i-failAt; j++ {
 			if full {
 				if block := blockchain.GetBlockByNumber(failNum + uint64(j)); block != nil {
@@ -933,8 +967,11 @@ func TestFastVsFullChains(t *testing.T) {
 
 // Tests that various import methods move the chain head pointers to the correct
 // positions.
+// 测试各种import方法将chain head pointers都移动head pointers到正确的位置
 func TestLightVsFastVsFullChainHeads(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// Configure and generate a sample block chain
+	// 配置并且生成一个sample block chain
 	var (
 		gendb   = rawdb.NewMemoryDatabase()
 		key, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -951,6 +988,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	blocks, receipts := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), gendb, int(height), nil)
 
 	// makeDb creates a db instance for testing.
+	// maekDB创建一个db实例用于测试
 	makeDb := func() ethdb.Database {
 		dir := t.TempDir()
 		db, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), dir, "", false)
@@ -961,9 +999,11 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 		return db
 	}
 	// Configure a subchain to roll back
+	// 创建一个subchain用于回滚
 	remove := blocks[height/2].NumberU64()
 
 	// Create a small assertion method to check the three heads
+	// 创建一个小的assertion方法用于检测三个heads
 	assert := func(t *testing.T, kind string, chain *BlockChain, header uint64, fast uint64, block uint64) {
 		t.Helper()
 
@@ -978,6 +1018,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 		}
 	}
 	// Import the chain as an archive node and ensure all pointers are updated
+	// 导入chain作为一个archive node并且确保所有pointers都更新
 	archiveDb := makeDb()
 	defer archiveDb.Close()
 
@@ -995,6 +1036,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	assert(t, "archive", archive, height/2, height/2, height/2)
 
 	// Import the chain as a non-archive node and ensure all pointers are updated
+	// 倒入chain作为一个non-archive node并且确保所有pointers都被更新了
 	fastDb := makeDb()
 	defer fastDb.Close()
 	fast, _ := NewBlockChain(fastDb, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -1004,6 +1046,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	for i, block := range blocks {
 		headers[i] = block.Header()
 	}
+	// 插入header以及receipt
 	if n, err := fast.InsertHeaderChain(headers, 1); err != nil {
 		t.Fatalf("failed to insert header %d: %v", n, err)
 	}
@@ -1015,6 +1058,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	assert(t, "fast", fast, height/2, height/2, 0)
 
 	// Import the chain as a ancient-first node and ensure all pointers are updated
+	// 导入chain作为一个ancient-first节点并且确保所有pointers都被更新
 	ancientDb := makeDb()
 	defer ancientDb.Close()
 	ancient, _ := NewBlockChain(ancientDb, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -1028,12 +1072,14 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 	}
 	assert(t, "ancient", ancient, height, height, 0)
 	ancient.SetHead(remove - 1)
+	// fast和head都变为0了
 	assert(t, "ancient", ancient, 0, 0, 0)
 
 	if frozen, err := ancientDb.Ancients(); err != nil || frozen != 1 {
 		t.Fatalf("failed to truncate ancient store, want %v, have %v", 1, frozen)
 	}
 	// Import the chain as a light node and ensure all pointers are updated
+	// 作为一个light node导入chain并且确保所有pointers都被更新
 	lightDb := makeDb()
 	defer lightDb.Close()
 	light, _ := NewBlockChain(lightDb, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
@@ -1050,6 +1096,7 @@ func TestLightVsFastVsFullChainHeads(t *testing.T) {
 // Tests that chain reorganisations handle transaction removals and reinsertions.
 // 测试chain reorganisations处理transaction的移除和重新插入
 func TestChainTxReorgs(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	var (
 		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		key2, _ = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
@@ -1089,11 +1136,16 @@ func TestChainTxReorgs(t *testing.T) {
 	var pastDrop, freshDrop *types.Transaction
 
 	// Create three transactions that will be added in the forked chain:
+	// 创建三个tx，它会被加入到forked chain：
 	//  - pastAdd:   transaction added before the reorganization is detected
+	//	- pastAdd: 在reorg被检测到之前添加的tx
 	//  - freshAdd:  transaction added at the exact block the reorg is detected
+	//	- freshAdd: 在特定的reorg被检测到的block添加时的tx
 	//  - futureAdd: transaction added after the reorg has already finished
+	//	- futureAdd:在reorg结束之后添加的tx
 	var pastAdd, freshAdd, futureAdd *types.Transaction
 
+	// 生成3个blocks
 	chain, _ := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 3, func(i int, gen *BlockGen) {
 		switch i {
 		case 0:
@@ -1114,6 +1166,7 @@ func TestChainTxReorgs(t *testing.T) {
 	// Import the chain. This runs all block validation rules.
 	// 导入chain，它会运行所有的block validation规则
 	blockchain, _ := NewBlockChain(db, nil, gspec.Config, ethash.NewFaker(), vm.Config{}, nil, nil)
+	// 插入blocks
 	if i, err := blockchain.InsertChain(chain); err != nil {
 		t.Fatalf("failed to insert original chain[%d]: %v", i, err)
 	}
@@ -1121,15 +1174,19 @@ func TestChainTxReorgs(t *testing.T) {
 
 	// overwrite the old chain
 	// 覆盖old chain
+	// 生成5个blocks
 	chain, _ = GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 5, func(i int, gen *BlockGen) {
 		switch i {
 		case 0:
 			pastAdd, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr3), addr3, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key3)
+			// 这个tx需要在reorg期间插入
 			gen.AddTx(pastAdd) // This transaction needs to be injected during reorg
 
 		case 2:
+			// 这个tx从original chain的block #1推迟到block 3
 			gen.AddTx(postponed) // This transaction was postponed from block #1 in the original chain
-			gen.AddTx(swapped)   // This transaction was swapped from the exact current spot in the original chain
+			// 这个tx被从original chain的刚好是当前spot的位置换出
+			gen.AddTx(swapped) // This transaction was swapped from the exact current spot in the original chain
 
 			freshAdd, _ = types.SignTx(types.NewTransaction(gen.TxNonce(addr3), addr3, big.NewInt(1000), params.TxGas, gen.header.BaseFee, nil), signer, key3)
 			gen.AddTx(freshAdd) // This transaction will be added exactly at reorg time	// 这个transaction会在reorg的时候添加
@@ -1139,6 +1196,7 @@ func TestChainTxReorgs(t *testing.T) {
 			gen.AddTx(futureAdd) // This transaction will be added after a full reorg	// 这个transaction会在完整的reorg之后添加
 		}
 	})
+	// 插入5个生成的blocks
 	if _, err := blockchain.InsertChain(chain); err != nil {
 		t.Fatalf("failed to insert forked chain: %v", err)
 	}
@@ -1181,6 +1239,7 @@ func TestLogReorgs(t *testing.T) {
 		addr1   = crypto.PubkeyToAddress(key1.PublicKey)
 		db      = rawdb.NewMemoryDatabase()
 		// this code generates a log
+		// 这个代码生成一个log
 		code    = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
 		gspec   = &Genesis{Config: params.TestChainConfig, Alloc: GenesisAlloc{addr1: {Balance: big.NewInt(10000000000000000)}}}
 		genesis = gspec.MustCommit(db)
@@ -1191,9 +1250,11 @@ func TestLogReorgs(t *testing.T) {
 	defer blockchain.Stop()
 
 	rmLogsCh := make(chan RemovedLogsEvent)
+	// 订阅log移除的事件
 	blockchain.SubscribeRemovedLogsEvent(rmLogsCh)
 	chain, _ := GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
+			// 添加一个tx
 			tx, err := types.SignTx(types.NewContractCreation(gen.TxNonce(addr1), new(big.Int), 1000000, gen.header.BaseFee, code), signer, key1)
 			if err != nil {
 				t.Fatalf("failed to create tx: %v", err)
@@ -1209,6 +1270,7 @@ func TestLogReorgs(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		ev := <-rmLogsCh
+		// 获取一个日志被移除的事件
 		if len(ev.Logs) == 0 {
 			t.Error("expected logs")
 		}
@@ -1370,6 +1432,7 @@ func checkLogEvents(t *testing.T, logsCh <-chan []*types.Log, rmLogsCh <-chan Re
 }
 
 func TestReorgSideEvent(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -1390,6 +1453,7 @@ func TestReorgSideEvent(t *testing.T) {
 		t.Fatalf("failed to insert chain: %v", err)
 	}
 
+	// 都是以genesis为parent生成的blocks
 	replacementBlocks, _ := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 4, func(i int, gen *BlockGen) {
 		tx, err := types.SignTx(types.NewContractCreation(gen.TxNonce(addr1), new(big.Int), 1000000, gen.header.BaseFee, nil), signer, key1)
 		if i == 2 {
@@ -1409,6 +1473,8 @@ func TestReorgSideEvent(t *testing.T) {
 	// first two block of the secondary chain are for a brief moment considered
 	// side chains because up to that point the first one is considered the
 	// heavier chain.
+	// secondary chain的前两个block是一个brief moment，考虑到side chains，直到这个点
+	// 第一个仍然被认为是heavier chain
 	expectedSideHashes := map[common.Hash]bool{
 		replacementBlocks[0].Hash(): true,
 		replacementBlocks[1].Hash(): true,
@@ -1439,11 +1505,13 @@ done:
 			timeout.Reset(timeoutDura)
 
 		case <-timeout.C:
+			// 超时，可能不是所有blocks都被触发用于side event
 			t.Fatal("Timeout. Possibly not all blocks were triggered for sideevent")
 		}
 	}
 
 	// make sure no more events are fired
+	// 确保没有更多的事件被触发
 	select {
 	case e := <-chainSideCh:
 		t.Errorf("unexpected event fired: %v", e)
@@ -1675,21 +1743,27 @@ func TestEIP161AccountRemoval(t *testing.T) {
 // This is a regression test (i.e. as weird as it is, don't delete it ever), which
 // tests that under weird reorg conditions the blockchain and its internal header-
 // chain return the same latest block/header.
+// 这是一个回归测试（例如，虽然很奇怪，不要删除它），测试在奇怪的reorg场景下，blockhain以及它内部的
+// headerchain返回同样的latest block/header
 //
 // https://github.com/ethereum/go-ethereum/pull/15941
 func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
+	// 创建一个canonical chain作为main dataset
 	engine := ethash.NewFaker()
 
 	db := rawdb.NewMemoryDatabase()
 	genesis := (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+	// 生成64个blocks
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 64, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
 	// Generate a bunch of fork blocks, each side forking from the canonical chain
+	// 生成一系列的fork blocks，每个都fork自canonical chain
 	forks := make([]*types.Block, len(blocks))
 	for i := 0; i < len(forks); i++ {
 		parent := genesis
 		if i > 0 {
+			// 在canonical chain的每个node旁边生成一个side chain
 			parent = blocks[i-1]
 		}
 		fork, _ := GenerateChain(params.TestChainConfig, parent, engine, db, 1, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{2}) })
@@ -1697,6 +1771,7 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 	}
 	// Import the canonical and fork chain side by side, verifying the current block
 	// and current header consistency
+	// 并行地导入canonical以及fork chain，确认当前的block
 	diskdb := rawdb.NewMemoryDatabase()
 	(&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(diskdb)
 
@@ -1722,6 +1797,7 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 
 // Tests that importing small side forks doesn't leave junk in the trie database
 // cache (which would eventually cause memory issues).
+// 测试导入小的side forks，不会在trie database的缓存留下垃圾
 func TestTrieForkGC(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
@@ -1731,6 +1807,7 @@ func TestTrieForkGC(t *testing.T) {
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 2*TriesInMemory, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
 	// Generate a bunch of fork blocks, each side forking from the canonical chain
+	// 生成一系列的fork blocks，每个都从canonical chain进行side forking
 	forks := make([]*types.Block, len(blocks))
 	for i := 0; i < len(forks); i++ {
 		parent := genesis
@@ -1757,19 +1834,23 @@ func TestTrieForkGC(t *testing.T) {
 		}
 	}
 	// Dereference all the recent tries and ensure no past trie is left in
+	// 解引用所有最近的tries并且确保没有past trie留下
 	for i := 0; i < TriesInMemory; i++ {
 		chain.stateCache.TrieDB().Dereference(blocks[len(blocks)-1-i].Root())
 		chain.stateCache.TrieDB().Dereference(forks[len(blocks)-1-i].Root())
 	}
 	if len(chain.stateCache.TrieDB().Nodes()) > 0 {
+		// 在gc之后，stale tries依然存在
 		t.Fatalf("stale tries still alive after garbase collection")
 	}
 }
 
 // Tests that doing large reorgs works even if the state associated with the
 // forking point is not available any more.
+// 测试大型的reorgs依然能工作，即使forking point相关的state已经不能获得了
 func TestLargeReorgTrieGC(t *testing.T) {
 	// Generate the original common chain segment and the two competing forks
+	// 生成原始的common chain segment以及两个competing forks
 	engine := ethash.NewFaker()
 
 	db := rawdb.NewMemoryDatabase()
@@ -1780,6 +1861,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	competitor, _ := GenerateChain(params.TestChainConfig, shared[len(shared)-1], engine, db, 2*TriesInMemory+1, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{3}) })
 
 	// Import the shared chain and the original canonical one
+	// 导入shared chain以及原始的canonical
 	diskdb := rawdb.NewMemoryDatabase()
 	(&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(diskdb)
 
@@ -1794,11 +1876,13 @@ func TestLargeReorgTrieGC(t *testing.T) {
 		t.Fatalf("failed to insert original chain: %v", err)
 	}
 	// Ensure that the state associated with the forking point is pruned away
+	// 确保和forking point相关的state已经被清理了
 	if node, _ := chain.stateCache.TrieDB().Node(shared[len(shared)-1].Root()); node != nil {
 		t.Fatalf("common-but-old ancestor still cache")
 	}
 	// Import the competitor chain without exceeding the canonical's TD and ensure
 	// we have not processed any of the blocks (protection against malicious blocks)
+	// 导入competitor chain，而没有超过canonical的TD并且确保我们没有处理任何blocks（防止恶意的blocks）
 	if _, err := chain.InsertChain(competitor[:len(competitor)-2]); err != nil {
 		t.Fatalf("failed to insert competitor chain: %v", err)
 	}
@@ -1809,6 +1893,7 @@ func TestLargeReorgTrieGC(t *testing.T) {
 	}
 	// Import the head of the competitor chain, triggering the reorg and ensure we
 	// successfully reprocess all the stashed away blocks.
+	// 导入cometitor chain的head，触发rerog并且确保我们成功重新处理所有藏起来的blocks
 	if _, err := chain.InsertChain(competitor[len(competitor)-2:]); err != nil {
 		t.Fatalf("failed to finalize competitor chain: %v", err)
 	}
@@ -1877,14 +1962,17 @@ func TestBlockchainRecovery(t *testing.T) {
 }
 
 // This test checks that InsertReceiptChain will roll back correctly when attempting to insert a side chain.
+// 这个测试检查InsertReceiptChain会正确回滚，当试着插入一个side chain的时候
 func TestInsertReceiptChainRollback(t *testing.T) {
 	// Generate forked chain. The returned BlockChain object is used to process the side chain blocks.
+	// 生成forked chain，返回的BlockCHain对象用于处理side chain blocks
 	tmpChain, sideblocks, canonblocks, err := getLongAndShortChains()
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer tmpChain.Stop()
 	// Get the side chain receipts.
+	// 获取sidec chain receipts
 	if _, err := tmpChain.InsertChain(sideblocks); err != nil {
 		t.Fatal("processing side chain failed:", err)
 	}
@@ -1894,6 +1982,7 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 		sidechainReceipts[i] = tmpChain.GetReceiptsByHash(block.Hash())
 	}
 	// Get the canon chain receipts.
+	// 获取canon chain的receipts
 	if _, err := tmpChain.InsertChain(canonblocks); err != nil {
 		t.Fatal("processing canon chain failed:", err)
 	}
@@ -1904,6 +1993,7 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 	}
 
 	// Set up a BlockChain that uses the ancient store.
+	// 设置一个BlockChain，使用ancient store
 	frdir := t.TempDir()
 	ancientDb, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), frdir, "", false)
 	if err != nil {
@@ -1916,6 +2006,7 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 	defer ancientChain.Stop()
 
 	// Import the canonical header chain.
+	// 导入canonical header chain
 	canonHeaders := make([]*types.Header, len(canonblocks))
 	for i, block := range canonblocks {
 		canonHeaders[i] = block.Header()
@@ -1925,6 +2016,7 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 	}
 
 	// Try to insert blocks/receipts of the side chain.
+	// 试着插入side chain的blocks/receipts
 	_, err = ancientChain.InsertReceiptChain(sideblocks, sidechainReceipts, uint64(len(sideblocks)))
 	if err == nil {
 		t.Fatal("expected error from InsertReceiptChain.")
@@ -1937,6 +2029,7 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 	}
 
 	// Insert blocks/receipts of the canonical chain.
+	// 插入canonical chain的blocks/receipts
 	_, err = ancientChain.InsertReceiptChain(canonblocks, canonReceipts, uint64(len(canonblocks)))
 	if err != nil {
 		t.Fatalf("can't import canon chain receipts: %v", err)
@@ -1952,6 +2045,8 @@ func TestInsertReceiptChainRollback(t *testing.T) {
 // Tests that importing a very large side fork, which is larger than the canon chain,
 // but where the difficulty per block is kept low: this means that it will not
 // overtake the 'canon' chain until after it's passed canon by about 200 blocks.
+// 测试导入一个非常大的side fork，比canon chain更大，但是每个block的diff很小，这意味着它不会
+// 覆盖'canon' chain，直到它超过canon 200个blocks
 //
 // Details at:
 //  - https://github.com/ethereum/go-ethereum/issues/18977
@@ -1964,6 +2059,7 @@ func TestLowDiffLongChain(t *testing.T) {
 
 	// We must use a pretty long chain to ensure that the fork doesn't overtake us
 	// until after at least 128 blocks post tip
+	// 我们必须使用一个很长的chain来确保fork不会接管我们，直到至少128个blocks超过tip
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 6*TriesInMemory, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		b.OffsetTime(-9)
@@ -1981,12 +2077,14 @@ func TestLowDiffLongChain(t *testing.T) {
 		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
 	}
 	// Generate fork chain, starting from an early block
+	// 生成一个fork chain，从一个early block启动
 	parent := blocks[10]
 	fork, _ := GenerateChain(params.TestChainConfig, parent, engine, db, 8*TriesInMemory, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{2})
 	})
 
 	// And now import the fork
+	// 现在导入fork
 	if i, err := chain.InsertChain(fork); err != nil {
 		t.Fatalf("block %d: failed to insert into chain: %v", i, err)
 	}
@@ -1995,6 +2093,7 @@ func TestLowDiffLongChain(t *testing.T) {
 		t.Fatalf("head wrong, expected %x got %x", head.Hash(), got)
 	}
 	// Sanity check that all the canonical numbers are present
+	// 完整性检查，所有canonical numbers都存在
 	header := chain.CurrentHeader()
 	for number := head.NumberU64(); number > 0; number-- {
 		if hash := chain.GetHeaderByNumber(number).Hash(); hash != header.Hash() {
@@ -2111,12 +2210,18 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 }
 
 // Tests that importing a sidechain (S), where
+// 测试对于一个sidechain(S)的导入
 // - S is sidechain, containing blocks [Sn...Sm]
+// - S是一个sidechain，包含blocks [Sn...Sm]
 // - C is canon chain, containing blocks [G..Cn..Cm]
+// - C是一个canon chain，包含blocks [G..Cn...Cm]
 // - The common ancestor Cc is pruned
+// - 公共的ancestor Cc已经被修剪了
 // - The first block in S: Sn, is == Cn
+// - S中第一个block为Sn，它等于Cn
 // That is: the sidechain for import contains some blocks already present in canon chain.
 // So the blocks are
+// 这意味着：导入的sidechain包含一些在canon chain中已经存在的blocks
 // [ Cn, Cn+1, Cc, Sn+3 ... Sm]
 //   ^    ^    ^  pruned
 func TestPrunedImportSide(t *testing.T) {
@@ -2157,15 +2262,19 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 	db := rawdb.NewMemoryDatabase()
 	genesis := (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
 
+	// blocks是blocks2和blocks3的基础
 	blocks, receipts := GenerateChain(params.TestChainConfig, genesis, engine, db, 32, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 	// A longer chain but total difficulty is lower.
+	// 一个更长的chain，但是td更小
 	blocks2, receipts2 := GenerateChain(params.TestChainConfig, blocks[len(blocks)-1], engine, db, 65, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 	// A shorter chain but total difficulty is higher.
+	// 一个更短的chain，但是td更大
 	blocks3, receipts3 := GenerateChain(params.TestChainConfig, blocks[len(blocks)-1], engine, db, 64, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 		b.OffsetTime(-9) // A higher difficulty
 	})
 	// Import the shared chain and the original canonical one
+	// 导入共享的chain作为原始的canonical chain
 	dir := t.TempDir()
 	chaindb, err := rawdb.NewDatabaseWithFreezer(rawdb.NewMemoryDatabase(), dir, "", false)
 	if err != nil {
@@ -2189,6 +2298,7 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 			for _, block := range blocks {
 				headers = append(headers, block.Header())
 			}
+			// 插入headers
 			_, err := chain.InsertHeaderChain(headers, 1)
 			return err
 		}
@@ -2233,12 +2343,14 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 
 	// Reimport the chain data again. All the imported
 	// chain data are regarded "known" data.
+	// 重新导入chain data，所有导入的chain data都被认为是"known" data
 	if err := inserter(blocks, receipts); err != nil {
 		t.Fatalf("failed to insert chain data: %v", err)
 	}
 	asserter(t, blocks[len(blocks)-1])
 
 	// Import a long canonical chain with some known data as prefix.
+	// 导入一个long canonical chain，有着一些已知的data作为前缀
 	rollback := blocks[len(blocks)/2].NumberU64()
 
 	chain.SetHead(rollback - 1)
@@ -2248,6 +2360,7 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 	asserter(t, blocks2[len(blocks2)-1])
 
 	// Import a heavier shorter but higher total difficulty chain with some known data as prefix.
+	// 导入一个heavier shorter，但是有着更高的td的chain，有着一些已知的data作为前缀
 	if err := inserter(append(blocks, blocks3...), append(receipts, receipts3...)); err != nil {
 		t.Fatalf("failed to insert chain data: %v", err)
 	}
@@ -2258,13 +2371,16 @@ func testInsertKnownChainData(t *testing.T, typ string) {
 		t.Fatalf("failed to insert chain data: %v", err)
 	}
 	// The head shouldn't change.
+	// head不应该发生改变
 	asserter(t, blocks3[len(blocks3)-1])
 
 	// Rollback the heavier chain and re-insert the longer chain again
+	// 回滚heavier chain并且重新插入longer chain
 	chain.SetHead(rollback - 1)
 	if err := inserter(append(blocks, blocks2...), append(receipts, receipts2...)); err != nil {
 		t.Fatalf("failed to insert chain data: %v", err)
 	}
+	// asserter用于确认当前的header
 	asserter(t, blocks2[len(blocks2)-1])
 }
 
@@ -2438,6 +2554,7 @@ func testInsertKnownChainDataWithMerging(t *testing.T, typ string, mergeHeight i
 }
 
 // getLongAndShortChains returns two chains: A is longer, B is heavier.
+// getLongAndShortChains返回两个chain：A更长，B更heavier
 func getLongAndShortChains() (bc *BlockChain, longChain []*types.Block, heavyChain []*types.Block, err error) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
@@ -2446,6 +2563,7 @@ func getLongAndShortChains() (bc *BlockChain, longChain []*types.Block, heavyCha
 
 	// Generate and import the canonical chain,
 	// Offset the time, to keep the difficulty low
+	// 生成并且导入canonical chain，移动时间，保持diff很低
 	longChain, _ = GenerateChain(params.TestChainConfig, genesis, engine, db, 80, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{1})
 	})
@@ -2458,21 +2576,25 @@ func getLongAndShortChains() (bc *BlockChain, longChain []*types.Block, heavyCha
 	}
 
 	// Generate fork chain, make it shorter than canon, with common ancestor pretty early
+	// 生成fork chain，让它比canon更短，让common ancestor尽量早
 	parentIndex := 3
 	parent := longChain[parentIndex]
 	heavyChainExt, _ := GenerateChain(params.TestChainConfig, parent, engine, db, 75, func(i int, b *BlockGen) {
 		b.SetCoinbase(common.Address{2})
+		// 设置offset time
 		b.OffsetTime(-9)
 	})
 	heavyChain = append(heavyChain, longChain[:parentIndex+1]...)
 	heavyChain = append(heavyChain, heavyChainExt...)
 
 	// Verify that the test is sane
+	// 确认测试是合理的
 	var (
 		longerTd  = new(big.Int)
 		shorterTd = new(big.Int)
 	)
 	for index, b := range longChain {
+		// 累计每个block的TD
 		longerTd.Add(longerTd, b.Difficulty())
 		if index <= parentIndex {
 			shorterTd.Add(shorterTd, b.Difficulty())
@@ -2496,7 +2618,9 @@ func getLongAndShortChains() (bc *BlockChain, longChain []*types.Block, heavyCha
 // 1. Have a chain [0 ... N .. X]
 // 2. Reorg to shorter but heavier chain [0 ... N ... Y]
 // 3. Then there should be no canon mapping for the block at height X
+// 3. 之后在block X没有canon映射
 // 4. The forked block should still be retrievable by hash
+// 4. forked block应该依然能通过hash获取
 func TestReorgToShorterRemovesCanonMapping(t *testing.T) {
 	chain, canonblocks, sideblocks, err := getLongAndShortChains()
 	if err != nil {
@@ -2507,6 +2631,7 @@ func TestReorgToShorterRemovesCanonMapping(t *testing.T) {
 	}
 	canonNum := chain.CurrentBlock().NumberU64()
 	canonHash := chain.CurrentBlock().Hash()
+	// 插入side blocks
 	_, err = chain.InsertChain(sideblocks)
 	if err != nil {
 		t.Errorf("Got error, %v", err)
@@ -2516,12 +2641,14 @@ func TestReorgToShorterRemovesCanonMapping(t *testing.T) {
 		t.Fatalf("head wrong, expected %x got %x", head.Hash(), got)
 	}
 	// We have now inserted a sidechain.
+	// 现在我们已经插入了一个sidechain
 	if blockByNum := chain.GetBlockByNumber(canonNum); blockByNum != nil {
 		t.Errorf("expected block to be gone: %v", blockByNum.NumberU64())
 	}
 	if headerByNum := chain.GetHeaderByNumber(canonNum); headerByNum != nil {
 		t.Errorf("expected header to be gone: %v", headerByNum.Number.Uint64())
 	}
+	// 但是block依然应该存在
 	if blockByHash := chain.GetBlockByHash(canonHash); blockByHash == nil {
 		t.Errorf("expected block to be present: %x", blockByHash.Hash())
 	}
@@ -2900,8 +3027,11 @@ func BenchmarkBlockChain_1x1000Executions(b *testing.B) {
 // ErrPrunedAncestor error.
 // This may e.g. happen if
 //   1. Downloader rollbacks a batch of inserted blocks and exits
+//   1. Downloader回滚了一系列插入的blocks并且推出
 //   2. Downloader starts to sync again
+//   2. Downloader开始再次同步
 //   3. The blocks fetched are all known and canonical blocks
+//   3. 抓取的blocks都是已知并且为canonical blocks
 func TestSideImportPrunedBlocks(t *testing.T) {
 	// Generate a canonical chain to act as the main dataset
 	engine := ethash.NewFaker()
@@ -2909,6 +3039,7 @@ func TestSideImportPrunedBlocks(t *testing.T) {
 	genesis := (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
 
 	// Generate and import the canonical chain
+	// 导入2 * 128个blocks
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 2*TriesInMemory, nil)
 	diskdb := rawdb.NewMemoryDatabase()
 
@@ -2917,6 +3048,7 @@ func TestSideImportPrunedBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
+	// 插入blocks
 	if n, err := chain.InsertChain(blocks); err != nil {
 		t.Fatalf("block %d: failed to insert into chain: %v", n, err)
 	}
@@ -2925,15 +3057,18 @@ func TestSideImportPrunedBlocks(t *testing.T) {
 	lastPrunedBlock := blocks[lastPrunedIndex]
 
 	// Verify pruning of lastPrunedBlock
+	// 确认lastPrunedBlock的修剪
 	if chain.HasBlockAndState(lastPrunedBlock.Hash(), lastPrunedBlock.NumberU64()) {
 		t.Errorf("Block %d not pruned", lastPrunedBlock.NumberU64())
 	}
 	firstNonPrunedBlock := blocks[len(blocks)-TriesInMemory]
 	// Verify firstNonPrunedBlock is not pruned
+	// 确认firstNonPrunedBlock没有被修剪
 	if !chain.HasBlockAndState(firstNonPrunedBlock.Hash(), firstNonPrunedBlock.NumberU64()) {
 		t.Errorf("Block %d pruned", firstNonPrunedBlock.NumberU64())
 	}
 	// Now re-import some old blocks
+	// 现在重新插入一些old blocks
 	blockToReimport := blocks[5:8]
 	_, err = chain.InsertChain(blockToReimport)
 	if err != nil {
@@ -3769,6 +3904,8 @@ func TestEIP1559Transition(t *testing.T) {
 
 // Tests the scenario the chain is requested to another point with the missing state.
 // It expects the state is recovered and all relevant chain markers are set correctly.
+// 测试这样的场景，chain被请求到另一个point，但是有着丢失的state，它期望state被修复并且所有相关的
+// chain marker被正确设置
 func TestSetCanonical(t *testing.T) {
 	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
@@ -3821,13 +3958,16 @@ func TestSetCanonical(t *testing.T) {
 	}
 	for _, block := range side {
 		got := chain.GetBlockByHash(block.Hash())
+		// 确保插入的side block都存在
 		if got == nil {
 			t.Fatalf("Lost the inserted block")
 		}
 	}
 
 	// Set the chain head to the side chain, ensure all the relevant markers are updated.
+	// 设置chain head到side chain，确保所有相关的marker都被更新
 	verify := func(head *types.Block) {
+		// block, fast, head都发生了变更，变为side head
 		if chain.CurrentBlock().Hash() != head.Hash() {
 			t.Fatalf("Unexpected block hash, want %x, got %x", head.Hash(), chain.CurrentBlock().Hash())
 		}
@@ -3845,6 +3985,7 @@ func TestSetCanonical(t *testing.T) {
 	verify(side[len(side)-1])
 
 	// Reset the chain head to original chain
+	// 重置chain head到original chain
 	chain.SetCanonical(canon[TriesInMemory-1])
 	verify(canon[TriesInMemory-1])
 }

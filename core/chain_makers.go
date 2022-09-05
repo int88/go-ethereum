@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -52,6 +53,7 @@ type BlockGen struct {
 
 // SetCoinbase sets the coinbase of the generated block.
 // It can be called at most once.
+// SetCoinbase设置生成的block的coinbase，它最多可以被调用一次
 func (b *BlockGen) SetCoinbase(addr common.Address) {
 	if b.gasPool != nil {
 		if len(b.txs) > 0 {
@@ -114,6 +116,7 @@ func (b *BlockGen) AddTxWithChain(bc *BlockChain, tx *types.Transaction) {
 	if b.gasPool == nil {
 		b.SetCoinbase(common.Address{})
 	}
+	// 准备statedb，第二个参数是tx的索引
 	b.statedb.Prepare(tx.Hash(), len(b.txs))
 	// 应用transaction
 	receipt, err := ApplyTransaction(b.config, bc, &b.header.Coinbase, b.gasPool, b.statedb, b.header, tx, &b.header.GasUsed, vm.Config{})
@@ -304,11 +307,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			if err := statedb.Database().TrieDB().Commit(root, false, nil); err != nil {
 				panic(fmt.Sprintf("trie write error: %v", err))
 			}
+			// 真正生成了block
 			return block, b.receipts
 		}
 		return nil, nil
 	}
 	for i := 0; i < n; i++ {
+		log.Info("GenerateChain generate block", "i", i)
 		// 对于每个block都构建新的statedb
 		statedb, err := state.New(parent.Root(), state.NewDatabase(db), nil)
 		if err != nil {

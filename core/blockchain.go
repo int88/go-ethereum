@@ -122,11 +122,12 @@ const (
 // that's resident in a blockchain.
 // CacheConfig包含了对于存储在blockchain中的trie cacheing/pruning的配置值，
 type CacheConfig struct {
-	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
-	TrieCleanJournal    string        // Disk journal for saving clean cache entries.
-	TrieCleanRejournal  time.Duration // Time interval to dump clean cache to disk periodically
-	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
-	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
+	TrieCleanLimit     int           // Memory allowance (MB) to use for caching trie nodes in memory
+	TrieCleanJournal   string        // Disk journal for saving clean cache entries.
+	TrieCleanRejournal time.Duration // Time interval to dump clean cache to disk periodically
+	// 是否禁止启发式的state prefetching，对于后续的blocks
+	TrieCleanNoPrefetch bool // Whether to disable heuristic state prefetching for followup blocks
+	TrieDirtyLimit      int  // Memory limit (MB) at which to start flushing dirty trie nodes to disk
 	// 是否禁止trie write caching以及GC
 	TrieDirtyDisabled bool          // Whether to disable trie write caching and GC altogether (archive node)
 	TrieTimeLimit     time.Duration // Time limit after which to flush the current in-memory trie to disk
@@ -138,6 +139,7 @@ type CacheConfig struct {
 
 // defaultCacheConfig are the default caching values if none are specified by the
 // user (also used during testing).
+// defaultCacheConfig是默认的chaching值，如果用户没有指定的话（同时也在测试期间使用）
 var defaultCacheConfig = &CacheConfig{
 	TrieCleanLimit: 256,
 	TrieDirtyLimit: 256,
@@ -556,6 +558,8 @@ func (bc *BlockChain) SetFinalized(block *types.Block) {
 // persistent disk layer. Depending on whether the node was fast synced or full, and
 // in which state, the method will try to delete minimal data from disk whilst
 // retaining chain consistency.
+// setHeadBeyondRoot倒带local chain到一个新的head，并且有着额外的条件，倒带必须传入特定的state root
+// 取决于node是fast synced或者full，在哪个状态，这个方法会试着从磁盘删除最少的数据
 //
 // The method returns the block number where the requested root cap was found.
 func (bc *BlockChain) setHeadBeyondRoot(head uint64, root common.Hash, repair bool) (uint64, error) {
@@ -1338,14 +1342,18 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	// If we're running an archive node, always flush
 	// 如果我们运行一个archive node，总是flush
 	if bc.cacheConfig.TrieDirtyDisabled {
+		log.Info("writeBlockWithState: TrieDirtyDisabled is true")
 		return triedb.Commit(root, false, nil)
 	} else {
+		log.Info("writeBlockWithState: TrieDirtyDisabled is false")
 		// Full but not archive node, do proper garbage collection
-		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive
+		// Full但是不是archive node，做合理的GC
+		triedb.Reference(root, common.Hash{}) // metadata reference to keep trie alive，元数据引用来保证trie alive
 		bc.triegc.Push(root, -int64(block.NumberU64()))
 
 		if current := block.NumberU64(); current > TriesInMemory {
 			// If we exceeded our memory allowance, flush matured singleton nodes to disk
+			// 如果我们超过了memory allowance，将成熟的，singletone nodes刷到磁盘
 			var (
 				nodes, imgs = triedb.Size()
 				limit       = common.StorageSize(bc.cacheConfig.TrieDirtyLimit) * 1024 * 1024
@@ -1354,9 +1362,11 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				triedb.Cap(limit - ethdb.IdealBatchSize)
 			}
 			// Find the next state trie we need to commit
+			// 找寻下一个我们需要提交的state trie
 			chosen := current - TriesInMemory
 
 			// If we exceeded out time allowance, flush an entire trie to disk
+			// 如果我们超过了time allowance，将整个trie刷到磁盘
 			if bc.gcproc > bc.cacheConfig.TrieTimeLimit {
 				// If the header is missing (canonical chain behind), we're reorging a low
 				// diff sidechain. Suspend committing until this operation is completed.
@@ -1376,6 +1386,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 				}
 			}
 			// Garbage collect anything below our required write retention
+			// GC任何在我们需要的write retention之下的trie
 			for !bc.triegc.Empty() {
 				root, number := bc.triegc.Pop()
 				if uint64(-number) > chosen {
@@ -1428,8 +1439,10 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		} else {
 			log.Info("writeBlockAndSetHead: parent is head block, not need to reorg")
 		}
+		// 如果需要reorg，则为CanonStatTy
 		status = CanonStatTy
 	} else {
+		// 如果不是Canon Stat，则返回SideStatTy
 		status = SideStatTy
 	}
 	// Set new head.
@@ -1455,9 +1468,12 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 		// 我们会触发一个累计的ChainHeadEvent并且在这里禁止触发
 		if emitHeadEvent {
 			// 触发ChainHeadFeed
+			log.Info("writeBlockAndSetHead send ChainHeadEvent")
 			bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 		}
 	} else {
+		// 发送chainSideEvent
+		log.Info("writeBlockAndSetHead send ChainSideEvent")
 		bc.chainSideFeed.Send(ChainSideEvent{Block: block})
 	}
 	return status, nil
@@ -1618,10 +1634,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		// During the fast sync, the pivot point is already submitted but rollback
 		// happens. Then node resets the head full block to a lower height via `rollback`
 		// and leaves a few known blocks in the database.
+		// 剩余的blocks依然是known blocks，唯一的场景是：在fast sync期间，pivot point已经提交但是
+		// rollback发生了，node重置了head full block到一个更低的height，通过`rollback`并且
+		// 遗留一些已知的blocks在数据库中
 		//
 		// When node runs a fast sync again, it can re-import a batch of known blocks via
 		// `insertChain` while a part of them have higher total difficulty than current
 		// head full block(new pivot point).
+		// 当node再次运行一个fast sync，它可以重新导入一批known blocks，通过`insertChain`
+		// 因为它们部分有着比当前的head full block有着更高的total difficulty
 		for block != nil && bc.skipBlock(err, it) {
 			// 写入之前已经知道的block
 			log.Debug("Writing previously known block", "number", block.Number(), "hash", block.Hash())
@@ -1692,11 +1713,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 	for ; block != nil && err == nil || errors.Is(err, ErrKnownBlock); block, err = it.next() {
 		log.Info("insertChain: iterate the blocks")
 		// If the chain is terminating, stop processing blocks
+		// 如果chain正在终止，停止处理blocks
 		if bc.insertStopped() {
 			log.Debug("Abort during block processing")
 			break
 		}
 		// If the header is a banned one, straight out abort
+		// 如果是禁止的header，直接中止
 		if BadHashes[block.Hash()] {
 			bc.reportBlock(block, nil, ErrBannedHash)
 			return it.index, ErrBannedHash
@@ -1761,12 +1784,16 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 
 		// If we have a followup block, run that against the current state to pre-cache
 		// transactions and probabilistically some of the account/storage trie nodes.
+		// 如果我们有一个紧接着的block，基于当前的state运行，对于pre-cache的transactions
+		//以及一些account/storage trie nodes
 		var followupInterrupt uint32
 		if !bc.cacheConfig.TrieCleanNoPrefetch {
+			log.Info("insertChain TrieCleanNoPrefetch is false")
 			if followup, err := it.peek(); followup != nil && err == nil {
 				throwaway, _ := state.New(parent.Root, bc.stateCache, bc.snaps)
 
 				go func(start time.Time, followup *types.Block, throwaway *state.StateDB, interrupt *uint32) {
+					// 进行prefetcher
 					bc.prefetcher.Prefetch(followup, throwaway, bc.vmConfig, &followupInterrupt)
 
 					blockPrefetchExecuteTimer.Update(time.Since(start))
@@ -2228,6 +2255,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// 检测到了一个reorg
 		msg := "Chain reorg detected"
 		if len(oldChain) > 63 {
+			// 要移除的old chain大于63就是larget reorg
 			msg = "Large chain reorg detected"
 			logFn = log.Warn
 		}
@@ -2241,11 +2269,13 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// the ancestor of new head while these two blocks are not consecutive
 		// 特殊情况，在post merge stage，current head是new head的ancestor，同时
 		// 这两个blocks不是连续的
+		// 不移除老的chain，只是扩展新的
 		log.Info("Extend chain", "add", len(newChain), "number", newChain[0].NumberU64(), "hash", newChain[0].Hash())
 		blockReorgAddMeter.Mark(int64(len(newChain)))
 	} else {
 		// len(newChain) == 0 && len(oldChain) > 0
 		// rewind the canonical chain to a lower point.
+		// 将canonical chain会退到一个更低的点，这种reorg是不可能发生的
 		log.Error("Impossible reorg, please file an issue", "oldnum", oldBlock.Number(), "oldhash", oldBlock.Hash(), "oldblocks", len(oldChain), "newnum", newBlock.Number(), "newhash", newBlock.Hash(), "newblocks", len(newChain))
 	}
 	// Insert the new chain(except the head block(reverse order)),
@@ -2280,6 +2310,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 	// 删除任何canonical number的赋值，在新的head之上
 	number := bc.CurrentBlock().NumberU64()
 	for i := number + 1; ; i++ {
+		// 获取canonical hash值
 		hash := rawdb.ReadCanonicalHash(bc.db, i)
 		if hash == (common.Hash{}) {
 			break
@@ -2317,6 +2348,9 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 // The key difference between the InsertChain is it won't do the canonical chain
 // updating. It relies on the additional SetCanonical call to finalize the entire
 // procedure.
+// InsertBlockWithoutSetHead执行block，运行必要的检查，之后持久化block以及相关的state到数据库
+// 和InsertChain最关键的不同是，它不会更新canonical chain，它依赖额外的SetCanonical调用来
+// 最终确定整个流程
 func (bc *BlockChain) InsertBlockWithoutSetHead(block *types.Block) error {
 	if !bc.chainmu.TryLock() {
 		return errChainStopped
@@ -2332,6 +2366,7 @@ func (bc *BlockChain) InsertBlockWithoutSetHead(block *types.Block) error {
 // be recovered in this function as well.
 // SetCanonical rewinds the chain，将指定的block设置为新的head block，可能新head的
 // state是缺失的，它会在这个函数中恢复
+// 本质还是调用reorg函数
 func (bc *BlockChain) SetCanonical(head *types.Block) (common.Hash, error) {
 	if !bc.chainmu.TryLock() {
 		return common.Hash{}, errChainStopped
@@ -2344,6 +2379,7 @@ func (bc *BlockChain) SetCanonical(head *types.Block) (common.Hash, error) {
 		if latestValidHash, err := bc.recoverAncestors(head); err != nil {
 			return latestValidHash, err
 		}
+		// 恢复head state
 		log.Info("Recovered head state", "number", head.Number(), "hash", head.Hash())
 	}
 	// Run the reorg if necessary and set the given block as new head.

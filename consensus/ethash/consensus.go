@@ -78,6 +78,8 @@ var (
 // prevent engine specific errors from being referenced in the remainder of the
 // codebase, inherently breaking if the engine is swapped out. Please put common
 // error types into the consensus package.
+// 各种error message将blocks标记为非法，这些应该是私有的，从而防止引擎特定的错误被codebase的
+// 其他部分引用，从而内部被破坏，如果引擎被换出的话，将通用的错误放入consensus包
 var (
 	errOlderBlockTime    = errors.New("timestamp older than parent")
 	errTooManyUncles     = errors.New("too many uncles")
@@ -86,7 +88,8 @@ var (
 	errDanglingUncle     = errors.New("uncle's parent is not ancestor")
 	errInvalidDifficulty = errors.New("non-positive difficulty")
 	errInvalidMixDigest  = errors.New("invalid mix digest")
-	errInvalidPoW        = errors.New("invalid proof-of-work")
+	// 非法的PoW值
+	errInvalidPoW = errors.New("invalid proof-of-work")
 )
 
 // Author implements consensus.Engine, returning the header's coinbase as the
@@ -105,6 +108,7 @@ func (ethash *Ethash) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 		return nil
 	}
 	// Short circuit if the header is known, or its parent not
+	// 直接短路，如果header是已知的，或者它的parent是未知的
 	number := header.Number.Uint64()
 	if chain.GetHeader(header.Hash(), number) != nil {
 		return nil

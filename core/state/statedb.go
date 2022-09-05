@@ -96,7 +96,9 @@ type StateDB struct {
 	// The refund counter, also used by state transitioning.
 	refund uint64
 
-	thash   common.Hash
+	// tx的哈希值
+	thash common.Hash
+	// tx的索引
 	txIndex int
 	logs    map[common.Hash][]*types.Log
 	logSize uint
@@ -168,6 +170,8 @@ func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) 
 // StartPrefetcher initializes a new trie prefetcher to pull in nodes from the
 // state trie concurrently while the state is mutated so that when we reach the
 // commit phase, most of the needed data is already hot.
+// StartPrefetcher初始化一个新的trie prefetcher，来从state trie并行地拉取nodes，同时
+// state是容易变更的，这样我们可以到达commit phase，大多数素偶徐的数据是热的
 func (s *StateDB) StartPrefetcher(namespace string) {
 	if s.prefetcher != nil {
 		s.prefetcher.close()

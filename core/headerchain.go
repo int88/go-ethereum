@@ -259,7 +259,9 @@ func (hc *HeaderChain) WriteHeaders(headers []*types.Header) (int, error) {
 		newTD.Add(newTD, header.Difficulty)
 
 		// If the parent was not present, store it
+		// 如果parent不存在，则存储之
 		// If the header is already known, skip it, otherwise store
+		// 如果header是已知的，跳过它，否则存储
 		alreadyKnown := parentKnown && hc.HasHeader(hash, number)
 		if !alreadyKnown {
 			// Irrelevant of the canonical status, write the TD and header to the database.
@@ -606,6 +608,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 
 // SetCurrentHeader sets the in-memory head header marker of the canonical chan
 // as the given header.
+// SetCurrentHeader设置内存中的canonical chain的head header marker，用给定的header
 func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
 	hc.currentHeader.Store(head)
 	hc.currentHeaderHash = head.Hash()

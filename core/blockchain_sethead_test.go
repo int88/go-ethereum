@@ -42,16 +42,24 @@ type rewindTest struct {
 	// freezeThreshold之前的block都移动到freezer
 	freezeThreshold uint64 // Block number until which to move things into the freezer
 	// commitBlock将state提交到disk
-	commitBlock uint64  // Block number for which to commit the state to disk
-	pivotBlock  *uint64 // Pivot block number in case of fast sync
+	commitBlock uint64 // Block number for which to commit the state to disk
+	// 在fast sync时的Pivot block
+	pivotBlock *uint64 // Pivot block number in case of fast sync
 
-	setheadBlock       uint64 // Block number to set head back to
-	expCanonicalBlocks int    // Number of canonical blocks expected to remain in the database (excl. genesis)
-	expSidechainBlocks int    // Number of sidechain blocks expected to remain in the database (excl. genesis)
-	expFrozen          int    // Number of canonical blocks expected to be in the freezer (incl. genesis)
-	expHeadHeader      uint64 // Block number of the expected head header
-	expHeadFastBlock   uint64 // Block number of the expected head fast sync block
-	expHeadBlock       uint64 // Block number of the expected head full block
+	// 设置为head的block number
+	setheadBlock uint64 // Block number to set head back to
+	// 期望依然保留在数据库中的canonical blocks
+	expCanonicalBlocks int // Number of canonical blocks expected to remain in the database (excl. genesis)
+	// 期望依然保留在数据库中的sidechain blocks
+	expSidechainBlocks int // Number of sidechain blocks expected to remain in the database (excl. genesis)
+	// 期望在freezer中的canonical blocks
+	expFrozen int // Number of canonical blocks expected to be in the freezer (incl. genesis)
+	// 期望为head header的block number
+	expHeadHeader uint64 // Block number of the expected head header
+	// 期望为fast sync block的head block number
+	expHeadFastBlock uint64 // Block number of the expected head fast sync block
+	// 期望为full block的head block number
+	expHeadBlock uint64 // Block number of the expected head full block
 }
 
 func (tt *rewindTest) dump(crash bool) string {

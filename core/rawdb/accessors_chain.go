@@ -41,6 +41,7 @@ func ReadCanonicalHash(db ethdb.Reader, number uint64) common.Hash {
 		data, _ = reader.Ancient(freezerHashTable, number)
 		if len(data) == 0 {
 			// Get it by hash from leveldb
+			// 从leveldb中基于hash获取
 			data, _ = db.Get(headerHashKey(number))
 		}
 		return nil

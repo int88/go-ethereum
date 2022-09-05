@@ -25,6 +25,7 @@ var (
 
 	// ErrPrunedAncestor is returned when validating a block requires an ancestor
 	// that is known, but the state of which is not available.
+	// ErrPrunedAncestor被返回，如果检验一个block需要一个已知的ancestor，但是它的状态不可得
 	ErrPrunedAncestor = errors.New("pruned ancestor")
 
 	// ErrFutureBlock is returned when a block's timestamp is in the future according

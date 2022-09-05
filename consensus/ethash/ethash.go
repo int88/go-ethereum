@@ -451,8 +451,10 @@ type Ethash struct {
 	remote   *remoteSealer
 
 	// The fields below are hooks for testing
-	shared    *Ethash       // Shared PoW verifier to avoid cache regeneration
-	fakeFail  uint64        // Block number which fails PoW check even in fake mode
+	shared *Ethash // Shared PoW verifier to avoid cache regeneration
+	// 在fake mode，PoW检查会失败的block数目
+	fakeFail uint64 // Block number which fails PoW check even in fake mode
+	// 从verify返回的sleep的时间延时
 	fakeDelay time.Duration // Time delay to sleep for before returning from verify
 
 	lock      sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
@@ -517,6 +519,8 @@ func NewFaker() *Ethash {
 // NewFakeFailer creates a ethash consensus engine with a fake PoW scheme that
 // accepts all blocks as valid apart from the single one specified, though they
 // still have to conform to the Ethereum consensus rules.
+// NewFakeFailer创建一个ethash共识引擎，有着一个fake PoW scheme，接收所有的blocks作为合法的
+// 除了指定的block之外，尽管它们还是要符合Ethereum共识规则
 func NewFakeFailer(fail uint64) *Ethash {
 	return &Ethash{
 		config: Config{
