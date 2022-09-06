@@ -21,6 +21,7 @@ import "errors"
 var (
 	// ErrUnknownAncestor is returned when validating a block requires an ancestor
 	// that is unknown.
+	// ErrUnknownAncestor返回，如果校验一个block需要一个ancestor，但是这个ancestor未知
 	ErrUnknownAncestor = errors.New("unknown ancestor")
 
 	// ErrPrunedAncestor is returned when validating a block requires an ancestor

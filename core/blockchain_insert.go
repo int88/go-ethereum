@@ -26,6 +26,7 @@ import (
 )
 
 // insertStats tracks and reports on block insertion.
+// insertStats追踪并且汇报block的插入
 type insertStats struct {
 	queued, processed, ignored int
 	usedGas                    uint64
@@ -124,6 +125,7 @@ func (it *insertIterator) next() (*types.Block, error) {
 		return nil, nil
 	}
 	// Advance the iterator and wait for verification result if not yet done
+	// 向前移动iterator并且等待校验结果，如果还没有好的话
 	it.index++
 	if len(it.errors) <= it.index {
 		it.errors = append(it.errors, <-it.results)
@@ -179,6 +181,7 @@ func (it *insertIterator) first() *types.Block {
 }
 
 // remaining returns the number of remaining blocks.
+// remaining返回剩余的blocks的数目
 func (it *insertIterator) remaining() int {
 	return len(it.chain) - it.index
 }

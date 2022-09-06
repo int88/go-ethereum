@@ -38,6 +38,7 @@ const (
 )
 
 // Bloom represents a 2048 bit bloom filter.
+// Bloom代表一个2048位的bloom filter
 type Bloom [BloomByteLength]byte
 
 // BytesToBloom converts a byte slice to a bloom filter.

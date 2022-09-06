@@ -112,6 +112,7 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 	if !reorg && externTd.Cmp(localTD) == 0 {
 		number, headNumber := header.Number.Uint64(), current.Number.Uint64()
 		if number < headNumber {
+			// 如果td相等，两条链，如果新的链的基数更小，则需要reorg
 			reorg = true
 		} else if number == headNumber {
 			var currentPreserve, externPreserve bool

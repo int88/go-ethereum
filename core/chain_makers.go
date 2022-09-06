@@ -285,6 +285,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			}
 		}
 		if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(b.header.Number) == 0 {
+			// 实行DAO的hard fork
 			misc.ApplyDAOHardFork(statedb)
 		}
 		// Execute any user modifications to the block

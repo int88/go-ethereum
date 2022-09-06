@@ -828,10 +828,13 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	// Add the block to the canonical chain number scheme and mark as the head
 	// 添加block到canonical chain number scheme并且标记为head
 	batch := bc.db.NewBatch()
+	// 写入head header，head fast block以及canonical hash
 	rawdb.WriteHeadHeaderHash(batch, block.Hash())
 	rawdb.WriteHeadFastBlockHash(batch, block.Hash())
 	rawdb.WriteCanonicalHash(batch, block.Hash(), block.NumberU64())
+	// 写入TxLookupEntries
 	rawdb.WriteTxLookupEntriesByBlock(batch, block)
+	// 写入Head Block的哈希值
 	rawdb.WriteHeadBlockHash(batch, block.Hash())
 
 	// Flush the whole batch into the disk, exit the node if failed
@@ -841,6 +844,7 @@ func (bc *BlockChain) writeHeadBlock(block *types.Block) {
 	}
 	// Update all in-memory chain markers in the last step
 	// 更新所有内存中的chain markers，在最后一步
+	// 设置header chain的header
 	bc.hc.SetCurrentHeader(block.Header())
 
 	// 存储current fast block
@@ -1490,10 +1494,12 @@ func (bc *BlockChain) writeBlockAndSetHead(block *types.Block, receipts []*types
 func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 	max := uint64(time.Now().Unix() + maxTimeFutureBlocks)
 	if block.Time() > max {
+		// 超过当前时间30s的block则不接受
 		return fmt.Errorf("future block timestamp %v > allowed %v", block.Time(), max)
 	}
 	if block.Difficulty().Cmp(common.Big0) == 0 {
 		// Never add PoS blocks into the future queue
+		// 不要将PoS blocks加入到future queue中
 		return nil
 	}
 	bc.futureBlocks.Add(block.Hash(), block)
@@ -1622,9 +1628,11 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 				// 在eth2中，forker总是返回true，对于reorg decision（盲目信任external consensus engine）
 				// 但是为了防止不必要的reorgs，当导入已知的blocks，在这里处理特殊情况
 				if block.NumberU64() > current.NumberU64() || bc.GetCanonicalHash(block.NumberU64()) != block.Hash() {
+					// block已经大于了canon的header或者从canon中找不到对应的block了
 					break
 				}
 			}
+			// 忽略已知的block
 			log.Debug("Ignoring already known block", "number", block.Number(), "hash", block.Hash())
 			stats.ignored++
 
@@ -1658,7 +1666,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 	}
 	switch {
 	// First block is pruned
-	// 第一个block已经被修建了
+	// 第一个block已经被修剪了
 	case errors.Is(err, consensus.ErrPrunedAncestor):
 		if setHead {
 			// First block is pruned, insert as sidechain and reorg only if TD grows enough
@@ -1672,6 +1680,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			return it.index, err
 		}
 	// First block is future, shove it (and all children) to the future queue (unknown ancestor)
+	// 第一个block是未来的，将它（以及所有的children）推到future queue中（未知的ancestor）
 	case errors.Is(err, consensus.ErrFutureBlock) || (errors.Is(err, consensus.ErrUnknownAncestor) && bc.futureBlocks.Contains(it.first().ParentHash())):
 		for block != nil && (it.index == 0 || errors.Is(err, consensus.ErrUnknownAncestor)) {
 			log.Debug("Future block, postponing import", "number", block.Number(), "hash", block.Hash())
@@ -1684,6 +1693,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		stats.ignored += it.remaining()
 
 		// If there are any still remaining, mark as ignored
+		// 如果还有剩余，标记为ignored
 		return it.index, err
 
 	// Some other error(except ErrKnownBlock) occurred, abort.
@@ -1735,6 +1745,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 			if bc.chainConfig.Clique == nil {
 				logger = log.Warn
 			}
+			// 插入一个已知的block
 			logger("Inserted known block", "number", block.Number(), "hash", block.Hash(),
 				"uncles", len(block.Uncles()), "txs", len(block.Transactions()), "gas", block.GasUsed(),
 				"root", block.Root())
@@ -1808,6 +1819,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks, verifySeals, setHead bool)
 		// 处理block，使用parent state作为reference point
 		substart := time.Now()
 		log.Info("insertChain: bc.process.Process process block")
+		// 对block进行处理
 		receipts, logs, usedGas, err := bc.processor.Process(block, statedb, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
@@ -2313,6 +2325,7 @@ func (bc *BlockChain) reorg(oldBlock, newBlock *types.Block) error {
 		// 获取canonical hash值
 		hash := rawdb.ReadCanonicalHash(bc.db, i)
 		if hash == (common.Hash{}) {
+			// 直到找不到对应block的哈希为止
 			break
 		}
 		// 移除canonical hash
@@ -2441,6 +2454,7 @@ func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 	// 我们可以跳过处理，如果validator唯一返回的错误是ErrKnownBlock，这意味着所有检查都已经通过了
 	// 我们已经有了block以及state
 	if !errors.Is(err, ErrKnownBlock) {
+		// 我们只能处理错误为ErrKnownBlock的block
 		return false
 	}
 	// If we're not using snapshots, we can skip this, since we have both block
@@ -2474,6 +2488,7 @@ func (bc *BlockChain) skipBlock(err error, it *insertIterator) bool {
 		return false // Theoretically impossible case
 	}
 	// Parent is also missing snapshot: we can skip this. Otherwise process.
+	// Parent也缺少snapshot：我们可以跳过它，否则进行处理
 	if bc.snaps.Snapshot(parentRoot) == nil {
 		return true
 	}

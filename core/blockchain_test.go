@@ -2108,6 +2108,7 @@ func TestLowDiffLongChain(t *testing.T) {
 // - C is canon chain, containing blocks [G..Cn..Cm]
 // - A common ancestor is placed at prune-point + blocksBetweenCommonAncestorAndPruneblock
 // - The sidechain S is prepended with numCanonBlocksInSidechain blocks from the canon chain
+// - sidechain S之前有numCanonBlocksInSidechain个blocks来自canon chain
 //
 // The mergePoint can be these values:
 // -1: the transition won't happen

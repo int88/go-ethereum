@@ -235,6 +235,7 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 		b.header.UncleHash = CalcUncleHash(uncles)
 		b.uncles = make([]*Header, len(uncles))
 		for i := range uncles {
+			// 拷贝uncles的header
 			b.uncles[i] = CopyHeader(uncles[i])
 		}
 	}

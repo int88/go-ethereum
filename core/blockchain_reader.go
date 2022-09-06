@@ -276,6 +276,7 @@ func (bc *BlockChain) GetTransactionLookup(hash common.Hash) *rawdb.LegacyTxLook
 // GetTd获取一个block的total difficrulty，在canonical chain的database中，通过
 // hash以及number，缓存它，如果找到的话
 func (bc *BlockChain) GetTd(hash common.Hash, number uint64) *big.Int {
+	// 最终从header chain中获取到TD
 	return bc.hc.GetTd(hash, number)
 }
 

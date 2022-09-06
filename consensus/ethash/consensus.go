@@ -136,12 +136,14 @@ func (ethash *Ethash) VerifyHeaders(chain consensus.ChainHeaderReader, headers [
 	}
 
 	// Spawn as many workers as allowed threads
+	// 生成和workers一样多的threads，如果允许的话
 	workers := runtime.GOMAXPROCS(0)
 	if len(headers) < workers {
 		workers = len(headers)
 	}
 
 	// Create a task channel and spawn the verifiers
+	// 创建一个task channel并且生成verifiers
 	var (
 		inputs  = make(chan int)
 		done    = make(chan int, workers)
@@ -152,6 +154,7 @@ func (ethash *Ethash) VerifyHeaders(chain consensus.ChainHeaderReader, headers [
 	for i := 0; i < workers; i++ {
 		go func() {
 			for index := range inputs {
+				// 对对应的header进行校验
 				errors[index] = ethash.verifyHeaderWorker(chain, headers, seals, index, unixNow)
 				done <- index
 			}
@@ -171,6 +174,7 @@ func (ethash *Ethash) VerifyHeaders(chain consensus.ChainHeaderReader, headers [
 			case inputs <- in:
 				if in++; in == len(headers) {
 					// Reached end of headers. Stop sending to workers.
+					// headers处理完成，停止发送给workers
 					inputs = nil
 				}
 			case index := <-done:
@@ -281,6 +285,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return fmt.Errorf("extra-data too long: %d > %d", len(header.Extra), params.MaximumExtraDataSize)
 	}
 	// Verify the header's timestamp
+	// 确认header的时间戳
 	if !uncle {
 		if header.Time > uint64(unixNow+allowedFutureBlockTimeSeconds) {
 			return consensus.ErrFutureBlock
@@ -305,8 +310,10 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return fmt.Errorf("invalid gasUsed: have %d, gasLimit %d", header.GasUsed, header.GasLimit)
 	}
 	// Verify the block's gas usage and (if applicable) verify the base fee.
+	// 校验block的gas使用量并且校验base fee（如果适用的话）
 	if !chain.Config().IsLondon(header.Number) {
 		// Verify BaseFee not present before EIP-1559 fork.
+		// 确认BaseFee在EIP-1559 fork之前不存在
 		if header.BaseFee != nil {
 			return fmt.Errorf("invalid baseFee before fork: have %d, expected 'nil'", header.BaseFee)
 		}
@@ -318,6 +325,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 		return err
 	}
 	// Verify that the block number is parent's +1
+	// 校验block number是parent + 1
 	if diff := new(big.Int).Sub(header.Number, parent.Number); diff.Cmp(big.NewInt(1)) != 0 {
 		return consensus.ErrInvalidNumber
 	}
@@ -552,10 +560,12 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		return ethash.shared.verifySeal(chain, header, fulldag)
 	}
 	// Ensure that we have a valid difficulty for the block
+	// 确认我们对于block有一个合法的diff
 	if header.Difficulty.Sign() <= 0 {
 		return errInvalidDifficulty
 	}
 	// Recompute the digest and PoW values
+	// 重新计算digest和PoW的值
 	number := header.Number.Uint64()
 
 	var (
@@ -563,6 +573,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		result []byte
 	)
 	// If fast-but-heavy PoW verification was requested, use an ethash dataset
+	// 如果请求的fast-but-heavy PoW校验，适用ethash数据集
 	if fulldag {
 		dataset := ethash.dataset(number, true)
 		if dataset.generated() {
@@ -577,6 +588,7 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 		}
 	}
 	// If slow-but-light PoW verification was requested (or DAG not yet ready), use an ethash cache
+	// 如果请求的是slow-buf-light PoW校验，适用ethash cache
 	if !fulldag {
 		cache := ethash.cache(number)
 
@@ -604,11 +616,14 @@ func (ethash *Ethash) verifySeal(chain consensus.ChainHeaderReader, header *type
 
 // Prepare implements consensus.Engine, initializing the difficulty field of a
 // header to conform to the ethash protocol. The changes are done inline.
+// Prepare实现了consensus.Engine，初始化一个header的difficulty字段来符合ethash协议
+// 变更是线上进行的
 func (ethash *Ethash) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
+	// 计算difficulty
 	header.Difficulty = ethash.CalcDifficulty(chain, header.Time, parent)
 	return nil
 }
@@ -628,7 +643,7 @@ func (ethash *Ethash) Finalize(chain consensus.ChainHeaderReader, header *types.
 // FinalizeAndAssemble实现了consensus.Engine，累计block以及uncle rewards，设置final state并且组装block
 func (ethash *Ethash) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
 	// Finalize block
-	// 首先finalize block
+	// 首先finalize block，主要计算奖励以及state root
 	ethash.Finalize(chain, header, state, txs, uncles)
 
 	// Header seems complete, assemble into a block and return

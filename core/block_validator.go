@@ -57,6 +57,7 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	// Check whether the block's known, and if not, that it's linkable
 	// 检查这个block是否是已知的，如果不是的话，说明是linkable
 	if v.bc.HasBlockAndState(block.Hash(), block.NumberU64()) {
+		// 已知的block
 		return ErrKnownBlock
 	}
 	// Header validity is known at this point, check the uncles and transactions
@@ -71,12 +72,13 @@ func (v *BlockValidator) ValidateBody(block *types.Block) error {
 	if hash := types.DeriveSha(block.Transactions(), trie.NewStackTrie(nil)); hash != header.TxHash {
 		return fmt.Errorf("transaction root hash mismatch: have %x, want %x", hash, header.TxHash)
 	}
+	// 如果数据库中没有parent的block以及state
 	if !v.bc.HasBlockAndState(block.ParentHash(), block.NumberU64()-1) {
 		if !v.bc.HasBlock(block.ParentHash(), block.NumberU64()-1) {
 			// parent未知
 			return consensus.ErrUnknownAncestor
 		}
-		// parent已经被移除
+		// parent已经被移除，有block但是没state，则是已经被修剪的parent
 		return consensus.ErrPrunedAncestor
 	}
 	return nil

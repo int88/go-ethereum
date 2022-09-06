@@ -87,8 +87,10 @@ type Message interface {
 // message no matter the execution itself is successful or not.
 // ExecutionResult包含了执行给定evm message的所有output，不管执行本身是成功还是失败
 type ExecutionResult struct {
-	UsedGas    uint64 // Total used gas but include the refunded gas
-	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	// 所有使用的gas，但是包含退款的gas
+	UsedGas uint64 // Total used gas but include the refunded gas
+	Err     error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	// evm返回的data（函数的执行结果或者revert操作码提供的data）
 	ReturnData []byte // Returned data from evm(function result or data supplied with revert opcode)
 }
 

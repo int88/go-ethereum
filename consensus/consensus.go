@@ -32,9 +32,11 @@ import (
 // ChainHeaderReader定义了一系列方法的集合用于访问本地的blockchain，在header verification的时候
 type ChainHeaderReader interface {
 	// Config retrieves the blockchain's chain configuration.
+	// Config获取blockchain的chain configuration
 	Config() *params.ChainConfig
 
 	// CurrentHeader retrieves the current header from the local chain.
+	// CurrentHeader从local chain获取当前的header
 	CurrentHeader() *types.Header
 
 	// GetHeader retrieves a block header from the database by hash and number.
@@ -53,10 +55,12 @@ type ChainHeaderReader interface {
 
 // ChainReader defines a small collection of methods needed to access the local
 // blockchain during header and/or uncle verification.
+// ChainReader定义了一个小的方法集合，用于访问local blockchain，在header或者uncle的校验期间
 type ChainReader interface {
 	ChainHeaderReader
 
 	// GetBlock retrieves a block from the database by hash and number.
+	// GetBlock根据hash以及number从数据库中获取一个block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 }
 
