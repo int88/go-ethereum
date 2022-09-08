@@ -39,6 +39,9 @@ import (
 // as defined in core/error.go. These errors are generated when the
 // blockchain imports bad blocks, meaning blocks which have valid headers but
 // contain invalid transactions
+// TestStateProcessorErrors测试在core/error.go中定义的'core' errors的输出
+// 这些errors在blockchain导入bad blocks的时候生成，这意味着blocks有合法的headers
+// 但是包含非法的tx
 func TestStateProcessorErrors(t *testing.T) {
 	var (
 		config = &params.ChainConfig{
@@ -112,6 +115,7 @@ func TestStateProcessorErrors(t *testing.T) {
 				want: "could not apply tx 1 [0x0026256b3939ed97e2c4a6f3fce8ecf83bdcfa6d507c47838c308a1fb0436f62]: nonce too low: address 0x71562b71999873DB5b286dF957af199Ec94617F7, tx: 0 state: 1",
 			},
 			{ // ErrNonceTooHigh
+				// nonce太高
 				txs: []*types.Transaction{
 					makeTx(key1, 100, common.Address{}, big.NewInt(0), params.TxGas, big.NewInt(875000000), nil),
 				},
@@ -308,6 +312,8 @@ func TestStateProcessorErrors(t *testing.T) {
 // GenerateBadBlock constructs a "block" which contains the transactions. The transactions are not expected to be
 // valid, and no proper post-state can be made. But from the perspective of the blockchain, the block is sufficiently
 // valid to be considered for import:
+// GenerateBadBlock构建一个"block"，包含tx，tx不期望是合法的，并且不能生成合适的post-state，但是从blockchain的角度，这个block是
+// 足够被考虑为合法并且可以导入的
 // - valid pow (fake), ancestry, difficulty, gaslimit etc
 func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Transactions, config *params.ChainConfig) *types.Block {
 	header := &types.Header{
@@ -330,6 +336,8 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 	var receipts []*types.Receipt
 	// The post-state result doesn't need to be correct (this is a bad block), but we do need something there
 	// Preferably something unique. So let's use a combo of blocknum + txhash
+	// post-state结果不需要是正确的（这是一个bad block），但是这里我们需要一些
+	// 有些特别最好，使用一个blocknum + txhash的组合
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(header.Number.Bytes())
 	var cumulativeGas uint64
@@ -344,5 +352,6 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 	}
 	header.Root = common.BytesToHash(hasher.Sum(nil))
 	// Assemble and return the final block for sealing
+	// 构建并且返回final block用于封装
 	return types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
 }

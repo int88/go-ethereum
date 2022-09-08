@@ -76,8 +76,10 @@ func (st *insertStats) report(chain []*types.Block, index int, dirty common.Stor
 			context = append(context, []interface{}{"ignored", st.ignored}...)
 		}
 		if setHead {
+			// 如果是设置了head的，则输出导入新的chain segment
 			log.Info("Imported new chain segment", context...)
 		} else {
+			// 如果不是设置head，则输出导入了潜在的chain segment
 			log.Info("Imported new potential chain segment", context...)
 		}
 		// Bump the stats reported to the next section

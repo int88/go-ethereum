@@ -108,7 +108,7 @@ func (f *ForkChoice) ReorgNeeded(current *types.Header, header *types.Header) (b
 	// Second clause in the if statement reduces the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
 	reorg := externTd.Cmp(localTD) > 0
-	log.Info("ReorgNeeded: externTd > localTD", "reorg", reorg)
+	log.Info("ReorgNeeded: cmp externTd with localTD, get result", "reorg", reorg)
 	if !reorg && externTd.Cmp(localTD) == 0 {
 		number, headNumber := header.Number.Uint64(), current.Number.Uint64()
 		if number < headNumber {

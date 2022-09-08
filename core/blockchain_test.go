@@ -1361,6 +1361,7 @@ func TestLogRebirth(t *testing.T) {
 
 // This test is a variation of TestLogRebirth. It verifies that log events are emitted
 // when a side chain containing log events overtakes the canonical chain.
+// 这个测试是TestLogRebirth的一个变种，它确认log events被发射，当side chain包含log events，超过了canon chain
 func TestSideLogRebirth(t *testing.T) {
 	var (
 		key1, _       = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -1381,6 +1382,7 @@ func TestSideLogRebirth(t *testing.T) {
 
 	chain, _ := GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 2, func(i int, gen *BlockGen) {
 		if i == 1 {
+			// 更高的block difficulty
 			gen.OffsetTime(-9) // higher block difficulty
 
 		}
@@ -1799,11 +1801,14 @@ func TestBlockchainHeaderchainReorgConsistency(t *testing.T) {
 // cache (which would eventually cause memory issues).
 // 测试导入小的side forks，不会在trie database的缓存留下垃圾
 func TestTrieForkGC(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// Generate a canonical chain to act as the main dataset
+	// 生成一个canonical chain作为main dataset
 	engine := ethash.NewFaker()
 
 	db := rawdb.NewMemoryDatabase()
 	genesis := (&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+	// 创建2 * 128个blocks
 	blocks, _ := GenerateChain(params.TestChainConfig, genesis, engine, db, 2*TriesInMemory, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
 	// Generate a bunch of fork blocks, each side forking from the canonical chain
@@ -1818,6 +1823,7 @@ func TestTrieForkGC(t *testing.T) {
 		forks[i] = fork[0]
 	}
 	// Import the canonical and fork chain side by side, forcing the trie cache to cache both
+	// 并排导入canonical以及fork chain，强制trie cache来同时缓存两者
 	diskdb := rawdb.NewMemoryDatabase()
 	(&Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(diskdb)
 
@@ -1826,9 +1832,12 @@ func TestTrieForkGC(t *testing.T) {
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
 	for i := 0; i < len(blocks); i++ {
+		// 插入blocks以及forks
+		log.Info("insert canon blocks", "i", i)
 		if _, err := chain.InsertChain(blocks[i : i+1]); err != nil {
 			t.Fatalf("block %d: failed to insert into chain: %v", i, err)
 		}
+		log.Info("insert sidechain blocks", "i", i)
 		if _, err := chain.InsertChain(forks[i : i+1]); err != nil {
 			t.Fatalf("fork %d: failed to insert into chain: %v", i, err)
 		}
