@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/leveldb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
@@ -44,6 +45,7 @@ import (
 func init() {
 	spew.Config.Indent = "    "
 	spew.Config.DisableMethods = false
+	log.Root().SetHandler(log.StdoutHandler)
 }
 
 // Used for testing
@@ -53,6 +55,7 @@ func newEmpty() *Trie {
 }
 
 func TestEmptyTrie(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	trie, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
 	res := trie.Hash()
 	exp := emptyRoot
@@ -65,6 +68,7 @@ func TestNull(t *testing.T) {
 	trie, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()))
 	key := make([]byte, 32)
 	value := []byte("test")
+	// 更新键值对
 	trie.Update(key, value)
 	if !bytes.Equal(trie.Get(key), value) {
 		t.Fatal("wrong value")
@@ -96,6 +100,7 @@ func testMissingNode(t *testing.T, memonly bool) {
 		triedb.Commit(root, true, nil)
 	}
 
+	// 已经提交给了db，则重新new能恢复
 	trie, _ = New(root, triedb)
 	_, err := trie.TryGet([]byte("120000"))
 	if err != nil {
@@ -224,6 +229,7 @@ func TestDelete(t *testing.T) {
 		if val.v != "" {
 			updateString(trie, val.k, val.v)
 		} else {
+			// value为空，则直接删除
 			deleteString(trie, val.k)
 		}
 	}
@@ -279,6 +285,7 @@ func TestReplication(t *testing.T) {
 	}
 
 	// create a new trie on top of the database and check that lookups work.
+	// 在数据库之上构建一个新的trie并且检查lookups能work
 	trie2, err := New(exp, trie.db)
 	if err != nil {
 		t.Fatalf("can't recreate trie at %x: %v", exp, err)
@@ -297,6 +304,7 @@ func TestReplication(t *testing.T) {
 	}
 
 	// perform some insertions on the new trie.
+	// 在新的trie中做一些插入操作
 	vals2 := []struct{ k, v string }{
 		{"do", "verb"},
 		{"ether", "wookiedoo"},

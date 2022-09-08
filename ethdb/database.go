@@ -33,9 +33,11 @@ type KeyValueReader interface {
 // KeyValueWriter封装了后端数据存储的Put方法
 type KeyValueWriter interface {
 	// Put inserts the given value into the key-value data store.
+	// Put插入给定的value到key-value数据存储中
 	Put(key []byte, value []byte) error
 
 	// Delete removes the key from the key-value data store.
+	// Delete将key从key-value键值存储中移走
 	Delete(key []byte) error
 }
 
@@ -46,6 +48,7 @@ type KeyValueStater interface {
 }
 
 // Compacter wraps the Compact method of a backing data store.
+// Compacter封装了后端数据存储的Compact方法
 type Compacter interface {
 	// Compact flattens the underlying data store for the given key range. In essence,
 	// deleted and overwritten versions are discarded, and the data is rearranged to
@@ -59,6 +62,7 @@ type Compacter interface {
 
 // KeyValueStore contains all the methods required to allow handling different
 // key-value data stores backing the high level database.
+// KeyValueStore包含了所有所需的方法来允许处理不同的键值数据存储，后端是high level的database
 type KeyValueStore interface {
 	KeyValueReader
 	KeyValueWriter

@@ -721,6 +721,7 @@ func (db *Database) Commit(node common.Hash, report bool, callback func(common.H
 		return err
 	}
 	// Trie mostly committed to disk, flush any batch leftovers
+	// Trie大多数提交到了磁盘，flush任何剩余的batch
 	if err := batch.Write(); err != nil {
 		log.Error("Failed to write trie to disk", "err", err)
 		return err

@@ -116,6 +116,7 @@ func New(root common.Hash, db *Database) (*Trie, error) {
 		if err != nil {
 			return nil, err
 		}
+		// 如果root不为空，构建rootnode
 		trie.root = rootnode
 	}
 	return trie, nil
@@ -151,6 +152,7 @@ func (t *Trie) Get(key []byte) []byte {
 // TryGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
+// 如果一个node没有在数据库中找到，返回一个MissingNodeError
 func (t *Trie) TryGet(key []byte) ([]byte, error) {
 	value, newroot, didResolve, err := t.tryGet(t.root, keybytesToHex(key), 0)
 	if err == nil && didResolve {
@@ -297,6 +299,8 @@ func (t *Trie) TryUpdateAccount(key []byte, acc *types.StateAccount) error {
 // TryUpdate associates key with value in the trie. Subsequent calls to
 // Get will return value. If value has length zero, any existing value
 // is deleted from the trie and calls to Get will return nil.
+// TryUpdate在trie中将key和value相关联，后续对于Get的调用会返回value的值，如果value
+// 的长度为0，任何已经存在的值会从trie中删除，对Get的调用会返回nil
 //
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.

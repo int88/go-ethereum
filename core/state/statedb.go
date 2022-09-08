@@ -361,6 +361,7 @@ func (s *StateDB) GetCommittedState(addr common.Address, hash common.Hash) commo
 }
 
 // Database retrieves the low level database supporting the lower level trie ops.
+// Database获取底层的database，支持底层的trie操作
 func (s *StateDB) Database() Database {
 	return s.db
 }
@@ -390,7 +391,9 @@ func (s *StateDB) HasSuicided(addr common.Address) bool {
  */
 
 // AddBalance adds amount to the account associated with addr.
+// AddBalance添加amount到和addr相关的account
 func (s *StateDB) AddBalance(addr common.Address, amount *big.Int) {
+	// 获取地址对应的stateObject
 	stateObject := s.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
@@ -504,6 +507,8 @@ func (s *StateDB) deleteStateObject(obj *stateObject) {
 // getStateObject retrieves a state object given by the address, returning nil if
 // the object is not found or was deleted in this execution context. If you need
 // to differentiate between non-existent/just-deleted, use getDeletedStateObject.
+// getStateObject获取给定地址的state对象，返回nil，如果对象没有找到或者在执行的上下文中
+// 删除了，如果需要区分non-existent和just-deleted，使用getDeletedStateObject
 func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	if obj := s.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
@@ -517,10 +522,12 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 // destructed object instead of wiping all knowledge about the state object.
 func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	// Prefer live objects if any is available
+	// 偏爱live objects，如果存在的话
 	if obj := s.stateObjects[addr]; obj != nil {
 		return obj
 	}
 	// If no live objects are available, attempt to use snapshots
+	// 如果没有live objects存在，试着使用snapshots
 	var data *types.StateAccount
 	if s.snap != nil {
 		start := time.Now()
@@ -547,8 +554,10 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		}
 	}
 	// If snapshot unavailable or reading from it failed, load from the database
+	// 如果snapshot不可访问或者读取失败，从数据库中加载
 	if data == nil {
 		start := time.Now()
+		// 从数据库中加载
 		enc, err := s.trie.TryGet(addr.Bytes())
 		if metrics.EnabledExpensive {
 			s.AccountReads += time.Since(start)
@@ -567,6 +576,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 		}
 	}
 	// Insert into the live set
+	// 将它插入到live set
 	obj := newObject(s, addr, *data)
 	s.setStateObject(obj)
 	return obj
@@ -577,6 +587,7 @@ func (s *StateDB) setStateObject(object *stateObject) {
 }
 
 // GetOrNewStateObject retrieves a state object or create a new state object if nil.
+// GetOrNewStateObject获取一个state对象或者创建一个新的state对象，如果为nil的话
 func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	stateObject := s.getStateObject(addr)
 	if stateObject == nil {
@@ -587,7 +598,10 @@ func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 
 // createObject creates a new state object. If there is an existing account with
 // the given address, it is overwritten and returned as the second return value.
+// createObject创建一个新的state对象，如果给定的地址有一个已经存在的account，它会被
+// 覆盖并且作为第二个返回值返回
 func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
+	// 注意，prev可能已经被删除了，我们需要它
 	prev = s.getDeletedStateObject(addr) // Note, prev might have been deleted, we need that!
 
 	var prevdestruct bool
@@ -789,6 +803,8 @@ func (s *StateDB) GetRefund() uint64 {
 // Finalise finalises the state by removing the s destructed objects and clears
 // the journal as well as the refunds. Finalise, however, will not push any updates
 // into the tries just yet. Only IntermediateRoot or Commit will do that.
+// Finalise通过移除s的析构对象来移除state并且清理journal以及refunds，但是Finalise不会
+// 推送任何更新到tries，只有IntermediateRoot或者Commit会做
 func (s *StateDB) Finalise(deleteEmptyObjects bool) {
 	addressesToPrefetch := make([][]byte, 0, len(s.journal.dirties))
 	for addr := range s.journal.dirties {
@@ -869,6 +885,8 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// Now we're about to start to write changes to the trie. The trie is so far
 	// _untouched_. We can check with the prefetcher, if it can give us a trie
 	// which has the same root, but also has some content loaded into it.
+	// 现在我们准备将变更写入到trie，trie到现在为止是untouched，我们可以检查prefetcher
+	// 如果它可以给我们一个有着同样root的trie，但是同时有一些内容加载到里面
 	if prefetcher != nil {
 		if trie := prefetcher.trie(s.originalRoot); trie != nil {
 			s.trie = trie
@@ -892,6 +910,7 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 		s.stateObjectsPending = make(map[common.Address]struct{})
 	}
 	// Track the amount of time wasted on hashing the account trie
+	// 追踪花在哈希account trie的时间
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.AccountHashes += time.Since(start) }(time.Now())
 	}

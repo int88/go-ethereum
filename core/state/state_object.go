@@ -246,6 +246,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 }
 
 // SetState updates a value in account storage.
+// SetState更新一个account storage中的一个值
 func (s *stateObject) SetState(db Database, key, value common.Hash) {
 	// If the fake storage is set, put the temporary state update here.
 	if s.fakeStorage != nil {
@@ -400,6 +401,8 @@ func (s *stateObject) CommitTrie(db Database) (int, error) {
 
 // AddBalance adds amount to s's balance.
 // It is used to add funds to the destination account of a transfer.
+// AddBalance增加amount到s的balance
+// 它用于添加funds到目标account，在一个transfer中
 func (s *stateObject) AddBalance(amount *big.Int) {
 	// EIP161: We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.

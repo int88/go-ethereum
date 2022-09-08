@@ -19,14 +19,17 @@ package ethdb
 type Snapshot interface {
 	// Has retrieves if a key is present in the snapshot backing by a key-value
 	// data store.
+	// Has获取如果一个key在snapshot后端存在的话，背后是一个key-value data store
 	Has(key []byte) (bool, error)
 
 	// Get retrieves the given key if it's present in the snapshot backing by
 	// key-value data store.
+	// Get获取给定的key，如果它在snapshot存在的话，背后是键值对存储
 	Get(key []byte) ([]byte, error)
 
 	// Release releases associated resources. Release should always succeed and can
 	// be called multiple times without causing error.
+	// Release释放相关的资源，Release应该总是成功并且可以被多次调用而不会导致错误
 	Release()
 }
 

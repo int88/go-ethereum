@@ -68,6 +68,7 @@ type Database interface {
 type Trie interface {
 	// GetKey returns the sha3 preimage of a hashed key that was previously used
 	// to store a value.
+	// GetKey返回一个hashed key的sha3 preimage值，之前用于存储这个value
 	//
 	// TODO(fjl): remove this when SecureTrie is removed
 	GetKey([]byte) []byte
@@ -85,6 +86,9 @@ type Trie interface {
 	// existing value is deleted from the trie. The value bytes must not be modified
 	// by the caller while they are stored in the trie. If a node was not found in the
 	// database, a trie.MissingNodeError is returned.
+	// TryUpdate在trie中将key和value相关联，如果value的长度为0，任何已经存在的value会从trie
+	// 中删除，value的字节不能被调用者修改，因为它们还存储在trie中，如果一个node在数据库中找不到
+	// 返回一个trie.MissingNodeError
 	TryUpdate(key, value []byte) error
 
 	// TryDelete removes any existing value for key from the trie. If a node was not
@@ -98,19 +102,26 @@ type Trie interface {
 
 	// Commit writes all nodes to the trie's memory database, tracking the internal
 	// and external (for account tries) references.
+	// Commit将所有的nodes写入trie的memory database，追踪内部以及外部的应用
 	Commit(onleaf trie.LeafCallback) (common.Hash, int, error)
 
 	// NodeIterator returns an iterator that returns nodes of the trie. Iteration
 	// starts at the key after the given start key.
+	// NodeIterator返回一个iterator，用于返回trie的nodes，迭代从给定的start key的之后一个
+	// key开始
 	NodeIterator(startKey []byte) trie.NodeIterator
 
 	// Prove constructs a Merkle proof for key. The result contains all encoded nodes
 	// on the path to the value at key. The value itself is also included in the last
 	// node and can be retrieved by verifying the proof.
+	// Prove构建对于key的一个Merkle proof，返回的结果包含了所有到达key所在的value的路径上的
+	// 所有encoded nodes，value本身也包含在最后一个node，并且可以用来获取，通过校验proof
 	//
 	// If the trie does not contain a value for key, the returned proof contains all
 	// nodes of the longest existing prefix of the key (at least the root), ending
 	// with the node that proves the absence of the key.
+	// 如果trie不包含key对应的value，返回的proof包含匹配key的最长前缀的路径的所有节点
+	//以证明key不存在的node作为结束
 	Prove(key []byte, fromLevel uint, proofDb ethdb.KeyValueWriter) error
 }
 

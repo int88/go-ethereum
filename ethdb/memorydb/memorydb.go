@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -108,6 +109,7 @@ func (db *Database) Get(key []byte) ([]byte, error) {
 func (db *Database) Put(key []byte, value []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
+	log.Info("Memory database put", "key", string(key), "value", string(value))
 
 	if db.db == nil {
 		return errMemorydbClosed
@@ -130,6 +132,8 @@ func (db *Database) Delete(key []byte) error {
 
 // NewBatch creates a write-only key-value store that buffers changes to its host
 // database until a final write is called.
+// NewBatch创建一个write-only的key-value存储，缓存了对于host database的变更，直到
+// 最后的write被调用
 func (db *Database) NewBatch() ethdb.Batch {
 	return &batch{
 		db: db,
@@ -181,6 +185,8 @@ func (db *Database) NewIterator(prefix []byte, start []byte) ethdb.Iterator {
 // NewSnapshot creates a database snapshot based on the current state.
 // The created snapshot will not be affected by all following mutations
 // happened on the database.
+// NewSnapshot创建一个数据库的快照，基于当前的state，创建的snapshot不会被后续
+// 发生在数据库中的修改的影响
 func (db *Database) NewSnapshot() (ethdb.Snapshot, error) {
 	return newSnapshot(db), nil
 }
@@ -243,6 +249,7 @@ func (b *batch) ValueSize() int {
 }
 
 // Write flushes any accumulated data to the memory database.
+// Write将所有累计的数据flushe到内存数据库中
 func (b *batch) Write() error {
 	b.db.lock.Lock()
 	defer b.db.lock.Unlock()
@@ -345,6 +352,7 @@ func newSnapshot(db *Database) *snapshot {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
+	// 直接就是把map的内容拷贝一遍
 	copied := make(map[string][]byte)
 	for key, val := range db.db {
 		copied[key] = common.CopyBytes(val)

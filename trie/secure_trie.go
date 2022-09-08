@@ -29,10 +29,15 @@ import (
 // access operations hash the key using keccak256. This prevents
 // calling code from creating long chains of nodes that
 // increase the access time.
+// SecureTrie用key hashing封装了一个trie，在一个secure trie中，所有的访问操作
+// 通过keccak256对key进行哈希，这防止调用代码创建太长的chains of nodes，这会
+// 增加访问时间
 //
 // Contrary to a regular trie, a SecureTrie can only be created with
 // New and must have an attached database. The database also stores
 // the preimage of each key.
+// 和regular trie相反，一个SecureTrie只能用New创建并且必须有一个关联的数据库
+// 数据库同时存储了每个key的preimage
 //
 // SecureTrie is not safe for concurrent use.
 type SecureTrie struct {

@@ -27,6 +27,7 @@ import (
 
 // TestDatabaseSuite runs a suite of tests against a KeyValueStore database
 // implementation.
+// TestDatabaseSuite运行一个测试的集合，对于一个KeyValueStore的数据库实现
 func TestDatabaseSuite(t *testing.T, New func() ethdb.KeyValueStore) {
 	t.Run("Iterator", func(t *testing.T) {
 		tests := []struct {

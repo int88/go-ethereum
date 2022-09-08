@@ -26,6 +26,7 @@ import (
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
+// Iterator是一个键值的trie iterator，用于遍历一个Trie
 type Iterator struct {
 	nodeIt NodeIterator
 
@@ -37,6 +38,8 @@ type Iterator struct {
 // NewIterator creates a new key-value iterator from a node iterator.
 // Note that the value returned by the iterator is raw. If the content is encoded
 // (e.g. storage value is RLP-encoded), it's caller's duty to decode it.
+// NewIterator创建一个key-value iterator，基于一个node iterator，注意iterator返回的value
+// 是裸的，如果内容是编码的（例如，storage value是RLP-encoded），这是调用者的责任来解码它
 func NewIterator(it NodeIterator) *Iterator {
 	return &Iterator{
 		nodeIt: it,

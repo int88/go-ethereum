@@ -32,34 +32,49 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
+
+func init() {
+	log.Root().SetHandler(log.StdoutHandler)
+}
 
 // Tests that updating a state trie does not leak any database writes prior to
 // actually committing the state.
+// 测试当更新一个state trie不会泄露任何的database writes，在真正commit state之前
 func TestUpdateLeaks(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// Create an empty state database
 	db := rawdb.NewMemoryDatabase()
 	state, _ := New(common.Hash{}, NewDatabase(db), nil)
 
 	// Update it with some accounts
+	// 用一些accounts进行更新
 	for i := byte(0); i < 255; i++ {
 		addr := common.BytesToAddress([]byte{i})
+		// 添加balance
 		state.AddBalance(addr, big.NewInt(int64(11*i)))
+		// 设置nonce
 		state.SetNonce(addr, uint64(42*i))
 		if i%2 == 0 {
+			// 设置state
 			state.SetState(addr, common.BytesToHash([]byte{i, i, i}), common.BytesToHash([]byte{i, i, i, i}))
 		}
 		if i%3 == 0 {
+			// 设置code
 			state.SetCode(addr, []byte{i, i, i, i, i})
 		}
 	}
 
 	root := state.IntermediateRoot(false)
+	// 调用TrieDB的Commit进行持久化
 	if err := state.Database().TrieDB().Commit(root, false, nil); err != nil {
+		// 不能持久化trie到数据库中
 		t.Errorf("can not commit trie %v to persistent database", root.Hex())
 	}
 
 	// Ensure that no data was leaked into the database
+	// 确保没有数据泄露到数据库中
 	it := db.NewIterator(nil, nil)
 	for it.Next() {
 		t.Errorf("State leaked into database: %x -> %x", it.Key(), it.Value())
@@ -69,8 +84,10 @@ func TestUpdateLeaks(t *testing.T) {
 
 // Tests that no intermediate state of an object is stored into the database,
 // only the one right before the commit.
+// 测试一个对象的itermediate state会存储在数据库中，只有在提交之前的那个
 func TestIntermediateLeaks(t *testing.T) {
 	// Create two state databases, one transitioning to the final state, the other final from the beginning
+	// 创建两个state database，第一个转换到final state，另一个final from the beginning
 	transDb := rawdb.NewMemoryDatabase()
 	finalDb := rawdb.NewMemoryDatabase()
 	transState, _ := New(common.Hash{}, NewDatabase(transDb), nil)

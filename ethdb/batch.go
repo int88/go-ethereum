@@ -28,15 +28,19 @@ type Batch interface {
 	KeyValueWriter
 
 	// ValueSize retrieves the amount of data queued up for writing.
+	// ValueSize获取排队等待写入的数据的大小
 	ValueSize() int
 
 	// Write flushes any accumulated data to disk.
+	// Write将任意累计的data刷到磁盘中
 	Write() error
 
 	// Reset resets the batch for reuse.
+	// Reset重置batch进行重用
 	Reset()
 
 	// Replay replays the batch contents.
+	// Replay重新播放batch的内容
 	Replay(w KeyValueWriter) error
 }
 

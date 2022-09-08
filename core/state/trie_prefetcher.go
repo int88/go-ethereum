@@ -32,9 +32,12 @@ var (
 // triePrefetcher is an active prefetcher, which receives accounts or storage
 // items and does trie-loading of them. The goal is to get as much useful content
 // into the caches as possible.
+// triePrefetcher是一个active prefetcher，它接收accounts或者storage items并且对他们
+// 做trie-loading，目标是获取尽量多的有用信息到caches
 //
 // Note, the prefetcher's API is not thread safe.
 type triePrefetcher struct {
+	// 用于获取trie nodes的Database
 	db       Database                    // Database to fetch trie nodes through
 	root     common.Hash                 // Root hash of theaccount trie for metrics
 	fetches  map[common.Hash]Trie        // Partially or fully fetcher tries
