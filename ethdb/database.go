@@ -79,9 +79,11 @@ type KeyValueStore interface {
 type AncientReaderOp interface {
 	// HasAncient returns an indicator whether the specified data exists in the
 	// ancient store.
+	// HasAncient返回一个indicator表示特定的data是否在ancient store中存在
 	HasAncient(kind string, number uint64) (bool, error)
 
 	// Ancient retrieves an ancient binary blob from the append-only immutable files.
+	// Ancient从append-only的immutable files中获取一个ancient binary blob
 	Ancient(kind string, number uint64) ([]byte, error)
 
 	// AncientRange retrieves multiple items in sequence, starting from the index 'start'.
@@ -92,6 +94,7 @@ type AncientReaderOp interface {
 	AncientRange(kind string, start, count, maxBytes uint64) ([][]byte, error)
 
 	// Ancients returns the ancient item numbers in the ancient store.
+	// Ancients返回在ancient store中ancient item的数目
 	Ancients() (uint64, error)
 
 	// Tail returns the number of first stored item in the freezer.
@@ -117,8 +120,10 @@ type AncientReader interface {
 // AncientWriter包含了所需的方法用于写入immutable ancient data
 type AncientWriter interface {
 	// ModifyAncients runs a write operation on the ancient store.
+	// ModifyAncients在ancient store中运行一个写操作
 	// If the function returns an error, any changes to the underlying store are reverted.
 	// The integer return value is the total size of the written data.
+	// 如果这个函数返回一个error，任何对于底层存储的变更都会被回退，返回的整型是写入数据的大小
 	ModifyAncients(func(AncientWriteOp) error) (int64, error)
 
 	// TruncateHead discards all but the first n ancient data from the ancient store.
@@ -145,9 +150,11 @@ type AncientWriter interface {
 // AncientWriteOp is given to the function argument of ModifyAncients.
 type AncientWriteOp interface {
 	// Append adds an RLP-encoded item.
+	// Append添加一个RLP编码的item
 	Append(kind string, number uint64, item interface{}) error
 
 	// AppendRaw adds an item without RLP-encoding it.
+	// AppendRaw添加一个item，而没有RLP编码
 	AppendRaw(kind string, number uint64, item []byte) error
 }
 

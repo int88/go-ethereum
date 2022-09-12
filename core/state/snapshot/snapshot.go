@@ -97,12 +97,15 @@ var (
 )
 
 // Snapshot represents the functionality supported by a snapshot storage layer.
+// Snapshot代表一个snapshot storage layer支持的功能
 type Snapshot interface {
 	// Root returns the root hash for which this snapshot was made.
+	// Root返回这个snapshot创建的root hash
 	Root() common.Hash
 
 	// Account directly retrieves the account associated with a particular hash in
 	// the snapshot slim data format.
+	// Account直接获取和一个特定的snapshot slim data格式相关的哈希值
 	Account(hash common.Hash) (*Account, error)
 
 	// AccountRLP directly retrieves the account RLP associated with a particular
@@ -111,6 +114,7 @@ type Snapshot interface {
 
 	// Storage directly retrieves the storage data associated with a particular hash,
 	// within a particular account.
+	// Storage直接获取和一个特定的hash相关的storage data，在一个特定的账户内
 	Storage(accountHash, storageHash common.Hash) ([]byte, error)
 }
 
@@ -194,6 +198,7 @@ type Tree struct {
 //   a background thread.
 func New(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash, async bool, rebuild bool, recovery bool) (*Tree, error) {
 	// Create a new, empty snapshot tree
+	// 创建一个新的，空的snapshot tree
 	snap := &Tree{
 		diskdb: diskdb,
 		triedb: triedb,

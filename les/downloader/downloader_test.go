@@ -315,6 +315,7 @@ func (dl *downloadTester) InsertChain(blocks types.Blocks) (i int, err error) {
 }
 
 // InsertReceiptChain injects a new batch of receipts into the simulated chain.
+// InsertReceiptChain插入一个新的批量的receipts到模拟的chain中
 func (dl *downloadTester) InsertReceiptChain(blocks types.Blocks, receipts []types.Receipts, ancientLimit uint64) (i int, err error) {
 	dl.lock.Lock()
 	defer dl.lock.Unlock()
@@ -333,6 +334,7 @@ func (dl *downloadTester) InsertReceiptChain(blocks types.Blocks, receipts []typ
 			dl.ancientReceipts[blocks[i].Hash()] = receipts[i]
 
 			// Migrate from active db to ancient db
+			// 从active db迁移到ancient db
 			dl.ancientHeaders[blocks[i].Hash()] = blocks[i].Header()
 			dl.ancientChainTd[blocks[i].Hash()] = new(big.Int).Add(dl.ancientChainTd[blocks[i].ParentHash()], blocks[i].Difficulty())
 			delete(dl.ownHeaders, blocks[i].Hash())

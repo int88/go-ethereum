@@ -53,8 +53,9 @@ var (
 		Description: "",
 		Subcommands: []cli.Command{
 			{
-				Name:      "prune-state",
-				Usage:     "Prune stale ethereum state data based on the snapshot",
+				Name:  "prune-state",
+				Usage: "Prune stale ethereum state data based on the snapshot",
+				// 清理不新鲜的ethereum state data，基于snapshot
 				ArgsUsage: "<root>",
 				Action:    utils.MigrateFlags(pruneState),
 				Category:  "MISCELLANEOUS COMMANDS",
@@ -65,9 +66,12 @@ var (
 				Description: `
 geth snapshot prune-state <state-root>
 will prune historical state data with the help of the state snapshot.
+geth snapshot prune-state会在state snapshot的帮助下清理historical state数据
 All trie nodes and contract codes that do not belong to the specified
 version state will be deleted from the database. After pruning, only
 two version states are available: genesis and the specific one.
+所有的trie nodes以及contract codes不属于特定版本的state都会被从database中移除，在清理
+之后，只有两个版本的state可用：gensis和特定的一个
 
 The default pruning target is the HEAD-127 state.
 

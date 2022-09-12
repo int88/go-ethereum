@@ -67,8 +67,11 @@ type TrieHasher interface {
 }
 
 // DerivableList is the input to DeriveSha.
+// DerivableList是DeriveSha的输入
 // It is implemented by the 'Transactions' and 'Receipts' types.
+// 它由'Transactions'和'Receipts'类型实现
 // This is internal, do not use these methods.
+// 它是内部的，不要使用这些方法
 type DerivableList interface {
 	Len() int
 	EncodeIndex(int, *bytes.Buffer)
@@ -84,6 +87,7 @@ func encodeForDerive(list DerivableList, i int, buf *bytes.Buffer) []byte {
 }
 
 // DeriveSha creates the tree hashes of transactions and receipts in a block header.
+// DeriveSha创建在一个block header的tx和receipts的tree hashes
 func DeriveSha(list DerivableList, hasher TrieHasher) common.Hash {
 	hasher.Reset()
 

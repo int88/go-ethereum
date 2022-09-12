@@ -100,6 +100,7 @@ type StateDB struct {
 	thash common.Hash
 	// tx的索引
 	txIndex int
+	// tx的日志信息
 	logs    map[common.Hash][]*types.Log
 	logSize uint
 
@@ -239,6 +240,7 @@ func (s *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
 }
 
 // Preimages returns a list of SHA3 preimages that have been submitted.
+// Preimages返回一系列已经提交的内容的SHA3 preimages
 func (s *StateDB) Preimages() map[common.Hash][]byte {
 	return s.preimages
 }
@@ -788,8 +790,10 @@ func (s *StateDB) Snapshot() int {
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.
+// RevertToSnapshot回退从给定revision之后的所有state change
 func (s *StateDB) RevertToSnapshot(revid int) {
 	// Find the snapshot in the stack of valid snapshots.
+	// 从合法的snapshots中找到目标snapshot
 	idx := sort.Search(len(s.validRevisions), func(i int) bool {
 		return s.validRevisions[i].id >= revid
 	})
@@ -799,6 +803,7 @@ func (s *StateDB) RevertToSnapshot(revid int) {
 	snapshot := s.validRevisions[idx].journalIndex
 
 	// Replay the journal to undo changes and remove invalidated snapshots
+	// Replay the journal来回退变更并且移除非法的snapshots
 	s.journal.revert(s, snapshot)
 	s.validRevisions = s.validRevisions[:idx]
 }
@@ -1020,6 +1025,7 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 			defer func(start time.Time) { s.SnapshotCommits += time.Since(start) }(time.Now())
 		}
 		// Only update if there's a state transition (skip empty Clique blocks)
+		// 只有在有一个state transition的时候更新
 		if parent := s.snap.Root(); parent != root {
 			if err := s.snaps.Update(root, parent, s.snapDestructs, s.snapAccounts, s.snapStorage); err != nil {
 				log.Warn("Failed to update snapshot tree", "from", parent, "to", root, "err", err)

@@ -43,6 +43,8 @@ type Log struct {
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
 	// block in which the transaction was included
+	// 派生字段，这些字段由代码填充，但是不是通过共识保证安全
+	// 代表了这个tx包含在哪个block
 	BlockNumber uint64 `json:"blockNumber"`
 	// hash of the transaction
 	TxHash common.Hash `json:"transactionHash" gencodec:"required"`

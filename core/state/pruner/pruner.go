@@ -89,6 +89,7 @@ type Pruner struct {
 }
 
 // NewPruner creates the pruner instance.
+// NewPruner创建pruner实例
 func NewPruner(db ethdb.Database, datadir, trieCachePath string, bloomSize uint64) (*Pruner, error) {
 	headBlock := rawdb.ReadHeadBlock(db)
 	if headBlock == nil {
@@ -96,6 +97,7 @@ func NewPruner(db ethdb.Database, datadir, trieCachePath string, bloomSize uint6
 	}
 	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, headBlock.Root(), false, false, false)
 	if err != nil {
+		// 相关的snapshot可能不存在
 		return nil, err // The relevant snapshot(s) might not exist
 	}
 	// Sanitize the bloom filter size if it's too small.

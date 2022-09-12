@@ -1330,6 +1330,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	log.Info("writeBlockWithState write block batch into rawdb")
 	rawdb.WriteTd(blockBatch, block.Hash(), block.NumberU64(), externTd)
 	rawdb.WriteBlock(blockBatch, block)
+	// 写入receipts
 	rawdb.WriteReceipts(blockBatch, block.Hash(), block.NumberU64(), receipts)
 	rawdb.WritePreimages(blockBatch, state.Preimages())
 	if err := blockBatch.Write(); err != nil {

@@ -51,15 +51,18 @@ var (
 	lastPivotKey = []byte("LastPivot")
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
+	// fastTrieProgressKey记录在fast sync期间导入的trie entries的数目
 	fastTrieProgressKey = []byte("TrieSync")
 
 	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
+	// snapshotDisabledKey表示snapshot是否应该被维护，由于初始的同步
 	snapshotDisabledKey = []byte("SnapshotDisabled")
 
 	// SnapshotRootKey tracks the hash of the last snapshot.
 	SnapshotRootKey = []byte("SnapshotRoot")
 
 	// snapshotJournalKey tracks the in-memory diff layers across restarts.
+	// snapshotJournalKey追踪跨域restarts时，内存中的diff layers
 	snapshotJournalKey = []byte("SnapshotJournal")
 
 	// snapshotGeneratorKey tracks the snapshot generation marker across restarts.
@@ -78,9 +81,11 @@ var (
 	txIndexTailKey = []byte("TransactionIndexTail")
 
 	// fastTxLookupLimitKey tracks the transaction lookup limit during fast sync.
+	// fastTxLookupLimitKey追踪在fast sync期间tx lookup的限制
 	fastTxLookupLimitKey = []byte("FastTransactionLookupLimit")
 
 	// badBlockKey tracks the list of bad blocks seen by local
+	// badBlockKey追踪一系列本地发现的bad blocks
 	badBlockKey = []byte("InvalidBlock")
 
 	// uncleanShutdownKey tracks the list of local crashes
@@ -98,6 +103,7 @@ var (
 	blockBodyPrefix     = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
+	// txLookupPrefix + hash等于tx/receipts查找的元数据
 	txLookupPrefix        = []byte("l") // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	bloomBitsPrefix       = []byte("B") // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 	SnapshotAccountPrefix = []byte("a") // SnapshotAccountPrefix + account hash -> account trie value
@@ -130,6 +136,7 @@ const (
 	freezerReceiptTable = "receipts"
 
 	// freezerDifficultyTable indicates the name of the freezer total difficulty table.
+	// freezerDifficultyTable表示是freezer total的difficulty table
 	freezerDifficultyTable = "diffs"
 )
 
@@ -186,6 +193,7 @@ func headerNumberKey(hash common.Hash) []byte {
 }
 
 // blockBodyKey = blockBodyPrefix + num (uint64 big endian) + hash
+// blockBodyKey为blockBodyPrefix + num + hash
 func blockBodyKey(number uint64, hash common.Hash) []byte {
 	return append(append(blockBodyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
 }
@@ -197,6 +205,7 @@ func blockReceiptsKey(number uint64, hash common.Hash) []byte {
 }
 
 // txLookupKey = txLookupPrefix + hash
+// 构建tx lookup key
 func txLookupKey(hash common.Hash) []byte {
 	return append(txLookupPrefix, hash.Bytes()...)
 }

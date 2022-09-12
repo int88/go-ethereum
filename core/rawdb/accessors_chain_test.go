@@ -46,6 +46,7 @@ func TestHeaderStorage(t *testing.T) {
 	}
 	t.Errorf("header.Hash() is %v", header.Hash())
 	// Write and verify the header in the database
+	// 写入并且确认database中的header
 	WriteHeader(db, header)
 	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry == nil {
 		t.Fatalf("Stored header not found")
@@ -71,10 +72,12 @@ func TestHeaderStorage(t *testing.T) {
 }
 
 // Tests block body storage and retrieval operations.
+// 测试block body的存储以及获取操作
 func TestBodyStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a test body to move around the database and make sure it's really new
+	// 创建一个test body在数据库移动并且确保它是真的新的
 	body := &types.Body{Uncles: []*types.Header{{Extra: []byte("test header")}}}
 
 	hasher := sha3.NewLegacyKeccak256()
@@ -110,6 +113,7 @@ func TestBodyStorage(t *testing.T) {
 }
 
 // Tests block storage and retrieval operations.
+// 测试block的存储以及获取操作
 func TestBlockStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
@@ -232,6 +236,7 @@ func TestBadBlockStorage(t *testing.T) {
 	WriteBadBlock(db, blockTwo)
 
 	// Write the block one again, should be filtered out.
+	// 再次写入block，应该被过滤
 	WriteBadBlock(db, block)
 	badBlocks := ReadAllBadBlocks(db)
 	if len(badBlocks) != 2 {
@@ -332,6 +337,7 @@ func TestHeadStorage(t *testing.T) {
 	blockFast := types.NewBlockWithHeader(&types.Header{Extra: []byte("test block fast")})
 
 	// Check that no head entries are in a pristine database
+	// 检查在pristine database中没有head entries存在
 	if entry := ReadHeadHeaderHash(db); entry != (common.Hash{}) {
 		t.Fatalf("Non head header entry returned: %v", entry)
 	}
@@ -361,10 +367,12 @@ func TestHeadStorage(t *testing.T) {
 }
 
 // Tests that receipts associated with a single block can be stored and retrieved.
+// 测试和单个block相关的receipts可以被存储以及获取
 func TestBlockReceiptStorage(t *testing.T) {
 	db := NewMemoryDatabase()
 
 	// Create a live block since we need metadata to reconstruct the receipt
+	// 创建一个live block，因为我们需要元数据来构建receipt
 	tx1 := types.NewTransaction(1, common.HexToAddress("0x1"), big.NewInt(1), 1, big.NewInt(1), nil)
 	tx2 := types.NewTransaction(2, common.HexToAddress("0x2"), big.NewInt(2), 2, big.NewInt(2), nil)
 
@@ -431,6 +439,7 @@ func TestBlockReceiptStorage(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 	// Sanity check that body alone without the receipt is a full purge
+	// 健全性检查，只有body，没有receipt，是一个full purge
 	WriteBody(db, hash, 0, body)
 
 	DeleteReceipts(db, hash, 0)
@@ -763,9 +772,11 @@ func TestReadLogs(t *testing.T) {
 		t.Fatalf("non existent receipts returned: %v", rs)
 	}
 	// Insert the body that corresponds to the receipts
+	// 插入和receipts对应的body
 	WriteBody(db, hash, 0, body)
 
 	// Insert the receipt slice into the database and check presence
+	// 插入receipt slice到数据库中并且检查存在性
 	WriteReceipts(db, hash, 0, receipts)
 
 	logs := ReadLogs(db, hash, 0, params.TestChainConfig)

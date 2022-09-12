@@ -89,8 +89,9 @@ type BlockContext struct {
 // 所有字段都可以在transactions之间发生变更
 type TxContext struct {
 	// Message information
-	Origin   common.Address // Provides information for ORIGIN
-	GasPrice *big.Int       // Provides information for GASPRICE
+	// Message信息
+	Origin   common.Address // Provides information for ORIGIN // 为ORIGIN提供信息
+	GasPrice *big.Int       // Provides information for GASPRICE  // 为GASPRICE提供信息
 }
 
 // EVM is the Ethereum Virtual Machine base object and provides
@@ -445,6 +446,7 @@ func (c *codeAndHash) Hash() common.Hash {
 }
 
 // create creates a new contract using code as deployment code.
+// create创建一个新的contract，使用code作为deployment code
 func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address, typ OpCode) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
@@ -499,6 +501,7 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	ret, err := evm.interpreter.Run(contract, nil, false)
 
 	// Check whether the max code size has been exceeded, assign err if the case.
+	// 确认是否超过了最大的code size，赋予err，如果是的话
 	if err == nil && evm.chainRules.IsEIP158 && len(ret) > params.MaxCodeSize {
 		err = ErrMaxCodeSizeExceeded
 	}
@@ -526,6 +529,8 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
+	// 如果EVM返回一个错误或者当设置上面的creation code，我们回退到snapshot并且消耗剩余的gas
+	// 另外，当我们在homestead，也统计code storage gas errors
 	if err != nil && (evm.chainRules.IsHomestead || err != ErrCodeStoreOutOfGas) {
 		evm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {

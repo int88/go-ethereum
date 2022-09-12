@@ -31,6 +31,7 @@ import (
 )
 
 // Database is a key-value lookup for a remote database via debug_dbGet.
+// Database是一个键值的lookup，对于一个remote database，通过debug_dbGet
 type Database struct {
 	remote *rpc.Client
 }

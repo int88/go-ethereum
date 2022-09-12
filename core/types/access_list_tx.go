@@ -28,6 +28,7 @@ import (
 type AccessList []AccessTuple
 
 // AccessTuple is the element type of an access list.
+// AccessTuple是一个access list的元素类型
 type AccessTuple struct {
 	Address     common.Address `json:"address"        gencodec:"required"`
 	StorageKeys []common.Hash  `json:"storageKeys"    gencodec:"required"`

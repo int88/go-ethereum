@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
@@ -55,13 +56,16 @@ func (h *testHasher) Hash() common.Hash {
 }
 
 // Tests that positional lookup metadata can be stored and retrieved.
+// 测试positional lookup的元数据可以被存储以及获取
 func TestLookupStorage(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	tests := []struct {
 		name                        string
 		writeTxLookupEntriesByBlock func(ethdb.Writer, *types.Block)
 	}{
 		{
 			"DatabaseV6",
+			// 各个版本的tx lookup entries的写入操作
 			func(db ethdb.Writer, block *types.Block) {
 				WriteTxLookupEntriesByBlock(db, block)
 			},
@@ -102,17 +106,22 @@ func TestLookupStorage(t *testing.T) {
 			block := types.NewBlock(&types.Header{Number: big.NewInt(314)}, txs, nil, nil, newHasher())
 
 			// Check that no transactions entries are in a pristine database
+			// 检查在原始的数据库中没有tx entries
 			for i, tx := range txs {
 				if txn, _, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {
 					t.Fatalf("tx #%d [%x]: non existent transaction returned: %v", i, tx.Hash(), txn)
 				}
 			}
 			// Insert all the transactions into the database, and verify contents
+			// 插入所有的tx到数据库中，并且确认内容
 			WriteCanonicalHash(db, block.Hash(), block.NumberU64())
+			// 写入block
 			WriteBlock(db, block)
+			// 写入lookup entries，基于block
 			tc.writeTxLookupEntriesByBlock(db, block)
 
 			for i, tx := range txs {
+				// 读取tx
 				if txn, hash, number, index := ReadTransaction(db, tx.Hash()); txn == nil {
 					t.Fatalf("tx #%d [%x]: transaction not found", i, tx.Hash())
 				} else {
@@ -125,6 +134,7 @@ func TestLookupStorage(t *testing.T) {
 				}
 			}
 			// Delete the transactions and check purge
+			// 删除tx并且检查purge
 			for i, tx := range txs {
 				DeleteTxLookupEntry(db, tx.Hash())
 				if txn, _, _, _ := ReadTransaction(db, tx.Hash()); txn != nil {

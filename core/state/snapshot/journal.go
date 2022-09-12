@@ -149,14 +149,18 @@ func loadAndParseJournal(db ethdb.KeyValueStore, base *diskLayer) (snapshot, jou
 }
 
 // loadSnapshot loads a pre-existing state snapshot backed by a key-value store.
+// loadSnapshot加载一个之前已经存在的state snapshot，背后是一个键值存储
 func loadSnapshot(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash, recovery bool) (snapshot, bool, error) {
 	// If snapshotting is disabled (initial sync in progress), don't do anything,
 	// wait for the chain to permit us to do something meaningful
+	// 如果snapshotting是禁止的（在处理initial sync），什么都不要做，等待直到链允许我们
+	// 做一些有意义的事情
 	if rawdb.ReadSnapshotDisabled(diskdb) {
 		return nil, true, nil
 	}
 	// Retrieve the block number and hash of the snapshot, failing if no snapshot
 	// is present in the database (or crashed mid-update).
+	// Retrieve获取block number以及snapshot的哈希值，失败，如果没有snapshot在数据库中存在
 	baseRoot := rawdb.ReadSnapshotRoot(diskdb)
 	if baseRoot == (common.Hash{}) {
 		return nil, false, errors.New("missing or corrupted snapshot")
@@ -194,6 +198,7 @@ func loadSnapshot(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, 
 		log.Warn("Snapshot is not continuous with chain", "snaproot", head, "chainroot", root)
 	}
 	// Everything loaded correctly, resume any suspended operations
+	// 所有都正确加载，继续任何暂停的操作
 	if !generator.Done {
 		// Whether or not wiping was in progress, load any generator progress too
 		base.genMarker = generator.Marker

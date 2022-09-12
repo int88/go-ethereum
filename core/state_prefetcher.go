@@ -56,10 +56,12 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, c
 		header       = block.Header()
 		gaspool      = new(GasPool).AddGas(block.GasLimit())
 		blockContext = NewEVMBlockContext(header, p.bc, nil)
-		evm          = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
-		signer       = types.MakeSigner(p.config, header.Number)
+		// 构建新的EVM
+		evm    = vm.NewEVM(blockContext, vm.TxContext{}, statedb, p.config, cfg)
+		signer = types.MakeSigner(p.config, header.Number)
 	)
 	// Iterate over and process the individual transactions
+	// 遍历并且处理单个的tx
 	byzantium := p.config.IsByzantium(block.Number())
 	for i, tx := range block.Transactions() {
 		// If block precaching was interrupted, abort
@@ -67,6 +69,7 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, c
 			return
 		}
 		// Convert the transaction into an executable message and pre-cache its sender
+		// 将tx转换为一个可执行的message并且提前缓存sender
 		msg, err := tx.AsMessage(signer, header.BaseFee)
 		if err != nil {
 			return // Also invalid block, bail out
@@ -76,11 +79,13 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, c
 			return // Ugh, something went horribly wrong, bail out
 		}
 		// If we're pre-byzantium, pre-load trie nodes for the intermediate root
+		// 如果我们在pre-byzantium，提前为intermediate root加载trie nodes
 		if !byzantium {
 			statedb.IntermediateRoot(true)
 		}
 	}
 	// If were post-byzantium, pre-load trie nodes for the final root hash
+	// 如果我们在post-byzantium，提前加载trie nodes用于final root hash
 	if byzantium {
 		statedb.IntermediateRoot(true)
 	}
@@ -89,10 +94,14 @@ func (p *statePrefetcher) Prefetch(block *types.Block, statedb *state.StateDB, c
 // precacheTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. The goal is not to execute
 // the transaction successfully, rather to warm up touched data slots.
+// precacheTransaction试着应用一个transaction到给定的state database，使用输入参数作为环境变量
+// 目标不是正确执行transaction，而是warm up关联的data slots
 func precacheTransaction(msg types.Message, config *params.ChainConfig, gaspool *GasPool, statedb *state.StateDB, header *types.Header, evm *vm.EVM) error {
 	// Update the evm with the new transaction context.
+	// 用新的transaction context更新evm
 	evm.Reset(NewEVMTxContext(msg), statedb)
 	// Add addresses to access list if applicable
+	// 添加地址到access list，如果合适的话
 	_, err := ApplyMessage(evm, msg, gaspool)
 	return err
 }

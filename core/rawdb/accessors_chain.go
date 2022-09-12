@@ -157,6 +157,7 @@ func ReadHeaderNumber(db ethdb.KeyValueReader, hash common.Hash) *uint64 {
 }
 
 // WriteHeaderNumber stores the hash->number mapping.
+// WriteHeaderNumber存储hash到number的映射
 func WriteHeaderNumber(db ethdb.KeyValueWriter, hash common.Hash, number uint64) {
 	key := headerNumberKey(hash)
 	enc := encodeBlockNumber(number)
@@ -183,6 +184,7 @@ func ReadHeadHeaderHash(db ethdb.KeyValueReader) common.Hash {
 }
 
 // WriteHeadHeaderHash stores the hash of the current canonical head header.
+// WriteHeadHeaderHash存储当前的canonical head header的哈希值
 func WriteHeadHeaderHash(db ethdb.KeyValueWriter, hash common.Hash) {
 	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last header's hash", "err", err)
@@ -200,6 +202,7 @@ func ReadHeadBlockHash(db ethdb.KeyValueReader) common.Hash {
 }
 
 // WriteHeadBlockHash stores the head block's hash.
+// WriteHeadBlockHash存入head block的哈希值
 func WriteHeadBlockHash(db ethdb.KeyValueWriter, hash common.Hash) {
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last block's hash", "err", err)
@@ -491,6 +494,7 @@ func ReadCanonicalBodyRLP(db ethdb.Reader, number uint64) rlp.RawValue {
 }
 
 // WriteBodyRLP stores an RLP encoded block body into the database.
+// WriteBodyRLP存入一个RLP编码的block body到数据库中
 func WriteBodyRLP(db ethdb.KeyValueWriter, hash common.Hash, number uint64, rlp rlp.RawValue) {
 	if err := db.Put(blockBodyKey(number, hash), rlp); err != nil {
 		log.Crit("Failed to store block body", "err", err)
@@ -509,6 +513,7 @@ func HasBody(db ethdb.Reader, hash common.Hash, number uint64) bool {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
+// ReadBody获取和hash对应的block body
 func ReadBody(db ethdb.Reader, hash common.Hash, number uint64) *types.Body {
 	data := ReadBodyRLP(db, hash, number)
 	if len(data) == 0 {
@@ -649,8 +654,11 @@ func ReadRawReceipts(db ethdb.Reader, hash common.Hash, number uint64) types.Rec
 // The current implementation populates these metadata fields by reading the receipts'
 // corresponding block body, so if the block body is not found it will return nil even
 // if the receipt itself is stored.
+// 当前的实现通过读取receipts的对应block body来填充这些元数据字段，这样如果block body没有找到的话
+// 它会返回nil，即使receipt自己找到了
 func ReadReceipts(db ethdb.Reader, hash common.Hash, number uint64, config *params.ChainConfig) types.Receipts {
 	// We're deriving many fields from the block body, retrieve beside the receipt
+	// 我们从block body派生出很多字段，在receipt旁边取回
 	receipts := ReadRawReceipts(db, hash, number)
 	if receipts == nil {
 		return nil
@@ -1032,6 +1040,7 @@ func ReadHeadHeader(db ethdb.Reader) *types.Header {
 }
 
 // ReadHeadBlock returns the current canonical head block.
+// ReadHeadBlock返回当前的canonical head block
 func ReadHeadBlock(db ethdb.Reader) *types.Block {
 	headBlockHash := ReadHeadBlockHash(db)
 	if headBlockHash == (common.Hash{}) {

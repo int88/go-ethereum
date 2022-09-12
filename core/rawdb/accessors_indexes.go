@@ -30,6 +30,7 @@ import (
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
+// ReadTxLookupEntry获取和一个tx hash相关的位置元数据
 func ReadTxLookupEntry(db ethdb.Reader, hash common.Hash) *uint64 {
 	data, _ := db.Get(txLookupKey(hash))
 	if len(data) == 0 {
@@ -64,6 +65,7 @@ func writeTxLookupEntry(db ethdb.KeyValueWriter, hash common.Hash, numberBytes [
 
 // WriteTxLookupEntries is identical to WriteTxLookupEntry, but it works on
 // a list of hashes
+// WriteTxLookupEntries和WriteTxLookupEntry相同，但是它作用在一系列哈希之上
 func WriteTxLookupEntries(db ethdb.KeyValueWriter, number uint64, hashes []common.Hash) {
 	numberBytes := new(big.Int).SetUint64(number).Bytes()
 	for _, hash := range hashes {
@@ -78,6 +80,8 @@ func WriteTxLookupEntries(db ethdb.KeyValueWriter, number uint64, hashes []commo
 func WriteTxLookupEntriesByBlock(db ethdb.KeyValueWriter, block *types.Block) {
 	numberBytes := block.Number().Bytes()
 	for _, tx := range block.Transactions() {
+		// 遍历block里的tx，写入TxLookupEntry
+		// tx的哈希值和其所处的block number的映射
 		writeTxLookupEntry(db, tx.Hash(), numberBytes)
 	}
 }
@@ -93,6 +97,7 @@ func DeleteTxLookupEntry(db ethdb.KeyValueWriter, hash common.Hash) {
 }
 
 // DeleteTxLookupEntries removes all transaction lookups for a given block.
+// DeleteTxLookupEntries移除所有的transaction lookups，对于一个给定的block
 func DeleteTxLookupEntries(db ethdb.KeyValueWriter, hashes []common.Hash) {
 	for _, hash := range hashes {
 		DeleteTxLookupEntry(db, hash)
@@ -101,6 +106,7 @@ func DeleteTxLookupEntries(db ethdb.KeyValueWriter, hashes []common.Hash) {
 
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
+// ReadTransaction从数据库获取一个特定的tx，伴随着额外的位置信息
 func ReadTransaction(db ethdb.Reader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
 	blockNumber := ReadTxLookupEntry(db, hash)
 	if blockNumber == nil {
@@ -110,11 +116,13 @@ func ReadTransaction(db ethdb.Reader, hash common.Hash) (*types.Transaction, com
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
+	// 获取block body
 	body := ReadBody(db, blockHash, *blockNumber)
 	if body == nil {
 		log.Error("Transaction referenced missing", "number", *blockNumber, "hash", blockHash)
 		return nil, common.Hash{}, 0, 0
 	}
+	// tx保存在hash中
 	for txIndex, tx := range body.Transactions {
 		if tx.Hash() == hash {
 			return tx, blockHash, *blockNumber, uint64(txIndex)
@@ -126,8 +134,10 @@ func ReadTransaction(db ethdb.Reader, hash common.Hash) (*types.Transaction, com
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
+// ReadReceipt从数据库中获取一个特定的tx receipt，以及额外的位置元数据
 func ReadReceipt(db ethdb.Reader, hash common.Hash, config *params.ChainConfig) (*types.Receipt, common.Hash, uint64, uint64) {
 	// Retrieve the context of the receipt based on the transaction hash
+	// 获取receipt的上下文，基于transaction hash
 	blockNumber := ReadTxLookupEntry(db, hash)
 	if blockNumber == nil {
 		return nil, common.Hash{}, 0, 0
@@ -137,6 +147,7 @@ func ReadReceipt(db ethdb.Reader, hash common.Hash, config *params.ChainConfig) 
 		return nil, common.Hash{}, 0, 0
 	}
 	// Read all the receipts from the block and return the one with the matching hash
+	// 从block读取出所有的receipts并且返回匹配hash的那一个
 	receipts := ReadReceipts(db, blockHash, *blockNumber, config)
 	for receiptIndex, receipt := range receipts {
 		if receipt.TxHash == hash {
