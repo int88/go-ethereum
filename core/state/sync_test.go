@@ -31,6 +31,7 @@ import (
 )
 
 // testAccount is the data associated with an account used by the state tests.
+// testAccount是和一个account相关的data，由state tests使用
 type testAccount struct {
 	address common.Address
 	balance *big.Int
@@ -39,17 +40,22 @@ type testAccount struct {
 }
 
 // makeTestState create a sample test state to test node-wise reconstruction.
+// makeTestState创建一个sample test state来测试节点重构
 func makeTestState() (Database, common.Hash, []*testAccount) {
 	// Create an empty state
+	// 创建一个空的state
 	db := NewDatabase(rawdb.NewMemoryDatabase())
 	state, _ := New(common.Hash{}, db, nil)
 
 	// Fill it with some arbitrary data
+	// 用一些随机数据进行填充
 	var accounts []*testAccount
 	for i := byte(0); i < 96; i++ {
+		// 构建一个新的state对象
 		obj := state.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
 		acc := &testAccount{address: common.BytesToAddress([]byte{i})}
 
+		// 添加balance，nonce
 		obj.AddBalance(big.NewInt(int64(11 * i)))
 		acc.balance = big.NewInt(int64(11 * i))
 
@@ -69,9 +75,11 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 		state.updateStateObject(obj)
 		accounts = append(accounts, acc)
 	}
+	// 获取root hash
 	root, _ := state.Commit(false)
 
 	// Return the generated state
+	// 返回产生的state
 	return db, root, accounts
 }
 
@@ -141,6 +149,7 @@ func TestEmptyStateSync(t *testing.T) {
 
 // Tests that given a root hash, a state can sync iteratively on a single thread,
 // requesting retrieval tasks and returning all of them in one go.
+// 测试给定一个root hash，一个state可以迭代地在单个线程同步，请求获取tasks并且一次性返回所有
 func TestIterativeStateSyncIndividual(t *testing.T) {
 	testIterativeStateSync(t, 1, false, false)
 }
@@ -162,6 +171,7 @@ func TestIterativeStateSyncBatchedByPath(t *testing.T) {
 
 func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 	// Create a random state to copy
+	// 创建一个随机的state进行拷贝
 	srcDb, srcRoot, srcAccounts := makeTestState()
 	if commit {
 		srcDb.TrieDB().Commit(srcRoot, false, nil)
@@ -169,6 +179,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 	srcTrie, _ := trie.New(srcRoot, srcDb.TrieDB())
 
 	// Create a destination state and sync with the scheduler
+	// 创建一个目标state并且和shceduler进行同步
 	dstDb := rawdb.NewMemoryDatabase()
 	sched := NewStateSync(srcRoot, dstDb, nil)
 
@@ -197,6 +208,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 		}
 		for i, path := range pathQueue {
 			if len(path) == 1 {
+				// 获取node
 				data, _, err := srcTrie.TryGetNode(path[0])
 				if err != nil {
 					t.Fatalf("failed to retrieve node data for path %x: %v", path, err)
@@ -219,6 +231,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 			}
 		}
 		for _, result := range results {
+			// 对结果进行处理
 			if err := sched.Process(result); err != nil {
 				t.Errorf("failed to process result %v", err)
 			}
@@ -238,6 +251,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 		}
 	}
 	// Cross check that the two states are in sync
+	// 交叉检查两个states是同步的
 	checkStateAccounts(t, dstDb, srcRoot, srcAccounts)
 }
 
@@ -398,11 +412,13 @@ func TestIterativeRandomDelayedStateSync(t *testing.T) {
 
 // Tests that at any point in time during a sync, only complete sub-tries are in
 // the database.
+// 测试在同步期间的任何节点，只有完整的sub-tries在数据库中
 func TestIncompleteStateSync(t *testing.T) {
 	// Create a random state to copy
 	srcDb, srcRoot, srcAccounts := makeTestState()
 
 	// isCodeLookup to save some hashing
+	// isCodeLookup用来节省一些哈希
 	var isCode = make(map[common.Hash]struct{})
 	for _, acc := range srcAccounts {
 		if len(acc.code) > 0 {
@@ -413,6 +429,7 @@ func TestIncompleteStateSync(t *testing.T) {
 	checkTrieConsistency(srcDb.TrieDB().DiskDB().(ethdb.Database), srcRoot)
 
 	// Create a destination state and sync with the scheduler
+	// 创建一个destination state并且用scheduler进行同步
 	dstDb := rawdb.NewMemoryDatabase()
 	sched := NewStateSync(srcRoot, dstDb, nil)
 
@@ -423,8 +440,10 @@ func TestIncompleteStateSync(t *testing.T) {
 
 	for len(queue) > 0 {
 		// Fetch a batch of state nodes
+		// 获取一批state nodes
 		results := make([]trie.SyncResult, len(queue))
 		for i, hash := range queue {
+			// 获取trie node
 			data, err := srcDb.TrieDB().Node(hash)
 			if err != nil {
 				data, err = srcDb.ContractCode(common.Hash{}, hash)
@@ -435,6 +454,7 @@ func TestIncompleteStateSync(t *testing.T) {
 			results[i] = trie.SyncResult{Hash: hash, Data: data}
 		}
 		// Process each of the state nodes
+		// 处理每个state nodes
 		for _, result := range results {
 			if err := sched.Process(result); err != nil {
 				t.Fatalf("failed to process result %v", err)
@@ -448,20 +468,25 @@ func TestIncompleteStateSync(t *testing.T) {
 		for _, result := range results {
 			added = append(added, result.Hash)
 			// Check that all known sub-tries added so far are complete or missing entirely.
+			// 检查所有已知的已经被添加的sub-tries是完整的或者完全丢失的
 			if _, ok := isCode[result.Hash]; ok {
 				continue
 			}
 			// Can't use checkStateConsistency here because subtrie keys may have odd
 			// length and crash in LeafKey.
+			// 不能在这里使用checkStateConsistency，因为subtrie keys可能有奇怪的长度
+			// 并且在LeafKey crash
 			if err := checkTrieConsistency(dstDb, result.Hash); err != nil {
 				t.Fatalf("state inconsistent: %v", err)
 			}
 		}
 		// Fetch the next batch to retrieve
+		// 找到下一个batch进行获取
 		nodes, _, codes = sched.Missing(1)
 		queue = append(append(queue[:0], nodes...), codes...)
 	}
 	// Sanity check that removing any node from the database is detected
+	// 检测从数据库中移除任何node都会被检测到
 	for _, node := range added[1:] {
 		var (
 			key     = node.Bytes()

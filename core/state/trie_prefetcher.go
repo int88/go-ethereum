@@ -198,11 +198,18 @@ func (p *triePrefetcher) used(root common.Hash, used [][]byte) {
 // single trie. It is spawned when a new root is encountered and lives until the
 // main prefetcher is paused and either all requested items are processed or if
 // the trie being worked on is retrieved from the prefetcher.
+// subfetcher是一个trie fetcher goroutine，负责拉取单个trie的entrie，它在遇到一个新的root
+// 的时候生成并且存活直到main prefetcher暂停，要么所有请求的items都被处理，或者正在被处理的
+// trie从prefetcher中获取
 type subfetcher struct {
-	db   Database    // Database to load trie nodes through
+	// 加载trie nodes的数据库
+	db Database // Database to load trie nodes through
+	// 用于获取hash的Root hash
 	root common.Hash // Root hash of the trie to prefetch
-	trie Trie        // Trie being populated with nodes
+	// 用nodes填充的Trie
+	trie Trie // Trie being populated with nodes
 
+	// 用于获取Items的队列
 	tasks [][]byte   // Items queued up for retrieval
 	lock  sync.Mutex // Lock protecting the task queue
 

@@ -34,12 +34,15 @@ func (leth *LightEthereum) stateAtBlock(ctx context.Context, block *types.Block,
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
+// stateAtTransaction返回一个特定的transaction的执行环境
 func (leth *LightEthereum) stateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error) {
 	// Short circuit if it's genesis block.
+	// 如果这是一个genesis block，直接返回
 	if block.NumberU64() == 0 {
 		return nil, vm.BlockContext{}, nil, errors.New("no transaction in genesis")
 	}
 	// Create the parent state database
+	// 创建parent的state database
 	parent, err := leth.blockchain.GetBlock(ctx, block.ParentHash(), block.NumberU64()-1)
 	if err != nil {
 		return nil, vm.BlockContext{}, nil, err
@@ -52,6 +55,7 @@ func (leth *LightEthereum) stateAtTransaction(ctx context.Context, block *types.
 		return nil, vm.BlockContext{}, statedb, nil
 	}
 	// Recompute transactions up to the target index.
+	// 重新计算transaction，直到target index
 	signer := types.MakeSigner(leth.blockchain.Config(), block.Number())
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset

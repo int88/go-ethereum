@@ -78,16 +78,25 @@ type stateObject struct {
 	// unable to deal with database-level errors. Any error that occurs
 	// during a database read is memoized here and will eventually be returned
 	// by StateDB.Commit.
+	// DB错误，State对象由consensus core以及VM使用，它不能处理database级别的错误
+	// 任何在database读取过程中的错误都记录在这里并且最终通过StateDB.Commit返回
 	dbErr error
 
 	// Write caches.
+	// 写缓存
+	// 存储的trie，在第一次访问的时候会变为non-nil
 	trie Trie // storage trie, which becomes non-nil on first access
+	// 合约代码，当代码加载的时候被设置
 	code Code // contract bytecode, which gets set when code is loaded
 
-	originStorage  Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
+	// original entries的存储缓存用于对rewrites进行去重，对于每个transaction都进行重置
+	originStorage Storage // Storage cache of original entries to dedup rewrites, reset for every transaction
+	// 需要被flushed到磁盘的存储缓存，在一整个block的最后
 	pendingStorage Storage // Storage entries that need to be flushed to disk, at the end of an entire block
-	dirtyStorage   Storage // Storage entries that have been modified in the current transaction execution
-	fakeStorage    Storage // Fake storage which constructed by caller for debugging purpose.
+	// 在当前的tx的执行过程中，已经被修改的Storage entries
+	dirtyStorage Storage // Storage entries that have been modified in the current transaction execution
+	// Fake storage，由调用者构造来进行debug
+	fakeStorage Storage // Fake storage which constructed by caller for debugging purpose.
 
 	// Cache flags.
 	// When an object is marked suicided it will be delete from the trie
@@ -103,6 +112,7 @@ func (s *stateObject) empty() bool {
 }
 
 // newObject creates a state object.
+// newObject创建一个state对象
 func newObject(db *StateDB, address common.Address, data types.StateAccount) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
@@ -249,16 +259,19 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 // SetState更新一个account storage中的一个值
 func (s *stateObject) SetState(db Database, key, value common.Hash) {
 	// If the fake storage is set, put the temporary state update here.
+	// 如果设置了fake storage，将临时的state update放在这里
 	if s.fakeStorage != nil {
 		s.fakeStorage[key] = value
 		return
 	}
 	// If the new value is the same as old, don't set
+	// 如果新的value和老的一样，则不要设置
 	prev := s.GetState(db, key)
 	if prev == value {
 		return
 	}
 	// New value is different, update and journal the change
+	// 新的value不同，更新并且记录变更
 	s.db.journal.append(storageChange{
 		account:  &s.address,
 		key:      key,

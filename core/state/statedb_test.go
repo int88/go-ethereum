@@ -106,19 +106,23 @@ func TestIntermediateLeaks(t *testing.T) {
 	}
 
 	// Modify the transient state.
+	// 修改transient state
 	for i := byte(0); i < 255; i++ {
 		modify(transState, common.Address{i}, i, 0)
 	}
 	// Write modifications to trie.
+	// 将修改写入trie中
 	transState.IntermediateRoot(false)
 
 	// Overwrite all the data with new values in the transient database.
+	// 在transient database中用新的值覆盖所有数据
 	for i := byte(0); i < 255; i++ {
 		modify(transState, common.Address{i}, i, 99)
 		modify(finalState, common.Address{i}, i, 99)
 	}
 
 	// Commit and cross check the databases.
+	// 提交并且交叉检查数据库
 	transRoot, err := transState.Commit(false)
 	if err != nil {
 		t.Fatalf("failed to commit transition state: %v", err)

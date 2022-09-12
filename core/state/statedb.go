@@ -260,7 +260,9 @@ func (s *StateDB) SubRefund(gas uint64) {
 }
 
 // Exist reports whether the given account address exists in the state.
+// Exist报告给定的account地址是否在state中存在
 // Notably this also returns true for suicided accounts.
+// 注意对于suicided accounts也返回true
 func (s *StateDB) Exist(addr common.Address) bool {
 	return s.getStateObject(addr) != nil
 }
@@ -530,6 +532,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	// 如果没有live objects存在，试着使用snapshots
 	var data *types.StateAccount
 	if s.snap != nil {
+		// 如果有snap的话
 		start := time.Now()
 		acc, err := s.snap.Account(crypto.HashData(s.hasher, addr.Bytes()))
 		if metrics.EnabledExpensive {
@@ -626,14 +629,19 @@ func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) 
 
 // CreateAccount explicitly creates a state object. If a state object with the address
 // already exists the balance is carried over to the new account.
+// CreateAccount显式地创建一个state对象，如果对应地址的state对象已经存在，balance会被迁移到新的account
 //
 // CreateAccount is called during the EVM CREATE operation. The situation might arise that
 // a contract does the following:
+// CreateAccount在EVM的CREATE操作中被调用，当一个合约做如下操作的时候会发生
+// 1. 发送funds到sha(account++ (nonce + 1))
+// 2. tx_create(sha(account ++ nonce)) (注意这将得到地址1)
 //
 //   1. sends funds to sha(account ++ (nonce + 1))
 //   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
 //
 // Carrying over the balance ensures that Ether doesn't disappear.
+// 结转余额确保Ether不会消失
 func (s *StateDB) CreateAccount(addr common.Address) {
 	newObj, prev := s.createObject(addr)
 	if prev != nil {

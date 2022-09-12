@@ -65,6 +65,9 @@ var (
 
 // Pruner is an offline tool to prune the stale state with the
 // help of the snapshot. The workflow of pruner is very simple:
+// Pruner是一个离线的工具用于在snapshot的帮助下修剪stale state，pruner的工作流非常简单
+// - 遍历snapshot，重新构建相关的state
+// - 遍历数据库，删除所有其他不属于target state以及genesis state的state entries
 //
 // - iterate the snapshot, reconstruct the relevant state
 // - iterate the database, delete all other state entries which
@@ -74,6 +77,8 @@ var (
 // the whole pruning work. It's recommended to run this offline tool
 // periodically in order to release the disk usage and improve the
 // disk read performance to some extent.
+// 修剪操作可以花费数小时（对于mainnet大概是2小时）来结束整个修剪操作
+// 建议阶段性地来运行这个离线工具，为了释放磁盘使用量并且在某种程度上提高磁盘的读性能
 type Pruner struct {
 	db            ethdb.Database
 	stateBloom    *stateBloom

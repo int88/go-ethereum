@@ -86,9 +86,12 @@ func NewSyncPath(path []byte) SyncPath {
 }
 
 // SyncResult is a response with requested data along with it's hash.
+// SyncResult是一个response对于请求的数据以及它的哈希
 type SyncResult struct {
+	// 对于原先未知的trie node的哈希值
 	Hash common.Hash // Hash of the originally unknown trie node
-	Data []byte      // Data content of the retrieved node
+	// 获取的node的内容
+	Data []byte // Data content of the retrieved node
 }
 
 // syncMemBatch is an in-memory buffer of successfully downloaded but not yet
@@ -121,13 +124,17 @@ func (batch *syncMemBatch) hasCode(hash common.Hash) bool {
 // Sync is the main state trie synchronisation scheduler, which provides yet
 // unknown trie hashes to retrieve, accepts node data associated with said hashes
 // and reconstructs the trie step by step until all is done.
+// Sync是主要的state trie同步调度器，它提供还未知的trie hahes来获取，接收和所谓的hashes
+// 相关的node data并且重新构建trie，直到完成
 type Sync struct {
 	database ethdb.KeyValueReader     // Persistent database to check for existing entries
 	membatch *syncMemBatch            // Memory buffer to avoid frequent database writes
 	nodeReqs map[common.Hash]*request // Pending requests pertaining to a trie node hash
 	codeReqs map[common.Hash]*request // Pending requests pertaining to a code hash
-	queue    *prque.Prque             // Priority queue with the pending requests
-	fetches  map[int]int              // Number of active fetches per trie node depth
+	// pending requests的优先级队列
+	queue *prque.Prque // Priority queue with the pending requests
+	// 每个trie node depth需要的active fetches
+	fetches map[int]int // Number of active fetches per trie node depth
 }
 
 // NewSync creates a new trie data download scheduler.
@@ -216,6 +223,8 @@ func (s *Sync) AddCodeEntry(hash common.Hash, path []byte, parent common.Hash) {
 // Missing retrieves the known missing nodes from the trie for retrieval. To aid
 // both eth/6x style fast sync and snap/1x style state sync, the paths of trie
 // nodes are returned too, as well as separate hash list for codes.
+// Missing获取trie中已知缺失的nodes用于获取，为了避免eth/6x风格的fast sync以及snap/1x风格
+// 的state sync，路径上的trie nodes也会返回，以及用于codes的另外的hash list
 func (s *Sync) Missing(max int) (nodes []common.Hash, paths []SyncPath, codes []common.Hash) {
 	var (
 		nodeHashes []common.Hash
@@ -224,14 +233,17 @@ func (s *Sync) Missing(max int) (nodes []common.Hash, paths []SyncPath, codes []
 	)
 	for !s.queue.Empty() && (max == 0 || len(nodeHashes)+len(codeHashes) < max) {
 		// Retrieve the next item in line
+		// 获取下一个item
 		item, prio := s.queue.Peek()
 
 		// If we have too many already-pending tasks for this depth, throttle
+		// 如果我们已经有太多already-pending的任务，限流
 		depth := int(prio >> 56)
 		if s.fetches[depth] > maxFetchesPerDepth {
 			break
 		}
 		// Item is allowed to be scheduled, add it to the task list
+		// Item允许被调度，添加到task list
 		s.queue.Pop()
 		s.fetches[depth]++
 

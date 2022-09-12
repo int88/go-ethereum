@@ -52,7 +52,9 @@ type StateDB interface {
 	HasSuicided(common.Address) bool
 
 	// Exist reports whether the given account exists in state.
+	// Exist报告给定的account是否在state中存在
 	// Notably this should also return true for suicided accounts.
+	// 注意，对于suicided accounts应该返回true
 	Exist(common.Address) bool
 	// Empty returns whether the given account is empty. Empty
 	// is defined according to EIP161 (balance = nonce = code = 0).

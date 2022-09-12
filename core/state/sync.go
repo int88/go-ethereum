@@ -27,8 +27,10 @@ import (
 )
 
 // NewStateSync create a new state trie download scheduler.
+// NewStateSync创建一个新的state trie download scheduler
 func NewStateSync(root common.Hash, database ethdb.KeyValueReader, onLeaf func(paths [][]byte, leaf []byte) error) *trie.Sync {
 	// Register the storage slot callback if the external callback is specified.
+	// 注册storage slot callback，如果指定了外部的callback
 	var onSlot func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error
 	if onLeaf != nil {
 		onSlot = func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error {
@@ -37,6 +39,7 @@ func NewStateSync(root common.Hash, database ethdb.KeyValueReader, onLeaf func(p
 	}
 	// Register the account callback to connect the state trie and the storage
 	// trie belongs to the contract.
+	// 注册account callback，来连接到属于这个协议的state trie以及storage tries
 	var syncer *trie.Sync
 	onAccount := func(paths [][]byte, hexpath []byte, leaf []byte, parent common.Hash) error {
 		if onLeaf != nil {
