@@ -42,6 +42,7 @@ func main() {
 	flag.Parse()
 
 	// set the log level to Trace
+	// 将日志级别设置为trace
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// register a single ping-pong service
@@ -56,6 +57,7 @@ func main() {
 	adapters.RegisterLifecycles(services)
 
 	// create the NodeAdapter
+	// 创建NodeAdapter
 	var adapter adapters.NodeAdapter
 
 	switch *adapterType {

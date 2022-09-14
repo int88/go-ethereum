@@ -286,6 +286,8 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 
 // CallContext performs a JSON-RPC call with the given arguments. If the context is
 // canceled before the call has successfully returned, CallContext returns immediately.
+// CallContext执行一个JSON-RPC调用，用给定的参数 ，如果context被取消，在调用成功返回之前
+// CallContext会立即返回
 //
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.

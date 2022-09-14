@@ -45,6 +45,8 @@ const (
 
 // rlpxTransport is the transport used by actual (non-test) connections.
 // It wraps an RLPx connection with locks and read/write deadlines.
+// rlpxTransport是真正的连接使用的transport，它封装了一个RPLx连接，用locks
+// 以及read/write的deadlines
 type rlpxTransport struct {
 	rmu, wmu sync.Mutex
 	wbuf     bytes.Buffer

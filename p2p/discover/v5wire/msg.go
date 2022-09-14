@@ -53,8 +53,10 @@ const (
 )
 
 // Protocol messages.
+// 协议的Message
 type (
 	// Unknown represents any packet that can't be decrypted.
+	// Unknown代表任何不能被解析的packet
 	Unknown struct {
 		Nonce Nonce
 	}
@@ -88,12 +90,14 @@ type (
 	}
 
 	// FINDNODE is a query for nodes in the given bucket.
+	// FINDNODE是对于给定bucket里的nodes的查询
 	Findnode struct {
 		ReqID     []byte
 		Distances []uint
 	}
 
 	// NODES is the reply to FINDNODE and TOPICQUERY.
+	// NODES是对于FINDNODE和TOPICQUERY的回复
 	Nodes struct {
 		ReqID []byte
 		Total uint8
@@ -101,6 +105,7 @@ type (
 	}
 
 	// TALKREQ is an application-level request.
+	// TALKREQ是一个应用层的请求
 	TalkRequest struct {
 		ReqID    []byte
 		Protocol string
@@ -114,6 +119,7 @@ type (
 	}
 
 	// REQUESTTICKET requests a ticket for a topic queue.
+	// REQUESTTICKET为一个topic queue请求一个ticket
 	RequestTicket struct {
 		ReqID []byte
 		Topic []byte

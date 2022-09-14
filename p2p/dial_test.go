@@ -35,6 +35,7 @@ import (
 )
 
 // This test checks that dynamic dials are launched from discovery results.
+// 这个测试检查dynamic dials从discovery结果中启动
 func TestDialSchedDynDial(t *testing.T) {
 	t.Parallel()
 
@@ -427,6 +428,7 @@ func runDialTest(t *testing.T, config dialConfig, rounds []dialTestRound) {
 
 	// Set up the dialer. The setup function below runs on the dialTask
 	// goroutine and adds the peer.
+	// 建立dialer，下面的setup函数运行在dialTask goroutine并且添加到peer
 	var dialsched *dialScheduler
 	setup := func(fd net.Conn, f connFlag, node *enode.Node) error {
 		conn := &conn{flags: f, node: node}

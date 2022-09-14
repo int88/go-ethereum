@@ -267,10 +267,12 @@ func (c *Client) Send(method, path string, in, out interface{}) error {
 // Server is an HTTP server providing an API to manage a simulation network
 // Server是一个HTTP server，提供一个API用于管理simulation network
 type Server struct {
-	router     *httprouter.Router
-	network    *Network
+	router  *httprouter.Router
+	network *Network
+	// 如果设置，停止当前的mocker
 	mockerStop chan struct{} // when set, stops the current mocker
-	mockerMtx  sync.Mutex    // synchronises access to the mockerStop field
+	// 同步对于mockerStop字段的访问
+	mockerMtx sync.Mutex // synchronises access to the mockerStop field
 }
 
 // NewServer returns a new simulation API server
@@ -565,12 +567,14 @@ func (s *Server) LoadSnapshot(w http.ResponseWriter, req *http.Request) {
 func (s *Server) CreateNode(w http.ResponseWriter, req *http.Request) {
 	config := &adapters.NodeConfig{}
 
+	// 获取node的config
 	err := json.NewDecoder(req.Body).Decode(config)
 	if err != nil && err != io.EOF {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	// 创建一个新的node
 	node, err := s.network.NewNodeWithConfig(config)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -699,9 +703,11 @@ func (s *Server) OPTIONS(path string, handle http.HandlerFunc) {
 }
 
 // JSON sends "data" as a JSON HTTP response
+// JSON发送"data"，作为一个JSON HTTP response
 func (s *Server) JSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
+	// 将数据写入http response writer
 	json.NewEncoder(w).Encode(data)
 }
 

@@ -115,6 +115,7 @@ func testPeer(protos []Protocol) (func(), *conn, *Peer, <-chan error) {
 }
 
 func TestPeerProtoReadMsg(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	proto := Protocol{
 		Name:   "a",
 		Length: 5,

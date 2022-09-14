@@ -50,10 +50,13 @@ func TestMain(m *testing.M) {
 
 // testService implements the node.Service interface and provides protocols
 // and APIs which are useful for testing nodes in a simulation network
+// testService实现了node.Service接口并且提供协议以及APIs，它在一个模拟的network中
+// 测试节点
 type testService struct {
 	id enode.ID
 
 	// peerCount is incremented once a peer handshake has been performed
+	// peerCount会增加，当一个peer的handshake已经执行之后
 	peerCount int64
 
 	peers    map[enode.ID]*testPeer
@@ -61,6 +64,7 @@ type testService struct {
 
 	// state stores []byte which is used to test creating and loading
 	// snapshots
+	// state存储[]byte，它用于测试snapshots的创建以及加载
 	state atomic.Value
 }
 
@@ -306,12 +310,15 @@ func testHTTPServer(t *testing.T) (*Network, *httptest.Server) {
 
 // TestHTTPNetwork tests interacting with a simulation network using the HTTP
 // API
+// TestHTTPNetwork测试和一个模拟的network的交互，使用HTTP API
 func TestHTTPNetwork(t *testing.T) {
 	// start the server
+	// 启动server
 	network, s := testHTTPServer(t)
 	defer s.Close()
 
 	// subscribe to events so we can check them later
+	// 对事件进行订阅，这样我们后面可以检查
 	client := NewClient(s.URL)
 	events := make(chan *Event, 100)
 	var opts SubscribeOpts
@@ -322,6 +329,7 @@ func TestHTTPNetwork(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	// check we can retrieve details about the network
+	// 检查我们可以获取network的details
 	gotNetwork, err := client.GetNetwork()
 	if err != nil {
 		t.Fatalf("error getting network: %s", err)
@@ -331,9 +339,11 @@ func TestHTTPNetwork(t *testing.T) {
 	}
 
 	// start a simulation network
+	// 启动一个模拟network
 	nodeIDs := startTestNetwork(t, client)
 
 	// check we got all the events
+	// 检查我们获取了所有的events
 	x := &expectEvents{t, events, sub}
 	x.expect(
 		x.nodeEvent(nodeIDs[0], false),
@@ -345,6 +355,7 @@ func TestHTTPNetwork(t *testing.T) {
 	)
 
 	// reconnect the stream and check we get the current nodes and conns
+	// 重新连接stream并且检查我们获取了当前的nodes和conns
 	events = make(chan *Event, 100)
 	opts.Current = true
 	sub, err = client.SubscribeNetwork(events, opts)
@@ -362,6 +373,7 @@ func TestHTTPNetwork(t *testing.T) {
 
 func startTestNetwork(t *testing.T, client *Client) []string {
 	// create two nodes
+	// 创建两个nodes
 	nodeCount := 2
 	nodeIDs := make([]string, nodeCount)
 	for i := 0; i < nodeCount; i++ {
@@ -374,6 +386,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// check both nodes exist
+	// 检查两个nodes都存在
 	nodes, err := client.GetNodes()
 	if err != nil {
 		t.Fatalf("error getting nodes: %s", err)
@@ -395,6 +408,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// start both nodes
+	// 启动两个nodes
 	for _, nodeID := range nodeIDs {
 		if err := client.StartNode(nodeID); err != nil {
 			t.Fatalf("error starting node %q: %s", nodeID, err)
@@ -402,6 +416,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// connect the nodes
+	// 连接nodes
 	for i := 0; i < nodeCount-1; i++ {
 		peerId := i + 1
 		if i == nodeCount-1 {

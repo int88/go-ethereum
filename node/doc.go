@@ -16,6 +16,7 @@
 
 /*
 Package node sets up multi-protocol Ethereum nodes.
+node包建立了多协议的Ethereum nodes
 
 In the model exposed by this package, a node is a collection of services which use shared
 resources to provide RPC APIs. Services can also offer devp2p protocols, which are wired
@@ -45,11 +46,13 @@ Creating a Node allocates basic resources such as the data directory and returns
 in its INITIALIZING state. Lifecycle objects, RPC APIs and peer-to-peer networking
 protocols can be registered in this state. Basic operations such as opening a key-value
 database are permitted while initializing.
+Lifecycle对象，RPC APIs以及p2p网络协议可以在INITIALIZING状态注册
 
 Once everything is registered, the node can be started, which moves it into the RUNNING
 state. Starting the node starts all registered Lifecycle objects and enables RPC and
 peer-to-peer networking. Note that no additional Lifecycles, APIs or p2p protocols can be
 registered while the node is running.
+当node正在运行的时候，另外的Lifecycles，APIs或者p2p协议都不能再注册了
 
 Closing the node releases all held resources. The actions performed by Close depend on the
 state it was in. When closing a node in INITIALIZING state, resources related to the data
@@ -70,6 +73,9 @@ To access to the devp2p network, Node configures and starts p2p.Server. Each hos
 devp2p network has a unique identifier, the node key. The Node instance persists this key
 across restarts. Node also loads static and trusted node lists and ensures that knowledge
 about other hosts is persisted.
+为了访问devp2p网络，Node配置并且启动p2p.Server，devp2p network中的每个host有一个唯一的标识符，node key
+Node实例在重启的时候会持久化这个key，Node还会加载静态以及信任的node lists并且确保关于其他hosts的信息
+是持久化的
 
 JSON-RPC servers which run HTTP, WebSocket or IPC can be started on a Node. RPC modules
 offered by registered services will be offered on those endpoints. Users can restrict any
@@ -79,6 +85,7 @@ modules.
 Service implementations can open LevelDB databases through the service context. Package
 node chooses the file system location of each database. If the node is configured to run
 without a data directory, databases are opened in memory instead.
+如果node没有配置运行一个data目录，数据库在内存中打开
 
 Node also creates the shared store of encrypted Ethereum account keys. Services can access
 the account manager through the service context.
@@ -101,6 +108,7 @@ create one database for each instance.
 
 The account key store is shared among all node instances using the same data directory
 unless its location is changed through the KeyStoreDir configuration option.
+只有account key store，对于使用同一个data目录的所有node实例都是共享的
 
 
 Data Directory Sharing Example

@@ -46,6 +46,7 @@ const (
 )
 
 // request tracks sent network requests which have not yet received a response.
+// request追踪已经发送但是还没有收到response的network requests
 type request struct {
 	peer    string
 	version uint // Protocol version
@@ -59,6 +60,8 @@ type request struct {
 
 // Tracker is a pending network request tracker to measure how much time it takes
 // a remote peer to respond.
+// Tracker是一个pending network request tracker，用来统计一个remote peer回复需要花费
+// 多长时间
 type Tracker struct {
 	protocol string        // Protocol capability identifier for the metrics
 	timeout  time.Duration // Global timeout after which to drop a tracked packet

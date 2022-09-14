@@ -50,6 +50,7 @@ const (
 
 const (
 	// devp2p message codes
+	// devp2p的message编码
 	handshakeMsg = 0x00
 	discMsg      = 0x01
 	pingMsg      = 0x02
@@ -75,6 +76,7 @@ type PeerEventType string
 const (
 	// PeerEventTypeAdd is the type of event emitted when a peer is added
 	// to a p2p.Server
+	// PeerEventTypeAdd是事件类型，当一个peer被添加到一个p2p.Server的时候发射
 	PeerEventTypeAdd PeerEventType = "add"
 
 	// PeerEventTypeDrop is the type of event emitted when a peer is
@@ -83,6 +85,8 @@ const (
 
 	// PeerEventTypeMsgSend is the type of event emitted when a
 	// message is successfully sent to a peer
+	// PeerEventTypeMsgSend是发射的事件的类型，当一个message成功发射到
+	// 一个peer的时候
 	PeerEventTypeMsgSend PeerEventType = "msgsend"
 
 	// PeerEventTypeMsgRecv is the type of event emitted when a
@@ -119,6 +123,7 @@ type Peer struct {
 	disc     chan DiscReason
 
 	// events receives message send / receive events if set
+	// events接收message，关于send/receive事件，如果设置了的话
 	events   *event.Feed
 	testPipe *MsgPipeRW // for testing
 }
@@ -258,10 +263,12 @@ func (p *Peer) run() (remoteRequested bool, err error) {
 	go p.pingLoop()
 
 	// Start all protocol handlers.
+	// 启动所有的协议handlers
 	writeStart <- struct{}{}
 	p.startProtocols(writeStart, writeErr)
 
 	// Wait for an error or disconnect.
+	// 等待一个error或者断开连接
 loop:
 	for {
 		select {
@@ -297,6 +304,8 @@ loop:
 }
 
 func (p *Peer) pingLoop() {
+	// 每15秒发送一次ping
+	log.Info("start Peer.pingLoop")
 	ping := time.NewTimer(pingInterval)
 	defer p.wg.Done()
 	defer ping.Stop()
@@ -315,15 +324,18 @@ func (p *Peer) pingLoop() {
 }
 
 func (p *Peer) readLoop(errc chan<- error) {
+	log.Info("start Peer.readLoop")
 	defer p.wg.Done()
 	for {
 		// 获取message
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
+			// 当读取message错误时返回
 			errc <- err
 			return
 		}
 		msg.ReceivedAt = time.Now()
+		// 对message进行处理
 		if err = p.handle(msg); err != nil {
 			errc <- err
 			return
@@ -336,15 +348,19 @@ func (p *Peer) handle(msg Msg) error {
 	// 判断message的类型
 	case msg.Code == pingMsg:
 		msg.Discard()
+		// 对于ping message，则发送一个pong message
 		go SendItems(p.rw, pongMsg)
 	case msg.Code == discMsg:
 		// This is the last message. We don't need to discard or
 		// check errors because, the connection will be closed after it.
+		// 这是最后一个message，我们不需要丢弃或者检查errors，因为连接在这之后会
+		// 关闭
 		var m struct{ R DiscReason }
 		rlp.Decode(msg.Payload, &m)
 		return m.R
 	case msg.Code < baseProtocolLength:
 		// ignore other base protocol messages
+		// 忽略其他的base protocol messages
 		return msg.Discard()
 	default:
 		// it's a subprotocol message
@@ -381,6 +397,7 @@ func countMatchingProtocols(protocols []Protocol, caps []Cap) int {
 }
 
 // matchProtocols creates structures for matching named subprotocols.
+// matchProtocols创建结构用于匹配named subprotocols
 func matchProtocols(protocols []Protocol, caps []Cap, rw MsgReadWriter) map[string]*protoRW {
 	sort.Sort(capsByNameAndVersion(caps))
 	offset := baseProtocolLength
@@ -408,6 +425,7 @@ outer:
 func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error) {
 	p.wg.Add(len(p.running))
 	for _, proto := range p.running {
+		// 遍历各个protocols并且运行
 		proto := proto
 		proto.closed = p.closed
 		proto.wstart = writeStart
@@ -419,6 +437,8 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version))
 		go func() {
 			defer p.wg.Done()
+			// 运行protocols
+			log.Info("protocol start running", "name", proto.Name)
 			err := proto.Run(p, rw)
 			if err == nil {
 				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version))
@@ -445,8 +465,10 @@ func (p *Peer) getProto(code uint64) (*protoRW, error) {
 
 type protoRW struct {
 	Protocol
-	in     chan Msg        // receives read messages // 接收read message
+	in chan Msg // receives read messages // 接收read message
+	// 当peer在关闭的时候收到
 	closed <-chan struct{} // receives when peer is shutting down
+	// 当write可能启动的时候收到
 	wstart <-chan struct{} // receives when write may start
 	werr   chan<- error    // for write results
 	offset uint64

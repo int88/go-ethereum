@@ -81,9 +81,12 @@ type MsgReader interface {
 type MsgWriter interface {
 	// WriteMsg sends a message. It will block until the message's
 	// Payload has been consumed by the other end.
+	// WriteMsg发送一个messaage，它会block直到message的payload已经被
+	// 另一端消费了
 	//
 	// Note that messages can be sent only once because their
 	// payload reader is drained.
+	// 注意，messages只能被发送一次，因为他们的payload reader已经被排干了
 	WriteMsg(Msg) error
 }
 

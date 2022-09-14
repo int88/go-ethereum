@@ -53,6 +53,7 @@ type Node interface {
 
 	// Client returns the RPC client which is created once the node is
 	// up and running
+	// Client返回RPC client，在node启动并且运行的时候被创建
 	Client() (*rpc.Client, error)
 
 	// ServeRPC serves RPC requests over the given connection
@@ -70,6 +71,7 @@ type Node interface {
 	NodeInfo() *p2p.NodeInfo
 
 	// Snapshots creates snapshots of the running services
+	// Snapshots创建运行的services的snapshots
 	Snapshots() (map[string][]byte, error)
 }
 
@@ -98,6 +100,7 @@ type NodeConfig struct {
 	PrivateKey *ecdsa.PrivateKey
 
 	// Enable peer events for Msgs
+	// 对于Msgs使能peer events
 	EnableMsgEvents bool
 
 	// Name is a human friendly name for the node like "node01"
@@ -110,11 +113,13 @@ type NodeConfig struct {
 	// starting the node (for SimNodes it should be the names of service lifecycles
 	// contained in SimAdapter.lifecycles, for other nodes it should be
 	// service lifecycles registered by calling the RegisterLifecycle function)
+	// Lifecycles是service lifecycles的名字，它应该在开始node的时候运行
 	Lifecycles []string
 
 	// Properties are the names of the properties this node should hold
 	// within running services (e.g. "bootnode", "lightnode" or any custom values)
 	// These values need to be checked and acted upon by node Services
+	// Properties是properties的名字，在running services中应该维护
 	Properties []string
 
 	// ExternalSigner specifies an external URI for a clef-type signer
@@ -220,6 +225,7 @@ func (n *NodeConfig) Node() *enode.Node {
 
 // RandomNodeConfig returns node configuration with a randomly generated ID and
 // PrivateKey
+// RandomNodeConfig用随机生成的ID以及PrivateKey返回node配置
 func RandomNodeConfig() *NodeConfig {
 	prvkey, err := crypto.GenerateKey()
 	if err != nil {
@@ -261,6 +267,7 @@ func assignTCPPort() (uint16, error) {
 
 // ServiceContext is a collection of options and methods which can be utilised
 // when starting services
+// ServiceContext是一系列options以及methods，可以在启动services的时候使用
 type ServiceContext struct {
 	RPCDialer
 
@@ -276,6 +283,8 @@ type RPCDialer interface {
 }
 
 // LifecycleConstructor allows a Lifecycle to be constructed during node start-up.
+// LifecycleConstructor允许一个Lifecycle在node启动的时候构建，service特定的包通常只关心Lifecycle的创建
+// 以及注册，为了测试目的，当场构造一个Lifecycle是有用的
 // While the service-specific package usually takes care of Lifecycle creation and registration,
 // for testing purposes, it is useful to be able to construct a Lifecycle on spot.
 type LifecycleConstructor func(ctx *ServiceContext, stack *node.Node) (node.Lifecycle, error)
@@ -315,6 +324,7 @@ func RegisterLifecycles(lifecycles LifecycleConstructors) {
 
 // adds the host part to the configuration's ENR, signs it
 // creates and  the corresponding enode object to the configuration
+// 添加host部分到配置的ENR，创建对应的enode对象
 func (n *NodeConfig) initEnode(ip net.IP, tcpport int, udpport int) error {
 	enrIp := enr.IP(ip)
 	n.Record.Set(&enrIp)
@@ -331,6 +341,7 @@ func (n *NodeConfig) initEnode(ip net.IP, tcpport int, udpport int) error {
 	if err != nil {
 		return fmt.Errorf("unable to create enode: %v", err)
 	}
+	// 构建新的simnode
 	log.Trace("simnode new", "record", n.Record)
 	n.node = nod
 	return nil

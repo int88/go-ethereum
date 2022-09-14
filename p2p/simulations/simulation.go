@@ -70,11 +70,13 @@ func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 		select {
 		case id := <-step.Trigger:
 			// skip if we aren't checking the node
+			// 跳过，如果我们没有检查节点
 			if _, ok := nodes[id]; !ok {
 				continue
 			}
 
 			// skip if the node has already passed
+			// 跳过如果node已经通过了
 			if _, ok := result.Passes[id]; ok {
 				continue
 			}

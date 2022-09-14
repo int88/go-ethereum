@@ -35,6 +35,7 @@ type Protocol struct {
 
 	// Length should contain the number of message codes used
 	// by the protocol.
+	// Length应该包含在protocol使用的message codes的数目
 	Length uint64
 
 	// Run is called in a new goroutine when the protocol has been
@@ -52,6 +53,7 @@ type Protocol struct {
 
 	// NodeInfo is an optional helper method to retrieve protocol specific metadata
 	// about the host node.
+	// NodeInfo是一个可选的helper method，用于获取协议特定的元数据，关于host node
 	NodeInfo func() interface{}
 
 	// PeerInfo is an optional helper method to retrieve protocol specific metadata
@@ -65,10 +67,12 @@ type Protocol struct {
 	DialCandidates enode.Iterator
 
 	// Attributes contains protocol specific information for the node record.
+	// Attributes包含了对于node record的协议特定的信息
 	Attributes []enr.Entry
 }
 
 func (p Protocol) cap() Cap {
+	// 协议的名字以及版本
 	return Cap{p.Name, p.Version}
 }
 

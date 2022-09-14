@@ -65,6 +65,7 @@ type Network struct {
 	Conns   []*Conn `json:"conns"`
 	connMap map[string]int
 
+	// node adapter真正负责启动nodes以及将它们连接在一起
 	nodeAdapter adapters.NodeAdapter
 	events      event.Feed
 	lock        sync.RWMutex
@@ -108,6 +109,7 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// check the node doesn't already exist
+	// 确保node不存在
 	if node := net.getNode(conf.ID); node != nil {
 		return nil, fmt.Errorf("node with ID %q already exists", conf.ID)
 	}
@@ -159,6 +161,7 @@ func (net *Network) StartAll() error {
 		if node.Up() {
 			continue
 		}
+		// 启动node
 		if err := net.Start(node.ID()); err != nil {
 			return err
 		}
@@ -197,6 +200,7 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 		return fmt.Errorf("node %v does not exist", id)
 	}
 	if node.Up() {
+		// node已经启动了
 		return fmt.Errorf("node %v already up", id)
 	}
 	log.Trace("Starting node", "id", id, "adapter", net.nodeAdapter.Name())
@@ -833,8 +837,10 @@ type Conn struct {
 	Other enode.ID `json:"other"`
 
 	// Up tracks whether or not the connection is active
+	// Up追踪连接是否active
 	Up bool `json:"up"`
 	// Registers when the connection was grabbed to dial
+	// 当连接被抓到拨号时注册
 	initiated time.Time
 
 	one   *Node
@@ -888,20 +894,24 @@ func ConnLabel(source, target enode.ID) string {
 
 // Snapshot represents the state of a network at a single point in time and can
 // be used to restore the state of a network
+// Snapshot代表一个network在单个时间点的状态，可以被用于恢复state of a network
 type Snapshot struct {
 	Nodes []NodeSnapshot `json:"nodes,omitempty"`
 	Conns []Conn         `json:"conns,omitempty"`
 }
 
 // NodeSnapshot represents the state of a node in the network
+// NodeSnapshot代表在network中一个node的状态
 type NodeSnapshot struct {
 	Node Node `json:"node,omitempty"`
 
 	// Snapshots is arbitrary data gathered from calling node.Snapshots()
+	// Snapshots是调用node.Snapshots()获取的任意data
 	Snapshots map[string][]byte `json:"snapshots,omitempty"`
 }
 
 // Snapshot creates a network snapshot
+// Snapshot创建一个network snapshot
 func (net *Network) Snapshot() (*Snapshot, error) {
 	return net.snapshot(nil, nil)
 }

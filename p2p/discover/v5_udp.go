@@ -60,6 +60,7 @@ type codecV5 interface {
 }
 
 // UDPv5 is the implementation of protocol version 5.
+// UDPv5是第五个版本的协议实现
 type UDPv5 struct {
 	// static fields
 	conn         UDPConn
@@ -122,6 +123,7 @@ type callTimeout struct {
 }
 
 // ListenV5 listens on the given connection.
+// ListenV5在给定的连接上进行监听
 func ListenV5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 	t, err := newUDPv5(conn, ln, cfg)
 	if err != nil {
@@ -135,11 +137,13 @@ func ListenV5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 }
 
 // newUDPv5 creates a UDPv5 transport, but doesn't start any goroutines.
+// newUDPv5创建一个UDPv5的transport，但是不启动任何goroutine
 func newUDPv5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 	closeCtx, cancelCloseCtx := context.WithCancel(context.Background())
 	cfg = cfg.withDefaults()
 	t := &UDPv5{
 		// static fields
+		// 静态字段
 		conn:         conn,
 		localNode:    ln,
 		db:           ln.Database(),
@@ -150,12 +154,14 @@ func newUDPv5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 		clock:        cfg.Clock,
 		trhandlers:   make(map[string]TalkRequestHandler),
 		// channels into dispatch
+		// 用于分发的channels
 		packetInCh:    make(chan ReadPacket, 1),
 		readNextCh:    make(chan struct{}, 1),
 		callCh:        make(chan *callV5),
 		callDoneCh:    make(chan *callV5),
 		respTimeoutCh: make(chan *callTimeout),
 		// state of dispatch
+		// 分发的状态
 		codec:            v5wire.NewCodec(ln, cfg.PrivateKey, cfg.Clock),
 		activeCallByNode: make(map[enode.ID]*callV5),
 		activeCallByAuth: make(map[v5wire.Nonce]*callV5),
@@ -268,6 +274,7 @@ func (t *UDPv5) RandomNodes() enode.Iterator {
 
 // Lookup performs a recursive lookup for the given target.
 // It returns the closest nodes to target.
+// Lookup执行递归查找，对于给定的target，它返回到达target最近的nodes
 func (t *UDPv5) Lookup(target enode.ID) []*enode.Node {
 	return t.newLookup(t.closeCtx, target).run()
 }

@@ -291,11 +291,16 @@ OuterTwo:
 // TestNetworkSimulation creates a multi-node simulation network with each node
 // connected in a ring topology, checks that all nodes successfully handshake
 // with each other and that a snapshot fully represents the desired topology
+// TestNetworkSimulation创建一个多节点的模拟网络，每个node连接为一个ring结构
+// 检查所有节点都正确握手了，以及一个snapshot完整地代表了期望的拓扑
 func TestNetworkSimulation(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	// create simulation network with 20 testService nodes
+	// 创建一个有着20个testService nodes的模拟网络
 	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
+	// 生成一个network
 	network := NewNetwork(adapter, &NetworkConfig{
 		DefaultService: "test",
 	})
@@ -304,10 +309,12 @@ func TestNetworkSimulation(t *testing.T) {
 	ids := make([]enode.ID, nodeCount)
 	for i := 0; i < nodeCount; i++ {
 		conf := adapters.RandomNodeConfig()
+		// 创建节点并且启动
 		node, err := network.NewNodeWithConfig(conf)
 		if err != nil {
 			t.Fatalf("error creating node: %s", err)
 		}
+		// 启动node
 		if err := network.Start(node.ID()); err != nil {
 			t.Fatalf("error starting node: %s", err)
 		}
@@ -317,9 +324,12 @@ func TestNetworkSimulation(t *testing.T) {
 	// perform a check which connects the nodes in a ring (so each node is
 	// connected to exactly two peers) and then checks that all nodes
 	// performed two handshakes by checking their peerCount
+	// 执行一个检查，nodes以ring的方式连接（这样每个节点和刚好两个peer相连）
+	// 之后再检查所有节点兜着它们的peerCount执行了两次握手
 	action := func(_ context.Context) error {
 		for i, id := range ids {
 			peerID := ids[(i+1)%len(ids)]
+			// 跟下一个id的peer相连
 			if err := network.Connect(id, peerID); err != nil {
 				return err
 			}
@@ -328,6 +338,7 @@ func TestNetworkSimulation(t *testing.T) {
 	}
 	check := func(ctx context.Context, id enode.ID) (bool, error) {
 		// check we haven't run out of time
+		// 检查我们没有超时
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -341,6 +352,7 @@ func TestNetworkSimulation(t *testing.T) {
 		}
 
 		// check it has exactly two peers
+		// 检查节点是不是有两个peer
 		client, err := node.Client()
 		if err != nil {
 			return false, err
@@ -364,9 +376,11 @@ func TestNetworkSimulation(t *testing.T) {
 	defer cancel()
 
 	// trigger a check every 100ms
+	// 每100ms触发一次check
 	trigger := make(chan enode.ID)
 	go triggerChecks(ctx, ids, trigger, 100*time.Millisecond)
 
+	// 运行模拟
 	result := NewSimulation(network).Run(ctx, &Step{
 		Action:  action,
 		Trigger: trigger,
@@ -380,6 +394,7 @@ func TestNetworkSimulation(t *testing.T) {
 	}
 
 	// take a network snapshot and check it contains the correct topology
+	// 对network做一个快照 并且检查它包含正确的拓扑
 	snap, err := network.Snapshot()
 	if err != nil {
 		t.Fatal(err)

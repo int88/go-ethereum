@@ -28,6 +28,7 @@ import (
 )
 
 // UDPConn is a network connection on which discovery can operate.
+// UDPConn是一个network连接，discovery可以操控
 type UDPConn interface {
 	ReadFromUDP(b []byte) (n int, addr *net.UDPAddr, err error)
 	WriteToUDP(b []byte, addr *net.UDPAddr) (n int, err error)
@@ -38,10 +39,12 @@ type UDPConn interface {
 // Config holds settings for the discovery listener.
 type Config struct {
 	// These settings are required and configure the UDP listener:
+	// 这些字段是必须的，用于配置UDP listener
 	PrivateKey *ecdsa.PrivateKey
 
 	// These settings are optional:
-	NetRestrict  *netutil.Netlist   // list of allowed IP networks
+	NetRestrict *netutil.Netlist // list of allowed IP networks
+	// 一系列的bootstrap nodes
 	Bootnodes    []*enode.Node      // list of bootstrap nodes
 	Unhandled    chan<- ReadPacket  // unhandled packets are sent on this channel
 	Log          log.Logger         // if set, log messages go here

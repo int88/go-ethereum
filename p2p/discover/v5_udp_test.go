@@ -37,7 +37,9 @@ import (
 )
 
 // Real sockets, real crypto: this test checks end-to-end connectivity for UDPv5.
+// 真的sockets，真的crypto：这个测试检测UDPv5的端到端连通性
 func TestUDPv5_lookupE2E(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 
 	const N = 5
@@ -46,6 +48,7 @@ func TestUDPv5_lookupE2E(t *testing.T) {
 		var cfg Config
 		if len(nodes) > 0 {
 			bn := nodes[0].Self()
+			// 配置cfg的Bootnodes
 			cfg.Bootnodes = []*enode.Node{bn}
 		}
 		node := startLocalhostV5(t, cfg)
@@ -56,6 +59,7 @@ func TestUDPv5_lookupE2E(t *testing.T) {
 	target := nodes[rand.Intn(N-2)].Self()
 
 	// It is expected that all nodes can be found.
+	// 期望所有的nodes都能找到
 	expectedResult := make([]*enode.Node, len(nodes))
 	for i := range nodes {
 		expectedResult[i] = nodes[i].Self()
@@ -65,6 +69,7 @@ func TestUDPv5_lookupE2E(t *testing.T) {
 	})
 
 	// Do the lookup.
+	// 进行查找
 	results := last.Lookup(target.ID())
 	if err := checkNodesEqual(results, expectedResult); err != nil {
 		t.Fatalf("lookup returned wrong results: %v", err)
@@ -74,9 +79,11 @@ func TestUDPv5_lookupE2E(t *testing.T) {
 func startLocalhostV5(t *testing.T, cfg Config) *UDPv5 {
 	cfg.PrivateKey = newkey()
 	db, _ := enode.OpenDB("")
+	// 创建local node
 	ln := enode.NewLocalNode(db, cfg.PrivateKey)
 
 	// Prefix logs with node ID.
+	// 用node ID作为前缀
 	lprefix := fmt.Sprintf("(%s)", ln.ID().TerminalString())
 	lfmt := log.TerminalFormat(false)
 	cfg.Log = testlog.Logger(t, log.LvlTrace)
@@ -86,6 +93,7 @@ func startLocalhostV5(t *testing.T, cfg Config) *UDPv5 {
 	}))
 
 	// Listen.
+	// 监听
 	socket, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}})
 	if err != nil {
 		t.Fatal(err)
@@ -101,6 +109,7 @@ func startLocalhostV5(t *testing.T, cfg Config) *UDPv5 {
 }
 
 // This test checks that incoming PING calls are handled correctly.
+// 这个测试检查到来的PING调用会被正确处理
 func TestUDPv5_pingHandling(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
@@ -630,7 +639,9 @@ func TestUDPv5_PingWithIPV4MappedAddress(t *testing.T) {
 }
 
 // udpV5Test is the framework for all tests above.
+// udpV5Test是对于上面所有测试的框架
 // It runs the UDPv5 transport on a virtual socket and allows testing outgoing packets.
+// 它在一个virtual socket上运行UDPv5 transport并且允许测试outgoing packets
 type udpV5Test struct {
 	t                   *testing.T
 	pipe                *dgramPipe

@@ -39,8 +39,9 @@ import (
 // SimAdapter是一个NodeAdapter，它创建in-memory simulation nodes并且使用net.Pipe
 // 连接他们
 type SimAdapter struct {
-	pipe       func() (net.Conn, net.Conn, error)
-	mtx        sync.RWMutex
+	pipe func() (net.Conn, net.Conn, error)
+	mtx  sync.RWMutex
+	// nodes集合
 	nodes      map[enode.ID]*SimNode
 	lifecycles LifecycleConstructors
 }
@@ -79,15 +80,18 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 	}
 
 	// check a node with the ID doesn't already exist
+	// 检查有着ID的一个节点没有存在
 	if _, exists := s.nodes[id]; exists {
 		return nil, fmt.Errorf("node already exists: %s", id)
 	}
 
 	// check the services are valid
+	// 检查services是合法的
 	if len(config.Lifecycles) == 0 {
 		return nil, errors.New("node must have at least one service")
 	}
 	for _, service := range config.Lifecycles {
+		// service必须是SimAdapter已知的
 		if _, exists := s.lifecycles[service]; !exists {
 			return nil, fmt.Errorf("unknown node service %q", service)
 		}
@@ -98,7 +102,7 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 		return nil, err
 	}
 
-	// 构建一个新的node
+	// 调用node包，构建一个新的node
 	n, err := node.New(&node.Config{
 		P2P: p2p.Config{
 			PrivateKey: config.PrivateKey,
@@ -129,7 +133,9 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 
 // Dial implements the p2p.NodeDialer interface by connecting to the node using
 // an in-memory net.Pipe
+// Dial实现了p2p.NodeDialer接口，通过一个内存中的net.Pipe连接节点
 func (s *SimAdapter) Dial(ctx context.Context, dest *enode.Node) (conn net.Conn, err error) {
+	// 根据id获取节点
 	node, ok := s.GetNode(dest.ID())
 	if !ok {
 		return nil, fmt.Errorf("unknown node: %s", dest.ID())
@@ -146,6 +152,8 @@ func (s *SimAdapter) Dial(ctx context.Context, dest *enode.Node) (conn net.Conn,
 	// this is simulated 'listening'
 	// asynchronously call the dialed destination node's p2p server
 	// to set up connection on the 'listening' side
+	// 这是一个模拟的'listening'，异步地调用dialed destination node的p2p server
+	// 在'listening'端建立连接
 	go srv.SetupConn(pipe1, 0, nil)
 	return pipe2, nil
 }

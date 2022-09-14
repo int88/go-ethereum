@@ -69,6 +69,7 @@ type lnEndpoint struct {
 }
 
 // NewLocalNode creates a local node.
+// NewLocalNode创建一个本地节点
 func NewLocalNode(db *DB, key *ecdsa.PrivateKey) *LocalNode {
 	ln := &LocalNode{
 		id:      PubkeyToIDV4(&key.PublicKey),
@@ -94,6 +95,7 @@ func (ln *LocalNode) Database() *DB {
 }
 
 // Node returns the current version of the local node record.
+// Node返回local node record的当前版本
 func (ln *LocalNode) Node() *Node {
 	// If we have a valid record, return that
 	n := ln.cur.Load().(*Node)

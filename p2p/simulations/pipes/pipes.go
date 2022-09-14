@@ -27,6 +27,7 @@ func NetPipe() (net.Conn, net.Conn, error) {
 }
 
 // TCPPipe creates an in process full duplex pipe based on a localhost TCP socket
+// TCPPipe创建一个进程中的全双工管道，基于一个本地的TCP socket
 func TCPPipe() (net.Conn, net.Conn, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

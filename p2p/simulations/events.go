@@ -22,19 +22,23 @@ import (
 )
 
 // EventType is the type of event emitted by a simulation network
+// EventType是由一个模拟的network发生的event
 type EventType string
 
 const (
 	// EventTypeNode is the type of event emitted when a node is either
 	// created, started or stopped
+	// 当node被创建，启动或者停止的时候使用
 	EventTypeNode EventType = "node"
 
 	// EventTypeConn is the type of event emitted when a connection is
 	// is either established or dropped between two nodes
+	// 当两个节点的连接建立或者丢弃的时候建立
 	EventTypeConn EventType = "conn"
 
 	// EventTypeMsg is the type of event emitted when a p2p message it
 	// sent between two nodes
+	// 当一个p2p message在两个nodes之间发送的时候被调用
 	EventTypeMsg EventType = "msg"
 )
 
@@ -90,6 +94,7 @@ func NewEvent(v interface{}) *Event {
 }
 
 // ControlEvent creates a new control event
+// ControlEvent创建一个新的control event
 func ControlEvent(v interface{}) *Event {
 	event := NewEvent(v)
 	event.Control = true

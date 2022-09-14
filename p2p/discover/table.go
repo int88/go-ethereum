@@ -64,14 +64,19 @@ const (
 // Table is the 'node table', a Kademlia-like index of neighbor nodes. The table keeps
 // itself up-to-date by verifying the liveness of neighbors and requesting their node
 // records when announcements of a new record version are received.
+// Table是'node table'，对于neighbor nodes的一个类Kademlia索引，这个table让自己保持最新
+// 通过检测neighbors的存活并且请求它们的node records，当接收到一个新的record version的
+// announcements
 type Table struct {
-	mutex   sync.Mutex        // protects buckets, bucket content, nursery, rand
+	mutex sync.Mutex // protects buckets, bucket content, nursery, rand
+	// 基于距离的已知节点的索引
 	buckets [nBuckets]*bucket // index of known nodes by distance
 	nursery []*node           // bootstrap nodes
 	rand    *mrand.Rand       // source of randomness, periodically reseeded
 	ips     netutil.DistinctNetSet
 
-	log        log.Logger
+	log log.Logger
+	// 已知nodes的数据库
 	db         *enode.DB // database of known nodes
 	net        transport
 	refreshReq chan chan struct{}
@@ -83,6 +88,7 @@ type Table struct {
 }
 
 // transport is implemented by the UDP transports.
+// transport由UDP transports实现
 type transport interface {
 	Self() *enode.Node
 	RequestENR(*enode.Node) (*enode.Node, error)
@@ -93,6 +99,7 @@ type transport interface {
 
 // bucket contains nodes, ordered by their last activity. the entry
 // that was most recently active is the first element in entries.
+// bucket包含nodes，按照它们最后的活性排序，最近活跃的entry排在第一个
 type bucket struct {
 	entries      []*node // live entries, sorted by time of last contact
 	replacements []*node // recently seen nodes to be used if revalidation fails

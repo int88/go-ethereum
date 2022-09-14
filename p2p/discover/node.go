@@ -31,10 +31,12 @@ import (
 
 // node represents a host on the network.
 // The fields of Node may not be modified.
+// node代表network中的一个host，Node的字段不能被修改
 type node struct {
 	enode.Node
-	addedAt        time.Time // time when the node was added to the table
-	livenessChecks uint      // how often liveness was checked
+	addedAt time.Time // time when the node was added to the table
+	// 活性探测的时间
+	livenessChecks uint // how often liveness was checked
 }
 
 type encPubkey [64]byte

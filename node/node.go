@@ -279,13 +279,16 @@ func (n *Node) doClose(errs []error) error {
 }
 
 // openEndpoints starts all network and RPC endpoints.
+// openEndpoints启动所有的network以及RPC endpoints
 func (n *Node) openEndpoints() error {
 	// start networking endpoints
+	// 启动network endpoints
 	n.log.Info("Starting peer-to-peer node", "instance", n.server.Name)
 	if err := n.server.Start(); err != nil {
 		return convertFileLockError(err)
 	}
 	// start RPC endpoints
+	// 启动RPC endpoints
 	err := n.startRPC()
 	if err != nil {
 		n.stopRPC()
@@ -392,6 +395,7 @@ func (n *Node) obtainJWTSecret(cliParam string) ([]byte, error) {
 // startRPC is a helper method to configure all the various RPC endpoints during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
+// startRPC是一个helper方法用于在node启动期间配置所有的各种RPC endpoints
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
@@ -474,6 +478,7 @@ func (n *Node) startRPC() error {
 	}
 
 	// Set up HTTP.
+	// 设置HTTP
 	if n.config.HTTPHost != "" {
 		// Configure legacy unauthenticated HTTP.
 		if err := initHttp(n.http, open, n.config.HTTPPort); err != nil {
@@ -498,6 +503,7 @@ func (n *Node) startRPC() error {
 		}
 	}
 	// Start the servers
+	// 启动servers
 	for _, server := range servers {
 		if err := server.start(); err != nil {
 			return err
