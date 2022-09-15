@@ -30,6 +30,7 @@ import (
 // UDPConn is a network connection on which discovery can operate.
 // UDPConn是一个network连接，discovery可以操控
 type UDPConn interface {
+	// 从UDP读取以及写入
 	ReadFromUDP(b []byte) (n int, addr *net.UDPAddr, err error)
 	WriteToUDP(b []byte, addr *net.UDPAddr) (n int, err error)
 	Close() error
@@ -72,6 +73,7 @@ func ListenUDP(c UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv4, error) {
 
 // ReadPacket is a packet that couldn't be handled. Those packets are sent to the unhandled
 // channel if configured.
+// ReadPacket是一个不能被处理的packet，这些packets被发送到unhandled channel，如果配置了的话
 type ReadPacket struct {
 	Data []byte
 	Addr *net.UDPAddr

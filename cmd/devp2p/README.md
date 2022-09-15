@@ -15,6 +15,7 @@ Run `devp2p key generate mynode.key` to create a new node key in the `mynode.key
 
 Run `devp2p key to-enode mynode.key -ip 127.0.0.1 -tcp 30303` to create an enode:// URL
 corresponding to the given node key and address information.
+创建一个encode::// URL，根据给定的node key以及地址信息
 
 ### Maintaining DNS Discovery Node Lists
 
@@ -71,14 +72,17 @@ The `devp2p discv5 ...` command family deals with the [Node Discovery v5][discv5
 protocol. This protocol is currently under active development.
 
 Run `devp2p discv5 ping <ENR>` to ping a node.
+ping一个节点
 
 Run `devp2p discv5 resolve <ENR>` to find the most recent node record of a node in
 the discv5 DHT.
 
 Run `devp2p discv5 listen` to run a Discovery v5 node.
+运行一个Disovery V5的节点
 
 Run `devp2p discv5 crawl <nodes.json path>` to create or update a JSON node set containing
 discv5 nodes.
+创建或者更新一个JSON节点集，包含discv5 nodes
 
 ### Discovery Test Suites
 

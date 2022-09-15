@@ -60,6 +60,8 @@ const (
 	// Discovery packets are defined to be no larger than 1280 bytes.
 	// Packets larger than this size will be cut at the end and treated
 	// as invalid because their hash won't match.
+	// Discovery packets被定义为不超过1280个字节，大于这个大小的Pakcets会在尾部截断
+	// 并且作为非法，因为它们的哈希不会匹配
 	maxPacketSize = 1280
 )
 

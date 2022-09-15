@@ -56,6 +56,7 @@ func nodeAtDistance(base enode.ID, ld int, ip net.IP) *node {
 }
 
 // nodesAtDistance creates n nodes for which enode.LogDist(base, node.ID()) == ld.
+// nodesAtDistance创建n个节点，距离为ld
 func nodesAtDistance(base enode.ID, ld int, n int) []*enode.Node {
 	results := make([]*enode.Node, n)
 	for i := range results {
@@ -108,6 +109,8 @@ func fillBucket(tab *Table, n *node) (last *node) {
 
 // fillTable adds nodes the table to the end of their corresponding bucket
 // if the bucket is not full. The caller must not hold tab.mutex.
+// fillTable添加nodes到对应bucket的最后，如果bucket没有满的话
+// caller必须不能维护tab.mutex
 func fillTable(tab *Table, nodes []*node) {
 	for _, n := range nodes {
 		tab.addSeenNode(n)

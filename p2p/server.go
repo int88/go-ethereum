@@ -196,6 +196,7 @@ type Server struct {
 	dialsched *dialScheduler
 
 	// Channels into the run loop.
+	// 运行loop的channels
 	quit                    chan struct{}
 	addtrusted              chan *enode.Node
 	removetrusted           chan *enode.Node
@@ -429,6 +430,8 @@ func (srv *Server) Stop() {
 
 // sharedUDPConn implements a shared connection. Write sends messages to the underlying connection while read returns
 // messages that were found unprocessable and sent to the unhandled channel by the primary listener.
+// sharedUDPConn实现了一个共享的连接，Write发送messages到底层的连接，同时read返回不能处理的messages并且发送给
+// unhandled channel，通过primary listener
 type sharedUDPConn struct {
 	*net.UDPConn
 	unhandled chan discover.ReadPacket
@@ -471,6 +474,7 @@ func (srv *Server) Start() (err error) {
 		srv.clock = mclock.System{}
 	}
 	if srv.NoDial && srv.ListenAddr == "" {
+		// P2P server会没什么用，既不dialing也不listening
 		srv.log.Warn("P2P server will be useless, neither dialing nor listening")
 	}
 
@@ -503,9 +507,11 @@ func (srv *Server) Start() (err error) {
 			return err
 		}
 	}
+	// 设置Discovery
 	if err := srv.setupDiscovery(); err != nil {
 		return err
 	}
+	// 设置Dial Scheduler
 	srv.setupDialScheduler()
 
 	srv.loopWG.Add(1)
@@ -559,10 +565,12 @@ func (srv *Server) setupLocalNode() error {
 	return nil
 }
 
+// 设置Discovery
 func (srv *Server) setupDiscovery() error {
 	srv.discmix = enode.NewFairMix(discmixTimeout)
 
 	// Add protocol-specific discovery sources.
+	// 添加特定协议的discovery sources
 	added := make(map[string]bool)
 	for _, proto := range srv.Protocols {
 		if proto.DialCandidates != nil && !added[proto.Name] {
@@ -572,6 +580,7 @@ func (srv *Server) setupDiscovery() error {
 	}
 
 	// Don't listen on UDP endpoint if DHT is disabled.
+	// 不要监听UDP endpoint，如果DHT被禁止的话
 	if srv.NoDiscovery && !srv.DiscoveryV5 {
 		return nil
 	}
@@ -630,6 +639,7 @@ func (srv *Server) setupDiscovery() error {
 		}
 		var err error
 		if sconn != nil {
+			// 监听到DiscV5
 			srv.DiscV5, err = discover.ListenV5(sconn, srv.localnode, cfg)
 		} else {
 			srv.DiscV5, err = discover.ListenV5(conn, srv.localnode, cfg)
@@ -684,6 +694,7 @@ func (srv *Server) maxDialedConns() (limit int) {
 
 func (srv *Server) setupListening() error {
 	// Launch the listener.
+	// 启动listener
 	listener, err := srv.listenFunc("tcp", srv.ListenAddr)
 	if err != nil {
 		return err
@@ -692,6 +703,7 @@ func (srv *Server) setupListening() error {
 	srv.ListenAddr = listener.Addr().String()
 
 	// Update the local node record and map the TCP listening port if NAT is configured.
+	// 更新local node record并且映射TCP listening port，如果配置了NAT的话
 	if tcp, ok := listener.Addr().(*net.TCPAddr); ok {
 		srv.localnode.Set(enr.TCP(tcp.Port))
 		if !tcp.IP.IsLoopback() && srv.NAT != nil {
@@ -860,6 +872,7 @@ func (srv *Server) addPeerChecks(peers map[enode.ID]*Peer, inboundCount int, c *
 
 // listenLoop runs in its own goroutine and accepts
 // inbound connections.
+// listenLoop
 func (srv *Server) listenLoop() {
 	srv.log.Debug("TCP listener up", "addr", srv.listener.Addr())
 

@@ -248,10 +248,12 @@ func makeDiscoveryConfig(ctx *cli.Context) (*enode.LocalNode, discover.Config) {
 	}
 
 	dbpath := ctx.String(nodedbFlag.Name)
+	// 打开enode db
 	db, err := enode.OpenDB(dbpath)
 	if err != nil {
 		exit(err)
 	}
+	// 构建local node
 	ln := enode.NewLocalNode(db, cfg.PrivateKey)
 	return ln, cfg
 }
@@ -260,6 +262,7 @@ func listen(ln *enode.LocalNode, addr string) *net.UDPConn {
 	if addr == "" {
 		addr = "0.0.0.0:0"
 	}
+	// 监听udp端口
 	socket, err := net.ListenPacket("udp4", addr)
 	if err != nil {
 		exit(err)

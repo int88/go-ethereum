@@ -135,6 +135,7 @@ func discv5Listen(ctx *cli.Context) error {
 }
 
 // startV5 starts an ephemeral discovery v5 node.
+// startV5启动一个短暂的discovery v5节点
 func startV5(ctx *cli.Context) *discover.UDPv5 {
 	ln, config := makeDiscoveryConfig(ctx)
 	socket := listen(ln, ctx.String(listenAddrFlag.Name))

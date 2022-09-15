@@ -24,6 +24,7 @@ import (
 
 // IPTracker predicts the external endpoint, i.e. IP address and port, of the local host
 // based on statements made by other hosts.
+// IPTracker预测本地host的外部的endpoint，例如，IP地址以及端口，基于其他hosts的statements
 type IPTracker struct {
 	window          time.Duration
 	contactWindow   time.Duration

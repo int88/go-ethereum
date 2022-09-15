@@ -128,6 +128,7 @@ func dumpRecordKV(kv []interface{}, indent int) string {
 }
 
 // parseNode parses a node record and verifies its signature.
+// parseNode解析一个node record并且校验它的signature
 func parseNode(source string) (*enode.Node, error) {
 	if strings.HasPrefix(source, "enode://") {
 		return enode.ParseV4(source)
@@ -140,6 +141,7 @@ func parseNode(source string) (*enode.Node, error) {
 }
 
 // parseRecord parses a node record from hex, base64, or raw binary input.
+// parseRecord解析一个node record，从hex，base64或者raw binary input
 func parseRecord(source string) (*enr.Record, error) {
 	bin := []byte(source)
 	if d, ok := decodeRecordHex(bytes.TrimSpace(bin)); ok {

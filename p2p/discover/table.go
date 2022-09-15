@@ -71,9 +71,11 @@ type Table struct {
 	mutex sync.Mutex // protects buckets, bucket content, nursery, rand
 	// 基于距离的已知节点的索引
 	buckets [nBuckets]*bucket // index of known nodes by distance
-	nursery []*node           // bootstrap nodes
-	rand    *mrand.Rand       // source of randomness, periodically reseeded
-	ips     netutil.DistinctNetSet
+	// 初始启动的节点
+	nursery []*node // bootstrap nodes
+	// 随机源，阶段性的reseed
+	rand *mrand.Rand // source of randomness, periodically reseeded
+	ips  netutil.DistinctNetSet
 
 	log log.Logger
 	// 已知nodes的数据库
@@ -191,6 +193,8 @@ func (tab *Table) close() {
 // setFallbackNodes sets the initial points of contact. These nodes
 // are used to connect to the network if the table is empty and there
 // are no known nodes in the database.
+// setFallbackNodes设置contact的初始点，这些节点用于连接到network，如果table为空
+// 并且在数据库中没有已知的nodes
 func (tab *Table) setFallbackNodes(nodes []*enode.Node) error {
 	for _, n := range nodes {
 		if err := n.ValidateComplete(); err != nil {
@@ -222,6 +226,7 @@ func (tab *Table) refresh() <-chan struct{} {
 }
 
 // loop schedules runs of doRefresh, doRevalidate and copyLiveNodes.
+// loop调度对于doRefresh, doRevalidate以及copyLiveNodes的运行
 func (tab *Table) loop() {
 	var (
 		revalidate     = time.NewTimer(tab.nextRevalidateTime())
@@ -285,15 +290,19 @@ loop:
 
 // doRefresh performs a lookup for a random target to keep buckets full. seed nodes are
 // inserted if the table is empty (initial bootstrap or discarded faulty peers).
+// doRefresh执行对于一个random target的查找，为了保持buckets满载，seed nodes被插入，如果table
+// 为空（初始的bootstrap或者丢弃故障的peers）
 func (tab *Table) doRefresh(done chan struct{}) {
 	defer close(done)
 
 	// Load nodes from the database and insert
 	// them. This should yield a few previously seen nodes that are
 	// (hopefully) still alive.
+	// 从db中加载nodes并且插入它们，它应该产生一些之前看到的节点，依然存活的话
 	tab.loadSeedNodes()
 
 	// Run self lookup to discover new neighbor nodes.
+	// 运行self lookup来发现新的neighbor nodes
 	tab.net.lookupSelf()
 
 	// The Kademlia paper specifies that the bucket refresh should
@@ -450,6 +459,7 @@ func (tab *Table) bucketLen(id enode.ID) int {
 }
 
 // bucket returns the bucket for the given node ID hash.
+// bucket对于给定的node ID hash返回bucket
 func (tab *Table) bucket(id enode.ID) *bucket {
 	d := enode.LogDist(tab.self().ID(), id)
 	return tab.bucketAtDistance(d)
@@ -465,6 +475,8 @@ func (tab *Table) bucketAtDistance(d int) *bucket {
 // addSeenNode adds a node which may or may not be live to the end of a bucket. If the
 // bucket has space available, adding the node succeeds immediately. Otherwise, the node is
 // added to the replacements list.
+// addSeenNode添加一个node到一个bucket的最后，它可能是活的，也可能不是，如果bucket有足够的空间，立即成功
+// 添加node，否则node被添加到replacements list
 //
 // The caller must not hold tab.mutex.
 func (tab *Table) addSeenNode(n *node) {
@@ -481,6 +493,7 @@ func (tab *Table) addSeenNode(n *node) {
 	}
 	if len(b.entries) >= bucketSize {
 		// Bucket full, maybe add as replacement.
+		// Bucket已经满了，作为一个replacement添加
 		tab.addReplacement(b, n)
 		return
 	}
@@ -489,6 +502,7 @@ func (tab *Table) addSeenNode(n *node) {
 		return
 	}
 	// Add to end of bucket:
+	// 添加到bucket的最后
 	b.entries = append(b.entries, n)
 	b.replacements = deleteNode(b.replacements, n)
 	n.addedAt = time.Now()

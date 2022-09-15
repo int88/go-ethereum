@@ -78,6 +78,7 @@ type UDPv5 struct {
 	trhandlers map[string]TalkRequestHandler
 
 	// channels into dispatch
+	// 用于分发的channels
 	packetInCh    chan ReadPacket
 	readNextCh    chan struct{}
 	callCh        chan *callV5
@@ -170,6 +171,7 @@ func newUDPv5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 		closeCtx:       closeCtx,
 		cancelCloseCtx: cancelCloseCtx,
 	}
+	// 构建新的table
 	tab, err := newTable(t, t.db, cfg.Bootnodes, cfg.Log)
 	if err != nil {
 		return nil, err
@@ -482,6 +484,7 @@ func (t *UDPv5) callDone(c *callV5) {
 }
 
 // dispatch runs in its own goroutine, handles incoming packets and deals with calls.
+// dispatch运行在它自己的goroutine，处理incoming packets并且处理调用
 //
 // For any destination node there is at most one 'active call', stored in the t.activeCall*
 // maps. A call is made active when it is sent. The active call can be answered by a
@@ -492,6 +495,8 @@ func (t *UDPv5) callDone(c *callV5) {
 // Calls may also be answered by a WHOAREYOU packet referencing the call packet's authTag.
 // When that happens the call is simply re-sent to complete the handshake. We allow one
 // handshake attempt per call.
+// Calls可能被用一个WHOAREYOU packet回复，引用call packet的authTag，当这发生时，call只是简单地重发
+// 来完成握手，我们对每次调用允许一个握手尝试
 func (t *UDPv5) dispatch() {
 	defer t.wg.Done()
 
@@ -598,13 +603,16 @@ func (t *UDPv5) sendCall(c *callV5) {
 }
 
 // sendResponse sends a response packet to the given node.
+// sendResponse发送一个response packet到给定的node
 // This doesn't trigger a handshake even if no keys are available.
+// 这不会触发握手，如果没有key可用的话
 func (t *UDPv5) sendResponse(toID enode.ID, toAddr *net.UDPAddr, packet v5wire.Packet) error {
 	_, err := t.send(toID, toAddr, packet, nil)
 	return err
 }
 
 // send sends a packet to the given node.
+// send发送一个packet到给定节点
 func (t *UDPv5) send(toID enode.ID, toAddr *net.UDPAddr, packet v5wire.Packet, c *v5wire.Whoareyou) (v5wire.Nonce, error) {
 	addr := toAddr.String()
 	enc, nonce, err := t.codec.Encode(toID, addr, packet, c)
@@ -618,11 +626,13 @@ func (t *UDPv5) send(toID enode.ID, toAddr *net.UDPAddr, packet v5wire.Packet, c
 }
 
 // readLoop runs in its own goroutine and reads packets from the network.
+// readLoop在它自己的goroutine运行并且从network读取packets
 func (t *UDPv5) readLoop() {
 	defer t.wg.Done()
 
 	buf := make([]byte, maxPacketSize)
 	for range t.readNextCh {
+		// 从UDP中读取数据
 		nbytes, from, err := t.conn.ReadFromUDP(buf)
 		if netutil.IsTemporaryError(err) {
 			// Ignore temporary read errors.
@@ -640,6 +650,7 @@ func (t *UDPv5) readLoop() {
 }
 
 // dispatchReadPacket sends a packet into the dispatch loop.
+// dispatchReadPacket发送一个packet到dispatch loop
 func (t *UDPv5) dispatchReadPacket(from *net.UDPAddr, content []byte) bool {
 	select {
 	case t.packetInCh <- ReadPacket{content, from}:
@@ -650,8 +661,10 @@ func (t *UDPv5) dispatchReadPacket(from *net.UDPAddr, content []byte) bool {
 }
 
 // handlePacket decodes and processes an incoming packet from the network.
+// handlePacket解码并且处理来自network的一个packet
 func (t *UDPv5) handlePacket(rawpacket []byte, fromAddr *net.UDPAddr) error {
 	addr := fromAddr.String()
+	// 用codec进行decode
 	fromID, fromNode, packet, err := t.codec.Decode(rawpacket, addr)
 	if err != nil {
 		t.log.Debug("Bad discv5 packet", "id", fromID, "addr", addr, "err", err)
@@ -659,10 +672,12 @@ func (t *UDPv5) handlePacket(rawpacket []byte, fromAddr *net.UDPAddr) error {
 	}
 	if fromNode != nil {
 		// Handshake succeeded, add to table.
+		// 握手成功，添加到table
 		t.tab.addSeenNode(wrapNode(fromNode))
 	}
 	if packet.Kind() != v5wire.WhoareyouPacket {
 		// WHOAREYOU logged separately to report errors.
+		// 对于WHOAREYOU另外进行日志，来报告错误
 		t.log.Trace("<< "+packet.Name(), "id", fromID, "addr", addr)
 	}
 	t.handle(packet, fromID, fromAddr)
@@ -670,6 +685,7 @@ func (t *UDPv5) handlePacket(rawpacket []byte, fromAddr *net.UDPAddr) error {
 }
 
 // handleCallResponse dispatches a response packet to the call waiting for it.
+// handleCallResponse分发一个response packet到等待它的调用
 func (t *UDPv5) handleCallResponse(fromID enode.ID, fromAddr *net.UDPAddr, p v5wire.Packet) bool {
 	ac := t.activeCallByNode[fromID]
 	if ac == nil || !bytes.Equal(p.RequestID(), ac.reqid) {
@@ -701,6 +717,7 @@ func (t *UDPv5) getNode(id enode.ID) *enode.Node {
 }
 
 // handle processes incoming packets according to their message type.
+// handle根据它们的message类型处理incoming packets
 func (t *UDPv5) handle(p v5wire.Packet, fromID enode.ID, fromAddr *net.UDPAddr) {
 	switch p := p.(type) {
 	case *v5wire.Unknown:
@@ -769,6 +786,7 @@ func (t *UDPv5) matchWithCall(fromID enode.ID, nonce v5wire.Nonce) (*callV5, err
 }
 
 // handlePing sends a PONG response.
+// handlePing发送一个PONG response
 func (t *UDPv5) handlePing(p *v5wire.Ping, fromID enode.ID, fromAddr *net.UDPAddr) {
 	remoteIP := fromAddr.IP
 	// Handle IPv4 mapped IPv6 addresses in the
@@ -786,7 +804,9 @@ func (t *UDPv5) handlePing(p *v5wire.Ping, fromID enode.ID, fromAddr *net.UDPAdd
 }
 
 // handleFindnode returns nodes to the requester.
+// handleFindnode返回nodes到requester
 func (t *UDPv5) handleFindnode(p *v5wire.Findnode, fromID enode.ID, fromAddr *net.UDPAddr) {
+	// 收集nodes
 	nodes := t.collectTableNodes(fromAddr.IP, p.Distances, findnodeResultLimit)
 	for _, resp := range packNodes(p.ReqID, nodes) {
 		t.sendResponse(fromID, fromAddr, resp)
@@ -794,17 +814,20 @@ func (t *UDPv5) handleFindnode(p *v5wire.Findnode, fromID enode.ID, fromAddr *ne
 }
 
 // collectTableNodes creates a FINDNODE result set for the given distances.
+// collectTableNodes创建一个FINDNODE result set为给定的distance
 func (t *UDPv5) collectTableNodes(rip net.IP, distances []uint, limit int) []*enode.Node {
 	var nodes []*enode.Node
 	var processed = make(map[uint]struct{})
 	for _, dist := range distances {
 		// Reject duplicate / invalid distances.
+		// 拒绝重复的/非法的distances
 		_, seen := processed[dist]
 		if seen || dist > 256 {
 			continue
 		}
 
 		// Get the nodes.
+		// 获取nodes
 		var bn []*enode.Node
 		if dist == 0 {
 			bn = []*enode.Node{t.Self()}
@@ -816,6 +839,7 @@ func (t *UDPv5) collectTableNodes(rip net.IP, distances []uint, limit int) []*en
 		processed[dist] = struct{}{}
 
 		// Apply some pre-checks to avoid sending invalid nodes.
+		// 应用一些pre-checks来避免发送非法的nodes
 		for _, n := range bn {
 			// TODO livenessChecks > 1
 			if netutil.CheckRelayIP(rip, n.IP()) != nil {
@@ -831,6 +855,7 @@ func (t *UDPv5) collectTableNodes(rip net.IP, distances []uint, limit int) []*en
 }
 
 // packNodes creates NODES response packets for the given node list.
+// packNodes为给定的node list创建NODES response包
 func packNodes(reqid []byte, nodes []*enode.Node) []*v5wire.Nodes {
 	if len(nodes) == 0 {
 		return []*v5wire.Nodes{{ReqID: reqid, Total: 1}}

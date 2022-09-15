@@ -146,6 +146,7 @@ func (n *Node) Record() *enr.Record {
 }
 
 // ValidateComplete checks whether n has a valid IP and UDP port.
+// ValidateComplete检查n是否有一个合法的IP以及UDP端口
 // Deprecated: don't use this method.
 func (n *Node) ValidateComplete() error {
 	if n.Incomplete() {
@@ -159,6 +160,7 @@ func (n *Node) ValidateComplete() error {
 		return errors.New("invalid IP (multicast/unspecified)")
 	}
 	// Validate the node key (on curve, etc.).
+	// 检查node key
 	var key Secp256k1
 	return n.Load(&key)
 }
@@ -265,6 +267,7 @@ func DistCmp(target, a, b ID) int {
 }
 
 // LogDist returns the logarithmic distance between a and b, log2(a ^ b).
+// LogDist返回a和b的对数距离
 func LogDist(a, b ID) int {
 	lz := 0
 	for i := range a {

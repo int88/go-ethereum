@@ -127,6 +127,7 @@ func TestUDPv5_pingHandling(t *testing.T) {
 }
 
 // This test checks that incoming 'unknown' packets trigger the handshake.
+// 这个测试检查到来的'unknown' packets触发握手
 func TestUDPv5_unknownPacket(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
@@ -147,12 +148,14 @@ func TestUDPv5_unknownPacket(t *testing.T) {
 	}
 
 	// Unknown packet from unknown node.
+	// 来自unknown node的unknown packet
 	test.packetIn(&v5wire.Unknown{Nonce: nonce})
 	test.waitPacketOut(func(p *v5wire.Whoareyou, addr *net.UDPAddr, _ v5wire.Nonce) {
 		check(p, 0)
 	})
 
 	// Make node known.
+	// 让节点变为已知
 	n := test.getNode(test.remotekey, test.remoteaddr).Node()
 	test.table.addSeenNode(wrapNode(n))
 
@@ -163,12 +166,14 @@ func TestUDPv5_unknownPacket(t *testing.T) {
 }
 
 // This test checks that incoming FINDNODE calls are handled correctly.
+// 测试对于incoming FINDNODE调用能够被正确处理
 func TestUDPv5_findnodeHandling(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
 	defer test.close()
 
 	// Create test nodes and insert them into the table.
+	// 创建test nodes并且将它们插入到table
 	nodes253 := nodesAtDistance(test.table.self().ID(), 253, 10)
 	nodes249 := nodesAtDistance(test.table.self().ID(), 249, 4)
 	nodes248 := nodesAtDistance(test.table.self().ID(), 248, 10)
@@ -177,27 +182,33 @@ func TestUDPv5_findnodeHandling(t *testing.T) {
 	fillTable(test.table, wrapNodes(nodes248))
 
 	// Requesting with distance zero should return the node's own record.
+	// 请求一个0距离的，应该返回node自己的record
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{0}, Distances: []uint{0}})
 	test.expectNodes([]byte{0}, 1, []*enode.Node{test.udp.Self()})
 
 	// Requesting with distance > 256 shouldn't crash.
+	// 请求距离大于256，不应该crash
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{1}, Distances: []uint{4234098}})
 	test.expectNodes([]byte{1}, 1, nil)
 
 	// Requesting with empty distance list shouldn't crash either.
+	// 请求空的distance list，也不应该crash
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{2}, Distances: []uint{}})
 	test.expectNodes([]byte{2}, 1, nil)
 
 	// This request gets no nodes because the corresponding bucket is empty.
+	// 请求获取不到nodes，因为对应的bucket为空
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{3}, Distances: []uint{254}})
 	test.expectNodes([]byte{3}, 1, nil)
 
 	// This request gets all the distance-253 nodes.
+	// 请求获取到所有distance为253的nodes
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{4}, Distances: []uint{253}})
 	test.expectNodes([]byte{4}, 4, nodes253)
 
 	// This request gets all the distance-249 nodes and some more at 248 because
 	// the bucket at 249 is not full.
+	// 这个请求获取所有distance-249的nodes以及248，因为在249的bucket没有满
 	test.packetIn(&v5wire.Findnode{ReqID: []byte{5}, Distances: []uint{249, 248}})
 	var nodes []*enode.Node
 	nodes = append(nodes, nodes249...)
@@ -468,6 +479,7 @@ func TestUDPv5_talkHandling(t *testing.T) {
 	})
 
 	// Check that empty response is returned for unregistered protocols.
+	// 检查对于未注册协议，返回空的response
 	recvMessage = nil
 	test.packetIn(&v5wire.TalkRequest{
 		ReqID:    []byte("2"),
@@ -655,6 +667,7 @@ type udpV5Test struct {
 }
 
 // testCodec is the packet encoding used by protocol tests. This codec does not perform encryption.
+// testCodec是由protocol tests使用的packet encoding，这个codec不执行加密
 type testCodec struct {
 	test *udpV5Test
 	id   enode.ID
@@ -728,17 +741,20 @@ func newUDPV5Test(t *testing.T) *udpV5Test {
 	test.table = test.udp.tab
 	test.nodesByID[ln.ID()] = ln
 	// Wait for initial refresh so the table doesn't send unexpected findnode.
+	// 等待初始的refresh，这样table不回发送非预期的findnode
 	<-test.table.initDone
 	return test
 }
 
 // handles a packet as if it had been sent to the transport.
+// 处理一个packet，好像它是发送给transport
 func (test *udpV5Test) packetIn(packet v5wire.Packet) {
 	test.t.Helper()
 	test.packetInFrom(test.remotekey, test.remoteaddr, packet)
 }
 
 // handles a packet as if it had been sent to the transport by the key/endpoint.
+// 处理一个packet，好像它是通过key/endpoint发送给transport
 func (test *udpV5Test) packetInFrom(key *ecdsa.PrivateKey, addr *net.UDPAddr, packet v5wire.Packet) {
 	test.t.Helper()
 
@@ -748,6 +764,7 @@ func (test *udpV5Test) packetInFrom(key *ecdsa.PrivateKey, addr *net.UDPAddr, pa
 	if err != nil {
 		test.t.Errorf("%s encode error: %v", packet.Name(), err)
 	}
+	// 分发packet
 	if test.udp.dispatchReadPacket(addr, enc) {
 		<-test.udp.readNextCh // unblock UDPv5.dispatch
 	}

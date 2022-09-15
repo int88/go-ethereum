@@ -430,6 +430,8 @@ func (db *DB) UpdateFindFailsV5(id ID, ip net.IP, fails int) error {
 // localSeq retrieves the local record sequence counter, defaulting to the current
 // timestamp if no previous exists. This ensures that wiping all data associated
 // with a node (apart from its key) will not generate already used sequence nums.
+// localSeq获取本地的record sequence counter，默认为当前的时间戳，如果之前不存在的话
+// 这确保擦除所有和node相关的数据不会生成已经使用的sequence nums
 func (db *DB) localSeq(id ID) uint64 {
 	if seq := db.fetchUint64(localItemKey(id, dbLocalSeq)); seq > 0 {
 		return seq
