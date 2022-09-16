@@ -303,6 +303,7 @@ func TestServerAtCap(t *testing.T) {
 	}
 
 	// Add anotherID to trusted set and try again
+	// 添加anotherID到trusted set并且重试
 	srv.AddTrustedPeer(newNode(anotherID, ""))
 	c = newconn(anotherID)
 	if err := srv.checkpoint(c, srv.checkpointPostHandshake); err != nil {
@@ -382,6 +383,7 @@ func TestServerPeerLimits(t *testing.T) {
 
 func TestServerSetupConn(t *testing.T) {
 	var (
+		// 生成client和server的private key
 		clientkey, srvkey = newkey(), newkey()
 		clientpub         = &clientkey.PublicKey
 		srvpub            = &srvkey.PublicKey
@@ -447,12 +449,14 @@ func TestServerSetupConn(t *testing.T) {
 				Protocols:   []Protocol{discard},
 				Logger:      testlog.Logger(t, log.LvlTrace),
 			}
+			// 构建server
 			srv := &Server{
 				Config:       cfg,
 				newTransport: func(fd net.Conn, dialDest *ecdsa.PublicKey) transport { return test.tt },
 				log:          cfg.Logger,
 			}
 			if !test.dontstart {
+				// 启动server
 				if err := srv.Start(); err != nil {
 					t.Fatalf("couldn't start server: %v", err)
 				}
@@ -481,7 +485,9 @@ type setupTransport struct {
 }
 
 func (c *setupTransport) doEncHandshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
+	// 扩展c.calls字段
 	c.calls += "doEncHandshake,"
+	// 直接返回public key
 	return c.pubkey, c.encHandshakeErr
 }
 

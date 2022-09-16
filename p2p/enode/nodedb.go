@@ -69,6 +69,7 @@ var zeroIP = make(net.IP, 16)
 
 // DB is the node database, storing previously seen nodes and any collected metadata about
 // them for QoS purposes.
+// DB是node database，存储之前发现的nodes以及任何收集的元数据，对于QoS的目的
 type DB struct {
 	lvl    *leveldb.DB   // Interface to the database itself
 	runner sync.Once     // Ensures we can start at most one expirer

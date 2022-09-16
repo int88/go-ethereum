@@ -298,12 +298,14 @@ func TestUDPv5_pingCall(t *testing.T) {
 
 // This test checks that outgoing FINDNODE calls work and multiple NODES
 // replies are aggregated.
+// 测试outgoing FINDNODE调用能正常工作并且多个NODES replies会聚合
 func TestUDPv5_findnodeCall(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
 	defer test.close()
 
 	// Launch the request:
+	// 启动请求
 	var (
 		distances = []uint{230}
 		remote    = test.getNode(test.remotekey, test.remoteaddr).Node()
@@ -313,6 +315,7 @@ func TestUDPv5_findnodeCall(t *testing.T) {
 	)
 	go func() {
 		var err error
+		// 查找node
 		response, err = test.udp.findnode(remote, distances)
 		done <- err
 	}()
@@ -347,6 +350,7 @@ func TestUDPv5_findnodeCall(t *testing.T) {
 }
 
 // This test checks that pending calls are re-sent when a handshake happens.
+// 测试pending calls被重发，当发生一个握手的时候
 func TestUDPv5_callResend(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
@@ -364,14 +368,17 @@ func TestUDPv5_callResend(t *testing.T) {
 	}()
 
 	// Ping answered by WHOAREYOU.
+	// Ping的回复是WHOAREYOU
 	test.waitPacketOut(func(p *v5wire.Ping, addr *net.UDPAddr, nonce v5wire.Nonce) {
 		test.packetIn(&v5wire.Whoareyou{Nonce: nonce})
 	})
 	// Ping should be re-sent.
+	// Ping应该被重新发送
 	test.waitPacketOut(func(p *v5wire.Ping, addr *net.UDPAddr, _ v5wire.Nonce) {
 		test.packetIn(&v5wire.Pong{ReqID: p.ReqID})
 	})
 	// Answer the other ping.
+	// 回复其他的ping
 	test.waitPacketOut(func(p *v5wire.Ping, addr *net.UDPAddr, _ v5wire.Nonce) {
 		test.packetIn(&v5wire.Pong{ReqID: p.ReqID})
 	})
@@ -500,6 +507,7 @@ func TestUDPv5_talkHandling(t *testing.T) {
 }
 
 // This test checks that outgoing TALKREQ calls work.
+// 这个测试检查outgoing TALKREQ调用能work
 func TestUDPv5_talkRequest(t *testing.T) {
 	t.Parallel()
 	test := newUDPV5Test(t)
@@ -541,16 +549,20 @@ func TestUDPv5_talkRequest(t *testing.T) {
 }
 
 // This test checks that lookup works.
+// 这个测试检查lookup能正常工作
 func TestUDPv5_lookup(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 	test := newUDPV5Test(t)
 
 	// Lookup on empty table returns no nodes.
+	// 在空的table进行查找，不会返回节点
 	if results := test.udp.Lookup(lookupTestnet.target.id()); len(results) > 0 {
 		t.Fatalf("lookup on empty table returned %d results: %#v", len(results), results)
 	}
 
 	// Ensure the tester knows all nodes in lookupTestnet by IP.
+	// 确保tester知道lookupTestnet里的所有nodes，通过IP
 	for d, nn := range lookupTestnet.dists {
 		for i, key := range nn {
 			n := lookupTestnet.node(d, i)
@@ -559,10 +571,12 @@ func TestUDPv5_lookup(t *testing.T) {
 	}
 
 	// Seed table with initial node.
+	// 初始节点的Seed table
 	initialNode := lookupTestnet.node(256, 0)
 	fillTable(test.table, []*node{wrapNode(initialNode)})
 
 	// Start the lookup.
+	// 启动lookup
 	resultC := make(chan []*enode.Node, 1)
 	go func() {
 		resultC <- test.udp.Lookup(lookupTestnet.target.id())
@@ -570,6 +584,7 @@ func TestUDPv5_lookup(t *testing.T) {
 	}()
 
 	// Answer lookup packets.
+	// 对lookup packets进行回复
 	asked := make(map[enode.ID]bool)
 	for done := false; !done; {
 		done = test.waitPacketOut(func(p v5wire.Packet, to *net.UDPAddr, _ v5wire.Nonce) {
@@ -597,6 +612,7 @@ func TestUDPv5_lookup(t *testing.T) {
 }
 
 // This test checks the local node can be utilised to set key-values.
+// 这个测试检查local node可以用于设置键值对
 func TestUDPv5_LocalNode(t *testing.T) {
 	t.Parallel()
 	var cfg Config
@@ -605,10 +621,12 @@ func TestUDPv5_LocalNode(t *testing.T) {
 	localNd := node.LocalNode()
 
 	// set value in node's local record
+	// 在node的local record设置value
 	testVal := [4]byte{'A', 'B', 'C', 'D'}
 	localNd.Set(enr.WithEntry("testing", &testVal))
 
 	// retrieve the value from self to make sure it matches.
+	// 从self获取value来确保匹配
 	outputVal := [4]byte{}
 	if err := node.Self().Load(enr.WithEntry("testing", &outputVal)); err != nil {
 		t.Errorf("Could not load value from record: %v", err)
@@ -730,6 +748,7 @@ func newUDPV5Test(t *testing.T) *udpV5Test {
 	}
 	test.db, _ = enode.OpenDB("")
 	ln := enode.NewLocalNode(test.db, test.localkey)
+	// 设置静态地址和端口
 	ln.SetStaticIP(net.IP{10, 0, 0, 1})
 	ln.Set(enr.UDP(30303))
 	test.udp, _ = ListenV5(test.pipe, ln, Config{
@@ -788,6 +807,8 @@ func (test *udpV5Test) getNode(key *ecdsa.PrivateKey, addr *net.UDPAddr) *enode.
 // waitPacketOut waits for the next output packet and handles it using the given 'validate'
 // function. The function must be of type func (X, *net.UDPAddr, v5wire.Nonce) where X is
 // assignable to packetV5.
+// waitPacketOut等待下一个output packet并且使用给定的'validate'函数处理它，这个函数必须为类型为func
+// (X, *net.UDPAddr, v5wire.Nonce)，其中X赋值给packetV5
 func (test *udpV5Test) waitPacketOut(validate interface{}) (closed bool) {
 	test.t.Helper()
 

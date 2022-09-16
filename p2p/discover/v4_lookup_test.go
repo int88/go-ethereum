@@ -34,15 +34,18 @@ func TestUDPv4_Lookup(t *testing.T) {
 	test := newUDPTest(t)
 
 	// Lookup on empty table returns no nodes.
+	// 查找empty table返回no nodes
 	targetKey, _ := decodePubkey(crypto.S256(), lookupTestnet.target[:])
 	if results := test.udp.LookupPubkey(targetKey); len(results) > 0 {
 		t.Fatalf("lookup on empty table returned %d results: %#v", len(results), results)
 	}
 
 	// Seed table with initial node.
+	// 用初始节点填充table
 	fillTable(test.table, []*node{wrapNode(lookupTestnet.node(256, 0))})
 
 	// Start the lookup.
+	// 开始查找
 	resultC := make(chan []*enode.Node, 1)
 	go func() {
 		resultC <- test.udp.LookupPubkey(targetKey)
@@ -50,9 +53,11 @@ func TestUDPv4_Lookup(t *testing.T) {
 	}()
 
 	// Answer lookup packets.
+	// 回复lookup packets
 	serveTestnet(test, lookupTestnet)
 
 	// Verify result nodes.
+	// 检验result nodes
 	results := <-resultC
 	t.Logf("results:")
 	for _, e := range results {
@@ -152,6 +157,7 @@ func serveTestnet(test *udpTest, testnet *preminedTestnet) {
 
 // checkLookupResults verifies that the results of a lookup are the closest nodes to
 // the testnet's target.
+// checkLookupResults确认lookup的结果是对于testnet的target的最近的nodes
 func checkLookupResults(t *testing.T, tn *preminedTestnet, results []*enode.Node) {
 	t.Helper()
 	t.Logf("results:")

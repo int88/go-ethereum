@@ -86,6 +86,7 @@ type UDPv5 struct {
 	respTimeoutCh chan *callTimeout
 
 	// state of dispatch
+	// dispatche的状态
 	codec            codecV5
 	activeCallByNode map[enode.ID]*callV5
 	activeCallByAuth map[v5wire.Nonce]*callV5
@@ -251,6 +252,7 @@ func (t *UDPv5) RegisterTalkHandler(protocol string, handler TalkRequestHandler)
 }
 
 // TalkRequest sends a talk request to n and waits for a response.
+// TalkRequest发送一个talk request到n并且等待一个response
 func (t *UDPv5) TalkRequest(n *enode.Node, protocol string, request []byte) ([]byte, error) {
 	req := &v5wire.TalkRequest{Protocol: protocol, Message: request}
 	resp := t.call(n, v5wire.TalkResponseMsg, req)

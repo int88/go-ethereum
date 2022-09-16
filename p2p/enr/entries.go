@@ -25,6 +25,7 @@ import (
 )
 
 // Entry is implemented by known node record entry types.
+// Entry由已知的node record entry类型实现
 //
 // To define a new entry that is to be included in a node record,
 // create a Go type that satisfies this interface. The type should

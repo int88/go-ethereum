@@ -74,6 +74,7 @@ func nodesToRecords(nodes []*enode.Node) []*enr.Record {
 }
 
 // idAtDistance returns a random hash such that enode.LogDist(a, b) == n
+// idAtDistance返回一个随机的hash并且encode.LogDist(a, b)为n
 func idAtDistance(a enode.ID, n int) (b enode.ID) {
 	if n == 0 {
 		return a

@@ -126,6 +126,8 @@ func (f *filterIter) Next() bool {
 // FairMix aggregates multiple node iterators. The mixer itself is an iterator which ends
 // only when Close is called. Source iterators added via AddSource are removed from the
 // mix when they end.
+// FairMix聚合多个node iterators，mixer自己是一个iterator，只有在Close被调用时才会结束，Source iterators
+// 通过AddSource添加，从mix中移除，当它们结束的时候
 //
 // The distribution of nodes returned by Next is approximately fair, i.e. FairMix
 // attempts to draw from all sources equally often. However, if a certain source is slow
@@ -167,6 +169,7 @@ func NewFairMix(timeout time.Duration) *FairMix {
 }
 
 // AddSource adds a source of nodes.
+// AddSource添加nodes源
 func (m *FairMix) AddSource(it Iterator) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
