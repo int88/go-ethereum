@@ -210,7 +210,9 @@ func (p *Peer) LocalAddr() net.Addr {
 }
 
 // Disconnect terminates the peer connection with the given reason.
+// Disconnect用给定理由终止peer connection
 // It returns immediately and does not wait until the connection is closed.
+// 它立即返回并且不需要等待到连接关闭
 func (p *Peer) Disconnect(reason DiscReason) {
 	if p.testPipe != nil {
 		p.testPipe.Close()
@@ -236,10 +238,11 @@ func (p *Peer) Inbound() bool {
 func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
 	p := &Peer{
-		rw:       conn,
-		running:  protomap,
-		created:  mclock.Now(),
-		disc:     make(chan DiscReason),
+		rw:      conn,
+		running: protomap,
+		created: mclock.Now(),
+		disc:    make(chan DiscReason),
+		// protocols + pingLoop
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.node.ID(), "conn", conn.flags),
@@ -259,12 +262,15 @@ func (p *Peer) run() (remoteRequested bool, err error) {
 		reason     DiscReason // sent to the peer
 	)
 	p.wg.Add(2)
+	// 运行read loop
 	go p.readLoop(readErr)
+	// 运行ping loop
 	go p.pingLoop()
 
 	// Start all protocol handlers.
 	// 启动所有的协议handlers
 	writeStart <- struct{}{}
+	// 启动protocols
 	p.startProtocols(writeStart, writeErr)
 
 	// Wait for an error or disconnect.
@@ -275,6 +281,7 @@ loop:
 		case err = <-writeErr:
 			// A write finished. Allow the next write to start if
 			// there was no error.
+			// 一个write结束了，允许下一个write开始，如果没有错误的话
 			if err != nil {
 				reason = DiscNetworkError
 				break loop
@@ -292,6 +299,7 @@ loop:
 			reason = discReasonForError(err)
 			break loop
 		case err = <-p.disc:
+			// 收到断开连接
 			reason = discReasonForError(err)
 			break loop
 		}
@@ -312,6 +320,7 @@ func (p *Peer) pingLoop() {
 	for {
 		select {
 		case <-ping.C:
+			// 发送Ping
 			if err := SendItems(p.rw, pingMsg); err != nil {
 				p.protoErr <- err
 				return
@@ -408,10 +417,12 @@ outer:
 		for _, proto := range protocols {
 			if proto.Name == cap.Name && proto.Version == cap.Version {
 				// If an old protocol version matched, revert it
+				// 如果老的protocol版本匹配，恢复它
 				if old := result[cap.Name]; old != nil {
 					offset -= old.Length
 				}
 				// Assign the new match
+				// 赋值新的match
 				result[cap.Name] = &protoRW{Protocol: proto, offset: offset, in: make(chan Msg), w: rw}
 				offset += proto.Length
 
@@ -440,6 +451,7 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 			// 运行protocols
 			log.Info("protocol start running", "name", proto.Name)
 			err := proto.Run(p, rw)
+			// 协议运行结束
 			if err == nil {
 				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version))
 				err = errProtocolReturned
@@ -486,11 +498,14 @@ func (rw *protoRW) WriteMsg(msg Msg) (err error) {
 
 	select {
 	case <-rw.wstart:
+		log.Info("protoRW WriteMsg being called")
 		err = rw.w.WriteMsg(msg)
 		// Report write status back to Peer.run. It will initiate
 		// shutdown if the error is non-nil and unblock the next write
 		// otherwise. The calling protocol code should exit for errors
 		// as well but we don't want to rely on that.
+		// 汇报write status到Peer.run，它会初始化shutdown，如果error是non-nil则开始shutdown
+		// 否则unblock下一次write
 		rw.werr <- err
 	case <-rw.closed:
 		err = ErrShuttingDown

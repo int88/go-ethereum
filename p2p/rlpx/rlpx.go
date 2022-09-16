@@ -43,8 +43,10 @@ import (
 
 // Conn is an RLPx network connection. It wraps a low-level network connection. The
 // underlying connection should not be used for other activity when it is wrapped by Conn.
+// Conn是一个RLPx 网络连接，它封装了一个底层的网络连接，底层的连接 不应用于其他的活动，当被Conn封装时
 //
 // Before sending messages, a handshake must be performed by calling the Handshake method.
+// 在发送messages之前，必须通过调用Handshake方法执行一次握手
 // This type is not generally safe for concurrent use, but reading and writing of messages
 // may happen concurrently after the handshake.
 type Conn struct {
@@ -59,6 +61,7 @@ type Conn struct {
 }
 
 // sessionState contains the session keys.
+// sessionState包含session keys
 type sessionState struct {
 	enc cipher.Stream
 	dec cipher.Stream
@@ -91,6 +94,8 @@ func newHashMAC(cipher cipher.Block, h hash.Hash) hashMAC {
 
 // NewConn wraps the given network connection. If dialDest is non-nil, the connection
 // behaves as the initiator during the handshake.
+// NewConn封装了给定的network connection，如果dialDest为非nil，则connection在握手的时候
+// 表现为initiator
 func NewConn(conn net.Conn, dialDest *ecdsa.PublicKey) *Conn {
 	return &Conn{
 		dialDest: dialDest,
@@ -297,6 +302,7 @@ func (m *hashMAC) compute(sum1, seed []byte) []byte {
 
 // Handshake performs the handshake. This must be called before any data is written
 // or read from the connection.
+// Handshake执行握手，它必须在任何数据被写入，或者从连接中读取之前被调用
 func (c *Conn) Handshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
 	var (
 		sec Secrets
@@ -304,8 +310,10 @@ func (c *Conn) Handshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
 		h   handshakeState
 	)
 	if c.dialDest != nil {
+		// 作为Initiator运行
 		sec, err = h.runInitiator(c.conn, prv, c.dialDest)
 	} else {
+		// 作为Recipient运行
 		sec, err = h.runRecipient(c.conn, prv)
 	}
 	if err != nil {
@@ -319,6 +327,7 @@ func (c *Conn) Handshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
 
 // InitWithSecrets injects connection secrets as if a handshake had
 // been performed. This cannot be called after the handshake.
+// InitWithSecrets注入connection secrets，仿佛握手已经完成了，它不能在handshake之后运行
 func (c *Conn) InitWithSecrets(sec Secrets) {
 	if c.session != nil {
 		panic("can't handshake twice")
@@ -508,7 +517,9 @@ func (h *handshakeState) staticSharedSecret(prv *ecdsa.PrivateKey) ([]byte, erro
 }
 
 // runInitiator negotiates a session token on conn.
+// runInitiator在连接之上协商一个session token
 // it should be called on the dialing side of the connection.
+// 它应该在连接的dialing side调用
 //
 // prv is the local client's private key.
 func (h *handshakeState) runInitiator(conn io.ReadWriter, prv *ecdsa.PrivateKey, remote *ecdsa.PublicKey) (s Secrets, err error) {

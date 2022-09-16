@@ -66,6 +66,7 @@ func TestReadWriteMsg(t *testing.T) {
 
 func checkMsgReadWrite(t *testing.T, p1, p2 *Conn, msgCode uint64, msgData []byte) {
 	// Set up the reader.
+	// 设置reader
 	ch := make(chan message, 1)
 	go func() {
 		var msg message
@@ -74,12 +75,14 @@ func checkMsgReadWrite(t *testing.T, p1, p2 *Conn, msgCode uint64, msgData []byt
 	}()
 
 	// Write the message.
+	// 写入message
 	_, err := p2.Write(msgCode, msgData)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Check it was received correctly.
+	// 检查是否被正确接收
 	msg := <-ch
 	assert.Equal(t, msgCode, msg.code, "wrong message code returned from ReadMsg")
 	assert.Equal(t, msgData, msg.data, "wrong message data returned from ReadMsg")
@@ -88,6 +91,7 @@ func checkMsgReadWrite(t *testing.T, p1, p2 *Conn, msgCode uint64, msgData []byt
 func createPeers(t *testing.T) (peer1, peer2 *Conn) {
 	conn1, conn2 := net.Pipe()
 	key1, key2 := newkey(), newkey()
+	// 构建新的连接
 	peer1 = NewConn(conn1, &key2.PublicKey) // dialer
 	peer2 = NewConn(conn2, nil)             // listener
 	doHandshake(t, peer1, peer2, key1, key2)
@@ -111,6 +115,7 @@ func doHandshake(t *testing.T, peer1, peer2 *Conn, key1, key2 *ecdsa.PrivateKey)
 	pubKey1 := <-keyChan
 
 	// Confirm the handshake was successful.
+	// 确认握手成功
 	if !reflect.DeepEqual(pubKey1, &key1.PublicKey) || !reflect.DeepEqual(pubKey2, &key2.PublicKey) {
 		t.Fatal("unsuccessful handshake")
 	}

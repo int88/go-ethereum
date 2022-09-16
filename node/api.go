@@ -57,14 +57,17 @@ func (n *Node) apis() []rpc.API {
 
 // privateAdminAPI is the collection of administrative API methods exposed only
 // over a secure RPC channel.
+// privateAdminAPI是一系列的admin API，只能通过安全的RPC通道暴露
 type privateAdminAPI struct {
 	node *Node // Node interfaced by this API
 }
 
 // AddPeer requests connecting to a remote node, and also maintaining the new
 // connection at all times, even reconnecting if it is lost.
+// AddPeer请求到一个远程节点的连接，并且同时一直维护新的连接，甚至重连，如果lost的话
 func (api *privateAdminAPI) AddPeer(url string) (bool, error) {
 	// Make sure the server is running, fail otherwise
+	// 确保server在运行，否则失败
 	server := api.node.Server()
 	if server == nil {
 		return false, ErrNodeStopped

@@ -140,12 +140,15 @@ func New(conf *Config) (*Node, error) {
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.Logger = node.log
 	if node.server.Config.StaticNodes == nil {
+		// 配置static nodes
 		node.server.Config.StaticNodes = node.config.StaticNodes()
 	}
 	if node.server.Config.TrustedNodes == nil {
+		// 配置trusted nodes
 		node.server.Config.TrustedNodes = node.config.TrustedNodes()
 	}
 	if node.server.Config.NodeDatabase == "" {
+		// 添加node database
 		node.server.Config.NodeDatabase = node.config.NodeDB()
 	}
 

@@ -109,6 +109,7 @@ type Config struct {
 	// BootstrapNodesV5 are used to establish connectivity
 	// with the rest of the network using the V5 discovery
 	// protocol.
+	// BootstrapNodesV5用于和剩余的网络建立连接，使用V5 discovery protocol
 	BootstrapNodesV5 []*enode.Node `toml:",omitempty"`
 
 	// Static nodes are used as pre-configured connections which are always
@@ -122,6 +123,7 @@ type Config struct {
 	TrustedNodes []*enode.Node
 
 	// Connectivity can be restricted to certain IP networks.
+	// 连接可用被限制到特定的IP networks
 	// If this option is set to a non-nil value, only hosts which match one of the
 	// IP networks contained in the list are considered.
 	NetRestrict *netutil.Netlist `toml:",omitempty"`
@@ -151,9 +153,11 @@ type Config struct {
 
 	// If Dialer is set to a non-nil value, the given Dialer
 	// is used to dial outbound peer connections.
+	// 如果Dialer被设置为non-nil，给定的Dialer会用于dial outbound peer connections
 	Dialer NodeDialer `toml:"-"`
 
 	// If NoDial is true, the server will not dial any peers.
+	// 如果NoDial为true，server不会dial任何的peers
 	NoDial bool `toml:",omitempty"`
 
 	// If EnableMsgEvents is set then the server will emit PeerEvents
@@ -412,6 +416,8 @@ func (srv *Server) Self() *enode.Node {
 
 // Stop terminates the server and all active peer connections.
 // It blocks until all active connections have been closed.
+// Stop终止server以及所有活跃的peer connections，它阻塞直到所有的active connections
+// 被关闭
 func (srv *Server) Stop() {
 	srv.lock.Lock()
 	if !srv.running {

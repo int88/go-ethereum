@@ -85,12 +85,14 @@ func (t *rlpxTransport) WriteMsg(msg Msg) error {
 	defer t.wmu.Unlock()
 
 	// Copy message data to write buffer.
+	// 拷贝message数据到write buffer
 	t.wbuf.Reset()
 	if _, err := io.CopyN(&t.wbuf, msg.Payload, int64(msg.Size)); err != nil {
 		return err
 	}
 
 	// Write the message.
+	// 写入message
 	t.conn.SetWriteDeadline(time.Now().Add(frameWriteTimeout))
 	size, err := t.conn.Write(msg.Code, t.wbuf.Bytes())
 	if err != nil {
@@ -98,6 +100,7 @@ func (t *rlpxTransport) WriteMsg(msg Msg) error {
 	}
 
 	// Set metrics.
+	// 设置metrics
 	msg.meterSize = size
 	if metrics.Enabled && msg.meterCap.Name != "" { // don't meter non-subprotocol messages
 		m := fmt.Sprintf("%s/%s/%d/%#02x", egressMeterName, msg.meterCap.Name, msg.meterCap.Version, msg.meterCode)

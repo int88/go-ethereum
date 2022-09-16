@@ -203,6 +203,7 @@ func (d *dialScheduler) stop() {
 }
 
 // addStatic adds a static dial candidate.
+// addStatic添加一个静态的dial candidate
 func (d *dialScheduler) addStatic(n *enode.Node) {
 	select {
 	case d.addStaticCh <- n:

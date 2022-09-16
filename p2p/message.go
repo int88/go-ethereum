@@ -37,6 +37,9 @@ import (
 // send it any number of times. If you want to reuse an encoded
 // structure, encode the payload into a byte array and create a
 // separate Msg with a bytes.Reader as Payload for each send.
+// 注意一个Msg只能发送一次，因为Payload reader在发送过程中被消费
+// 不可能创建一个Msg并且发送无数次，如果你想要重用一个encoded structure，将payload
+// 编码到byte array并且创建另外的Msg，用一个bytes.Reader作为Payload，对于每个send
 type Msg struct {
 	Code       uint64
 	Size       uint32 // Size of the raw payload
@@ -118,6 +121,7 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 //    SendItems(w, code, e1, e2, e3)
 //
 // the message payload will be an RLP list containing the items:
+// message的payload会是一个RLP list，包含items：[e1, e2, e3]
 //
 //    [e1, e2, e3]
 //
@@ -268,6 +272,7 @@ func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 
 // msgEventer wraps a MsgReadWriter and sends events whenever a message is sent
 // or received
+// msgEventer封装了一个MsgReadWriter并且发送events，当发送或者接收到一个message时
 type msgEventer struct {
 	MsgReadWriter
 

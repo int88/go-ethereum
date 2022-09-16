@@ -63,6 +63,7 @@ func newNode(id enode.ID, addr string) *enode.Node {
 	var r enr.Record
 	if addr != "" {
 		// Set the port if present.
+		// 设置port，如果存在的话
 		if strings.Contains(addr, ":") {
 			hs, ps, err := net.SplitHostPort(addr)
 			if err != nil {
@@ -77,6 +78,7 @@ func newNode(id enode.ID, addr string) *enode.Node {
 			addr = hs
 		}
 		// Set the IP.
+		// 设置IP
 		ip := net.ParseIP(addr)
 		if ip == nil {
 			panic(fmt.Errorf("invalid IP %q", addr))
@@ -94,6 +96,7 @@ func testPeer(protos []Protocol) (func(), *conn, *Peer, <-chan error) {
 		t2         = newTestTransport(&key1.PublicKey, fd2, &key1.PublicKey)
 	)
 
+	// 创建两个conn
 	c1 := &conn{fd: fd1, node: newNode(uintID(1), ""), transport: t1}
 	c2 := &conn{fd: fd2, node: newNode(uintID(2), ""), transport: t2}
 	for _, p := range protos {
@@ -111,6 +114,7 @@ func testPeer(protos []Protocol) (func(), *conn, *Peer, <-chan error) {
 	}()
 
 	closer := func() { c2.close(errors.New("close func called")) }
+	// 将c2，作为readwriter返回
 	return closer, c2, peer, errc
 }
 
@@ -154,10 +158,12 @@ func TestPeerProtoReadMsg(t *testing.T) {
 }
 
 func TestPeerProtoEncodeMsg(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	proto := Protocol{
 		Name:   "a",
 		Length: 2,
 		Run: func(peer *Peer, rw MsgReadWriter) error {
+			// 发送Item
 			if err := SendItems(rw, 2); err == nil {
 				t.Error("expected error for out-of-range msg code, got nil")
 			}
@@ -207,7 +213,9 @@ func TestPeerDisconnect(t *testing.T) {
 
 // This test is supposed to verify that Peer can reliably handle
 // multiple causes of disconnection occurring at the same time.
+// 这个测试应该能够确认Peer可以可靠的处理多个同时发生的断连的原因
 func TestPeerDisconnectRace(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	maybe := func() bool { return rand.Intn(2) == 1 }
 
 	for i := 0; i < 1000; i++ {
@@ -215,7 +223,8 @@ func TestPeerDisconnectRace(t *testing.T) {
 		protodisc := make(chan DiscReason)
 		closer, rw, p, disc := testPeer([]Protocol{
 			{
-				Name:   "closereq",
+				Name: "closereq",
+				// 直接返回
 				Run:    func(p *Peer, rw MsgReadWriter) error { return <-protoclose },
 				Length: 1,
 			},
@@ -227,19 +236,24 @@ func TestPeerDisconnectRace(t *testing.T) {
 		})
 
 		// Simulate incoming messages.
+		// 模拟到来的messages
 		go SendItems(rw, baseProtocolLength+1)
 		go SendItems(rw, baseProtocolLength+2)
 		// Close the network connection.
+		// 关闭network连接
 		go closer()
 		// Make protocol "closereq" return.
 		protoclose <- errors.New("protocol closed")
 		// Make protocol "disconnect" call peer.Disconnect
+		// 确保协议"disconnect"调用peer.Disconnect
 		protodisc <- DiscAlreadyConnected
 		// In some cases, simulate something else calling peer.Disconnect.
+		// 在一些情况下，模拟其他调用peer.Disconnect
 		if maybe() {
 			go p.Disconnect(DiscInvalidIdentity)
 		}
 		// In some cases, simulate remote requesting a disconnect.
+		// 在一些情况下，模拟远端请求一个disconnect
 		if maybe() {
 			go SendItems(rw, discMsg, DiscQuitting)
 		}

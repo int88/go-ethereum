@@ -408,6 +408,7 @@ func (c *Config) TrustedNodes() []*enode.Node {
 
 // parsePersistentNodes parses a list of discovery node URLs loaded from a .json
 // file from within the data directory.
+// parsePersistentNodes解析一系列discovery node的URLs，从一个data目录的.json文件中加载
 func (c *Config) parsePersistentNodes(w *bool, path string) []*enode.Node {
 	// Short circuit if no node config is present
 	if c.DataDir == "" {
