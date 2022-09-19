@@ -40,6 +40,7 @@ const ProtocolName = "eth"
 
 // ProtocolVersions are the supported versions of the `eth` protocol (first
 // is primary).
+// ProtocolVersions是`eth`协议支持的版本
 var ProtocolVersions = []uint{ETH66}
 
 // protocolLengths are the number of implemented message corresponding to

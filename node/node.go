@@ -571,6 +571,7 @@ func (n *Node) RegisterLifecycle(lifecycle Lifecycle) {
 }
 
 // RegisterProtocols adds backend's protocols to the node's p2p server.
+// RegisterProtocols添加后端的协议到node的p2p server
 func (n *Node) RegisterProtocols(protocols []p2p.Protocol) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

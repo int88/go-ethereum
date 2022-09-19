@@ -58,6 +58,7 @@ const (
 
 // Handler is a callback to invoke from an outside runner after the boilerplate
 // exchanges have passed.
+// Handler是一个回调函数，从一个outside runner中被调用，在boilterplate exchanges已经完成之后
 type Handler func(peer *Peer) error
 
 // Backend defines the data retrieval methods to serve remote requests and the
@@ -99,12 +100,15 @@ type Backend interface {
 }
 
 // TxPool defines the methods needed by the protocol handler to serve transactions.
+// TxPool定义了protocol handler需要的方法用于服务transactions
 type TxPool interface {
 	// Get retrieves the transaction from the local txpool with the given hash.
+	// Get从local txpool获取transaction，用给定的hash
 	Get(hash common.Hash) *types.Transaction
 }
 
 // MakeProtocols constructs the P2P protocol definitions for `eth`.
+// MakeProtocols构建了P2P协议的定义，对于`eth`
 func MakeProtocols(backend Backend, network uint64, dnsdisc enode.Iterator) []p2p.Protocol {
 	protocols := make([]p2p.Protocol, len(ProtocolVersions))
 	for i, version := range ProtocolVersions {
@@ -137,6 +141,7 @@ func MakeProtocols(backend Backend, network uint64, dnsdisc enode.Iterator) []p2
 
 // NodeInfo represents a short summary of the `eth` sub-protocol metadata
 // known about the host peer.
+// NodeInfo代表一个`eth`子协议的元数据，关于host peer，的一个short summary
 type NodeInfo struct {
 	Network    uint64              `json:"network"`    // Ethereum network ID (1=Frontier, 2=Morden, Ropsten=3, Rinkeby=4)
 	Difficulty *big.Int            `json:"difficulty"` // Total difficulty of the host's blockchain
@@ -146,6 +151,7 @@ type NodeInfo struct {
 }
 
 // nodeInfo retrieves some `eth` protocol metadata about the running host node.
+// nodeInfo获取一些`eth`协议的元数据，关于正在运行的host node
 func nodeInfo(chain *core.BlockChain, network uint64) *NodeInfo {
 	head := chain.CurrentBlock()
 	return &NodeInfo{
@@ -217,6 +223,7 @@ func handleMessage(backend Backend, peer *Peer) error {
 	//}
 
 	// Track the amount of time it takes to serve the request and run the handler
+	// 追踪服务请求并且运行handler需要的时间
 	if metrics.Enabled {
 		h := fmt.Sprintf("%s/%s/%d/%#02x", p2p.HandleHistName, ProtocolName, peer.Version(), msg.Code)
 		defer func(start time.Time) {

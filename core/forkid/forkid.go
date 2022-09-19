@@ -63,6 +63,7 @@ type ID struct {
 }
 
 // Filter is a fork id filter to validate a remotely advertised ID.
+// Filter是一个fork id filter用来校验一个远程advertised ID
 type Filter func(id ID) error
 
 // NewID calculates the Ethereum fork ID from the chain config, genesis hash, and head.

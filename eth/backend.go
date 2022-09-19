@@ -278,6 +278,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.netRPCService = ethapi.NewPublicNetAPI(eth.p2pServer, config.NetworkId)
 
 	// Register the backend on the node
+	// 注册backend到node
 	stack.RegisterAPIs(eth.APIs())
 	stack.RegisterProtocols(eth.Protocols())
 	stack.RegisterLifecycle(eth)
@@ -306,20 +307,25 @@ func makeExtraData(extra []byte) []byte {
 }
 
 // APIs return the collection of RPC services the ethereum package offers.
+// APIs返回一系列ethereum包提供的RPC services
 // NOTE, some of these services probably need to be moved to somewhere else.
 func (s *Ethereum) APIs() []rpc.API {
 	apis := ethapi.GetAPIs(s.APIBackend)
 
 	// Append any APIs exposed explicitly by the consensus engine
+	// 扩展任何由共识引擎显式暴露的APIs
 	apis = append(apis, s.engine.APIs(s.BlockChain())...)
 
 	// Append all the local APIs and return
+	// 扩展所有的local APIs并且返回
 	return append(apis, []rpc.API{
 		{
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   NewPublicEthereumAPI(s),
-			Public:    true,
+			// Ethereum API
+			Service: NewPublicEthereumAPI(s),
+			// 分为Public和Private的API
+			Public: true,
 		}, {
 			Namespace: "eth",
 			Version:   "1.0",
@@ -550,9 +556,11 @@ func (s *Ethereum) SyncMode() downloader.SyncMode {
 
 // Protocols returns all the currently configured
 // network protocols to start.
+// Protocols返回所有当前配置的network protocols用于启动
 func (s *Ethereum) Protocols() []p2p.Protocol {
 	protos := eth.MakeProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
 	if s.config.SnapshotCache > 0 {
+		// 添加snapshot protocols
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
 	return protos

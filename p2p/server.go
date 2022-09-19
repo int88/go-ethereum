@@ -149,6 +149,8 @@ type Config struct {
 	// If set to a non-nil value, the given NAT port mapper
 	// is used to make the listening port available to the
 	// Internet.
+	// 如果设置为non-nil，给定的NAT端口映射会用于让listening port在
+	// 公网可以访问
 	NAT nat.Interface `toml:",omitempty"`
 
 	// If Dialer is set to a non-nil value, the given Dialer
@@ -162,6 +164,8 @@ type Config struct {
 
 	// If EnableMsgEvents is set then the server will emit PeerEvents
 	// whenever a message is sent to or received from a peer
+	// 如果EnableMsgEvents被设置，那么server会发射PeerEvents，当从一个serve发送或者
+	// 接收一个message
 	EnableMsgEvents bool
 
 	// Logger is a custom logger to use with the p2p.Server.

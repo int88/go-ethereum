@@ -22,14 +22,17 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // Tests that handshake failures are detected and reported correctly.
+// 测试握手失败能被正确检测以及报告
 func TestHandshake66(t *testing.T) { testHandshake(t, ETH66) }
 
 func testHandshake(t *testing.T, protocol uint) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 
 	// Create a test backend only to have some valid genesis chain
@@ -48,6 +51,7 @@ func testHandshake(t *testing.T, protocol uint) {
 		data interface{}
 		want error
 	}{
+		// 从对端发送一系列垃圾信息，确认握手会失败
 		{
 			code: TransactionsMsg, data: []interface{}{},
 			want: errNoStatusMsg,

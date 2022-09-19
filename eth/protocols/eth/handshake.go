@@ -57,7 +57,7 @@ func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
-	// 读取两次即可
+	// 读取两次即可，一次自己发送message，一次读取status
 	for i := 0; i < 2; i++ {
 		select {
 		case err := <-errc:
@@ -96,12 +96,15 @@ func (p *Peer) readStatus(network uint64, status *StatusPacket, genesis common.H
 	if err := msg.Decode(&status); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+	// network id匹配
 	if status.NetworkID != network {
 		return fmt.Errorf("%w: %d (!= %d)", errNetworkIDMismatch, status.NetworkID, network)
 	}
+	// 协议版本匹配
 	if uint(status.ProtocolVersion) != p.version {
 		return fmt.Errorf("%w: %d (!= %d)", errProtocolVersionMismatch, status.ProtocolVersion, p.version)
 	}
+	// genesis id匹配
 	if status.Genesis != genesis {
 		return fmt.Errorf("%w: %x (!= %x)", errGenesisMismatch, status.Genesis, genesis)
 	}

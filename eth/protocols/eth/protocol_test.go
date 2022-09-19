@@ -40,17 +40,21 @@ func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 		fail   bool
 	}{
 		// Providing the origin as either a hash or a number should both work
+		// 提供一个hash或者一个number作为origin都应该能work
 		{fail: false, packet: &GetBlockHeadersPacket{Origin: HashOrNumber{Number: 314}}},
 		{fail: false, packet: &GetBlockHeadersPacket{Origin: HashOrNumber{Hash: hash}}},
 
 		// Providing arbitrary query field should also work
+		// 提供任何的query字段也应该能work
 		{fail: false, packet: &GetBlockHeadersPacket{Origin: HashOrNumber{Number: 314}, Amount: 314, Skip: 1, Reverse: true}},
 		{fail: false, packet: &GetBlockHeadersPacket{Origin: HashOrNumber{Hash: hash}, Amount: 314, Skip: 1, Reverse: true}},
 
 		// Providing both the origin hash and origin number must fail
+		// 同时提供origin hash以及origin number必须失败
 		{fail: true, packet: &GetBlockHeadersPacket{Origin: HashOrNumber{Hash: hash, Number: 314}}},
 	}
 	// Iterate over each of the tests and try to encode and then decode
+	// 遍历每个tests并且试着编码然后再解码
 	for i, tt := range tests {
 		bytes, err := rlp.EncodeToBytes(tt.packet)
 		if err != nil && !tt.fail {
@@ -72,8 +76,10 @@ func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 }
 
 // TestEth66EmptyMessages tests encoding of empty eth66 messages
+// TestEth66EmptyMessages测试对于空的eth66 messages的编码
 func TestEth66EmptyMessages(t *testing.T) {
 	// All empty messages encodes to the same format
+	// 所有的empty messages都应该编码到同样的格式
 	want := common.FromHex("c4820457c0")
 
 	for i, msg := range []interface{}{
@@ -120,6 +126,7 @@ func TestEth66EmptyMessages(t *testing.T) {
 }
 
 // TestEth66Messages tests the encoding of all redefined eth66 messages
+// TestEth66Messages测试对于所有重新定义的eth66 messages的编码
 func TestEth66Messages(t *testing.T) {
 
 	// Some basic structs used during testing

@@ -89,6 +89,7 @@ type Peer struct {
 	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them	// 分发channel用于取消pending requests并且不再追踪它们
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them	// 分发channel用于填充pending requests并且不再追踪它们
 
+	// 终止channel来停止broadcasters
 	term chan struct{} // Termination channel to stop the broadcasters
 	lock sync.RWMutex  // Mutex protecting the internal fields
 }
@@ -307,6 +308,8 @@ func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 
 // AsyncSendNewBlock queues an entire block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
+// AsyncSendNewBlock将整个的block入队，用于传播到一个remote peer，如果peer的广播
+// 队列已满，则event最终会被默默丢弃
 func (p *Peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
 	select {
 	case p.queuedBlocks <- &blockPropagation{block: block, td: td}:
@@ -513,6 +516,7 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 }
 
 // knownCache is a cache for known hashes.
+// knownCache是对于已知的hashes的缓存
 type knownCache struct {
 	hashes mapset.Set
 	max    int

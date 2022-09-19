@@ -47,21 +47,27 @@ var (
 // testBackend is a mock implementation of the live Ethereum message handler. Its
 // purpose is to allow testing the request/reply workflows and wire serialization
 // in the `eth` protocol without actually doing any data processing.
+// testBackend是live Ethereum message handler的mock实现，它的目的是允许测试request/reply
+// workflows并且关联`eth`协议中的wire serialization，而不真正处理数据
 type testBackend struct {
+	// 有database，有blockchain，有txpool
 	db     ethdb.Database
 	chain  *core.BlockChain
 	txpool *core.TxPool
 }
 
 // newTestBackend creates an empty chain and wraps it into a mock backend.
+// newTestBackend创建一个空的chain并且封装它到一个mock backend
 func newTestBackend(blocks int) *testBackend {
 	return newTestBackendWithGenerator(blocks, nil)
 }
 
 // newTestBackend creates a chain with a number of explicitly defined blocks and
 // wraps it into a mock backend.
+// newTestBackend创建一个chain，有着一系列显式定义的blocks并且将它们封装进一个mock backend
 func newTestBackendWithGenerator(blocks int, generator func(int, *core.BlockGen)) *testBackend {
 	// Create a database pre-initialize with a genesis block
+	// 创建一个用genesis block提前初始化的数据库
 	db := rawdb.NewMemoryDatabase()
 	(&core.Genesis{
 		Config: params.TestChainConfig,
@@ -114,9 +120,11 @@ func TestGetBlockHeaders66(t *testing.T) { testGetBlockHeaders(t, ETH66) }
 func testGetBlockHeaders(t *testing.T, protocol uint) {
 	t.Parallel()
 
+	// 构建test backend
 	backend := newTestBackend(maxHeadersServe + 15)
 	defer backend.close()
 
+	// 构建新的peer
 	peer, _ := newTestPeer("peer", protocol, backend)
 	defer peer.close()
 
@@ -133,10 +141,13 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 		return hashes
 	}
 	// Create a batch of tests for various scenarios
+	// 创建一批的测试用于各种场景
 	limit := uint64(maxHeadersServe)
 	tests := []struct {
-		query  *GetBlockHeadersPacket // The query to execute for header retrieval
-		expect []common.Hash          // The hashes of the block whose headers are expected
+		// 用于执行header获取的请求
+		query *GetBlockHeadersPacket // The query to execute for header retrieval
+		// block的hashes，期望它的header
+		expect []common.Hash // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
 		{
@@ -149,6 +160,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			[]common.Hash{backend.chain.GetBlockByNumber(limit / 2).Hash()},
 		},
 		// Multiple headers should be retrievable in both directions
+		// 多个headers在两个方向应该都能获取
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: limit / 2}, Amount: 3},
 			[]common.Hash{
@@ -165,6 +177,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Multiple headers with skip lists should be retrievable
+		// 多个headers，有着skip lists应该被获取
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: limit / 2}, Skip: 3, Amount: 3},
 			[]common.Hash{
@@ -181,6 +194,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// The chain endpoints should be retrievable
+		// chain endpoints应该可以被回收
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: 0}, Amount: 1},
 			[]common.Hash{backend.chain.GetBlockByNumber(0).Hash()},
@@ -190,15 +204,18 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			[]common.Hash{backend.chain.CurrentBlock().Hash()},
 		},
 		{ // If the peer requests a bit into the future, we deliver what we have
+			// 如果peer请求了未来的一些内容，我们发送我们有的东西
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().NumberU64()}, Amount: 10},
 			[]common.Hash{backend.chain.CurrentBlock().Hash()},
 		},
 		// Ensure protocol limits are honored
+		// 确保遵守protocol limts
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().NumberU64() - 1}, Amount: limit + 10, Reverse: true},
 			getHashes(backend.chain.CurrentBlock().NumberU64(), limit),
 		},
 		// Check that requesting more than available is handled gracefully
+		// 确保请求超过available也能被优雅处理
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().NumberU64() - 4}, Skip: 3, Amount: 3},
 			[]common.Hash{
@@ -213,6 +230,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check that requesting more than available is handled gracefully, even if mid skip
+		// 检查请求超过available能够被正确处理，即使mid skip
 		{
 			&GetBlockHeadersPacket{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().NumberU64() - 4}, Skip: 2, Amount: 3},
 			[]common.Hash{
@@ -272,6 +290,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			RequestId:             123,
 			GetBlockHeadersPacket: tt.query,
 		})
+		// p2p期望得到的messages
 		if err := p2p.ExpectMsg(peer.app, BlockHeadersMsg, &BlockHeadersPacket66{
 			RequestId:          123,
 			BlockHeadersPacket: headers,
@@ -279,6 +298,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			t.Errorf("test %d: headers mismatch: %v", i, err)
 		}
 		// If the test used number origins, repeat with hashes as the too
+		// 如果测试使用的是number origins，用hashes再来一次
 		if tt.query.Origin.Hash == (common.Hash{}) {
 			if origin := backend.chain.GetBlockByNumber(tt.query.Origin.Number); origin != nil {
 				tt.query.Origin.Hash, tt.query.Origin.Number = origin.Hash(), 0
@@ -288,6 +308,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 					GetBlockHeadersPacket: tt.query,
 				})
 				expected := &BlockHeadersPacket66{RequestId: 456, BlockHeadersPacket: headers}
+				// 期望的message
 				if err := p2p.ExpectMsg(peer.app, BlockHeadersMsg, expected); err != nil {
 					t.Errorf("test %d by hash: headers mismatch: %v", i, err)
 				}
@@ -297,6 +318,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 }
 
 // Tests that block contents can be retrieved from a remote chain based on their hashes.
+// 测试block的内容可以从一个remote chain获取，基于它们的hashes
 func TestGetBlockBodies66(t *testing.T) { testGetBlockBodies(t, ETH66) }
 
 func testGetBlockBodies(t *testing.T, protocol uint) {

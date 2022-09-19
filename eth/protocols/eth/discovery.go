@@ -43,6 +43,7 @@ func (e enrEntry) ENRKey() string {
 // node record，当传入一个fork时
 func StartENRUpdater(chain *core.BlockChain, ln *enode.LocalNode) {
 	var newHead = make(chan core.ChainHeadEvent, 10)
+	// 订阅chain head event
 	sub := chain.SubscribeChainHeadEvent(newHead)
 
 	go func() {

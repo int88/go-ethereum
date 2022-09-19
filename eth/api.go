@@ -43,11 +43,13 @@ import (
 
 // PublicEthereumAPI provides an API to access Ethereum full node-related
 // information.
+// PublicEthereumAPI提供了一个API用于访问Ethereum的完整的节点相关的信息
 type PublicEthereumAPI struct {
 	e *Ethereum
 }
 
 // NewPublicEthereumAPI creates a new Ethereum protocol API for full nodes.
+// NewPublicEthereumAPI创建一个新的Ethereum protocol API用于full nodes
 func NewPublicEthereumAPI(e *Ethereum) *PublicEthereumAPI {
 	return &PublicEthereumAPI{e}
 }
@@ -209,6 +211,7 @@ func hasAllBlocks(chain *core.BlockChain, bs []*types.Block) bool {
 }
 
 // ImportChain imports a blockchain from a local file.
+// ImportChain从一个local file导入一个blockchain
 func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 	// Make sure the can access the file to import
 	in, err := os.Open(file)
@@ -225,11 +228,13 @@ func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 	}
 
 	// Run actual the import in pre-configured batches
+	// 在之前配置的batches运行真正的导入
 	stream := rlp.NewStream(reader, 0)
 
 	blocks, index := make([]*types.Block, 0, 2500), 0
 	for batch := 0; ; batch++ {
 		// Load a batch of blocks from the input file
+		// 从输入文件中导入一批的blocks
 		for len(blocks) < cap(blocks) {
 			block := new(types.Block)
 			if err := stream.Decode(block); err == io.EOF {
@@ -249,6 +254,7 @@ func (api *PrivateAdminAPI) ImportChain(file string) (bool, error) {
 			continue
 		}
 		// Import the batch and reset the buffer
+		// 导入batch并且重置buffer
 		if _, err := api.eth.BlockChain().InsertChain(blocks); err != nil {
 			return false, fmt.Errorf("batch %d: failed to insert: %v", batch, err)
 		}
@@ -270,6 +276,7 @@ func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 }
 
 // DumpBlock retrieves the entire state of the database at a given block.
+// DumpBlock获取一个给定block在数据库中的完整状态
 func (api *PublicDebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 	opts := &state.DumpConfig{
 		OnlyWithAddresses: true,
@@ -313,6 +320,7 @@ func NewPrivateDebugAPI(eth *Ethereum) *PrivateDebugAPI {
 }
 
 // Preimage is a debug API function that returns the preimage for a sha3 hash, if known.
+// Preimage是一个debug API函数，对于一个sha3 hash返回preimage
 func (api *PrivateDebugAPI) Preimage(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
 	if preimage := rawdb.ReadPreimage(api.eth.ChainDb(), hash); preimage != nil {
 		return preimage, nil

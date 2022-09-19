@@ -59,11 +59,15 @@ type Protocol struct {
 	// PeerInfo is an optional helper method to retrieve protocol specific metadata
 	// about a certain peer in the network. If an info retrieval function is set,
 	// but returns nil, it is assumed that the protocol handshake is still running.
+	// PeerInfo是一个可选的 helper方法用于获取协议特定的元数据，关于network中一个特定的peer
+	// 如果设置了一个info retrieval函数，但是返回nil，这就假设协议握手还在进行
 	PeerInfo func(id enode.ID) interface{}
 
 	// DialCandidates, if non-nil, is a way to tell Server about protocol-specific nodes
 	// that should be dialed. The server continuously reads nodes from the iterator and
 	// attempts to create connections to them.
+	// DialCandidates，如果为non-nil，是一个办法告诉Server，关于协议特定的nodes应该被dialed
+	// server持续从iterator中读取nodes并且试着和他们建立连接
 	DialCandidates enode.Iterator
 
 	// Attributes contains protocol specific information for the node record.

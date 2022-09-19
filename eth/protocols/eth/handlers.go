@@ -209,6 +209,7 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 
 func handleGetBlockBodies66(backend Backend, msg Decoder, peer *Peer) error {
 	// Decode the block body retrieval message
+	// 解码block body获取的message
 	var query GetBlockBodiesPacket66
 	if err := msg.Decode(&query); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
@@ -245,6 +246,7 @@ func handleGetNodeData66(backend Backend, msg Decoder, peer *Peer) error {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 	response := ServiceGetNodeDataQuery(backend.Chain(), query.GetNodeDataPacket)
+	// 回复Node Data
 	return peer.ReplyNodeData(query.RequestId, response)
 }
 

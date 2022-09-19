@@ -101,7 +101,9 @@ type handler struct {
 	networkID  uint64
 	forkFilter forkid.Filter // Fork ID filter, constant across the lifetime of the node
 
-	snapSync  uint32 // Flag whether snap sync is enabled (gets disabled if we already have blocks)
+	// Flag表示是否使能snap sync
+	snapSync uint32 // Flag whether snap sync is enabled (gets disabled if we already have blocks)
+	// Flag表示是否我们已经被认为同步了（能够进行transaction processing）
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
 	checkpointNumber uint64      // Block number for the sync progress validator to cross reference
@@ -360,6 +362,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}
 	}
 	// Ignore maxPeers if this is a trusted peer
+	// 如果这是一个trusted peer，忽略maxPeers
 	if !peer.Peer.Info().Network.Trusted {
 		if reject || h.peers.len() >= h.maxPeers {
 			return p2p.DiscTooManyPeers

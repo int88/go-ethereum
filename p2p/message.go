@@ -253,6 +253,7 @@ func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 	if content == nil {
 		return msg.Discard()
 	}
+	// 将content进行编码
 	contentEnc, err := rlp.EncodeToBytes(content)
 	if err != nil {
 		panic("content encode error: " + err.Error())

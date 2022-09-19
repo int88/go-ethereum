@@ -24,27 +24,35 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // testPeer is a simulated peer to allow testing direct network calls.
+// testPeer是一个模拟的peer用来允许测试直接的网络调用
 type testPeer struct {
 	*Peer
 
+	// 网络层的reader/writer用来模拟remote messaging
 	net p2p.MsgReadWriter // Network layer reader/writer to simulate remote messaging
-	app *p2p.MsgPipeRW    // Application layer reader/writer to simulate the local side
+	// 应用层的reader/writer来模拟local side
+	app *p2p.MsgPipeRW // Application layer reader/writer to simulate the local side
 }
 
 // newTestPeer creates a new peer registered at the given data backend.
+// newTestPeer创建一个新的peer，注册到给定的data backend
 func newTestPeer(name string, version uint, backend Backend) (*testPeer, <-chan error) {
 	// Create a message pipe to communicate through
+	// 创建一个message pipe用于交互
 	app, net := p2p.MsgPipe()
 
 	// Start the peer on a new thread
+	// 在一个新的thread启动peer
 	var id enode.ID
 	rand.Read(id[:])
 
+	// 基于backend构建peer
 	peer := NewPeer(version, p2p.NewPeer(id, name, nil), net, backend.TxPool())
 	errc := make(chan error, 1)
 	go func() {
@@ -57,16 +65,19 @@ func newTestPeer(name string, version uint, backend Backend) (*testPeer, <-chan 
 
 // close terminates the local side of the peer, notifying the remote protocol
 // manager of termination.
+// close终止peer的local side，将终止通知给远程的protocol manager
 func (p *testPeer) close() {
 	p.Peer.Close()
 	p.app.Close()
 }
 
 func TestPeerSet(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	size := 5
 	s := newKnownCache(size)
 
 	// add 10 items
+	// 添加10个items
 	for i := 0; i < size*2; i++ {
 		s.Add(common.Hash{byte(i)})
 	}
@@ -81,6 +92,7 @@ func TestPeerSet(t *testing.T) {
 	}
 
 	// add item in batch
+	// 批量添加item
 	s.Add(vals...)
 	if s.Cardinality() < size {
 		t.Fatalf("bad size")

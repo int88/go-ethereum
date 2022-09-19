@@ -39,6 +39,7 @@ func (h *ethHandler) Chain() *core.BlockChain { return h.chain }
 func (h *ethHandler) TxPool() eth.TxPool      { return h.txpool }
 
 // RunPeer is invoked when a peer joins on the `eth` protocol.
+// RunPeer被调用，当一个peer加入到`eth`协议
 func (h *ethHandler) RunPeer(peer *eth.Peer, hand eth.Handler) error {
 	return (*handler)(h).runEthPeer(peer, hand)
 }

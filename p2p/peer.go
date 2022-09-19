@@ -129,10 +129,13 @@ type Peer struct {
 }
 
 // NewPeer returns a peer for testing purposes.
+// NewPeer返回一个peer用于测试
 func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	// Generate a fake set of local protocols to match as running caps. Almost
 	// no fields needs to be meaningful here as we're only using it to cross-
 	// check with the "remote" caps array.
+	// 生成一个假的local protocols来匹配running caps，几乎没有字段需要有意义
+	// 因为我们只使用它来交叉确认"remote" cap array
 	protos := make([]Protocol, len(caps))
 	for i, cap := range caps {
 		protos[i].Name = cap.Name
@@ -140,6 +143,7 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	}
 	pipe, _ := net.Pipe()
 	node := enode.SignNull(new(enr.Record), id)
+	// 构建connection
 	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
 	peer := newPeer(log.Root(), conn, protos)
 	close(peer.closed) // ensures Disconnect doesn't block

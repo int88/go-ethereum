@@ -41,6 +41,8 @@ type API struct {
 // ServerCodec implements reading, parsing and writing RPC messages for the server side of
 // a RPC session. Implementations must be go-routine safe since the codec can be called in
 // multiple go-routines concurrently.
+// ServerCodec实现了在服务端的一个RPC session中读取，解析并且写入RPC messages，实现必须是线程安全的
+// 因为codec会在多个goroutines中被并行调用
 type ServerCodec interface {
 	peerInfo() PeerInfo
 	readBatch() (msgs []*jsonrpcMessage, isBatch bool, err error)

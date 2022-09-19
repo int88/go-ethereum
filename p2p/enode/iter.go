@@ -24,6 +24,8 @@ import (
 // Iterator represents a sequence of nodes. The Next method moves to the next node in the
 // sequence. It returns false when the sequence has ended or the iterator is closed. Close
 // may be called concurrently with Next and Node, and interrupts Next if it is blocked.
+// Iterator代表了一系列的nodes，Next方法移动到序列中的下一个node，它返回false，当sequence结束或者
+// iterator关闭，Close可能和Next以及Node同时调用，并且中断Next，如果被阻塞的话
 type Iterator interface {
 	Next() bool  // moves to next node
 	Node() *Node // returns current node
