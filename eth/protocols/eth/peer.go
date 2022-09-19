@@ -80,8 +80,9 @@ type Peer struct {
 	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer	// 等待广播到peer的blocks的队列
 	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer	// 等待宣布到peer的blocks的队列
 
-	txpool      TxPool             // Transaction pool used by the broadcasters for liveness checks // 供broadcasters使用的用于liveness checks的Transaction pool
-	knownTxs    *knownCache        // Set of transaction hashes known to be known by this peer
+	txpool   TxPool      // Transaction pool used by the broadcasters for liveness checks // 供broadcasters使用的用于liveness checks的Transaction pool
+	knownTxs *knownCache // Set of transaction hashes known to be known by this peer
+	// Channel用于将transaction传播请求排队
 	txBroadcast chan []common.Hash // Channel used to queue transaction propagation requests
 	txAnnounce  chan []common.Hash // Channel used to queue transaction announcement requests
 
@@ -504,6 +505,7 @@ func (p *Peer) RequestReceipts(hashes []common.Hash, sink chan *Response) (*Requ
 }
 
 // RequestTxs fetches a batch of transactions from a remote node.
+// RequestTxs从一个remote node获取一批的txs
 func (p *Peer) RequestTxs(hashes []common.Hash) error {
 	p.Log().Debug("Fetching batch of transactions", "count", len(hashes))
 	id := rand.Uint64()

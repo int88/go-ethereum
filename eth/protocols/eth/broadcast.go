@@ -76,6 +76,7 @@ func (p *Peer) broadcastTransactions() {
 	)
 	for {
 		// If there's no in-flight broadcast running, check if a new one is needed
+		// 如果没有正在处理的广播正在运行，检查是否需要一个新的
 		if done == nil && len(queue) > 0 {
 			// Pile transaction until we reach our allowed network limit
 			var (

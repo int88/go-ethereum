@@ -49,11 +49,14 @@ var (
 // the `eth` protocol, with or without the `snap` extension.
 // peerSet代表一系列的active peers，当前正参与到`eth`协议中，有或者没有`snap`扩展
 type peerSet struct {
+	// 和`eth`协议相连的Peers
 	peers     map[string]*ethPeer // Peers connected on the `eth` protocol
 	snapPeers int                 // Number of `snap` compatible peers for connection prioritization
 
+	// 和`eth`相连的peers，等待它们的snap extension
 	snapWait map[string]chan *snap.Peer // Peers connected on `eth` waiting for their snap extension
-	snapPend map[string]*snap.Peer      // Peers connected on the `snap` protocol, but not yet on `eth`
+	// 和`snap`相连的peers，但是不在`eth`
+	snapPend map[string]*snap.Peer // Peers connected on the `snap` protocol, but not yet on `eth`
 
 	lock   sync.RWMutex
 	closed bool

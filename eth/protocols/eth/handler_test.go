@@ -331,22 +331,34 @@ func testGetBlockBodies(t *testing.T, protocol uint) {
 	defer peer.close()
 
 	// Create a batch of tests for various scenarios
+	// 对于各种场景创建一批测试
 	limit := maxBodiesServe
 	tests := []struct {
-		random    int           // Number of blocks to fetch randomly from the chain
-		explicit  []common.Hash // Explicitly requested blocks
-		available []bool        // Availability of explicitly requested blocks
-		expected  int           // Total number of existing blocks to expect
+		// 随机从chain获取blocks的数目
+		random int // Number of blocks to fetch randomly from the chain
+		// 显式获取的blocks
+		explicit []common.Hash // Explicitly requested blocks
+		// 显式获取的blocks的可用性
+		available []bool // Availability of explicitly requested blocks
+		// 期望存在的blocks
+		expected int // Total number of existing blocks to expect
 	}{
-		{1, nil, nil, 1},             // A single random block should be retrievable
-		{10, nil, nil, 10},           // Multiple random blocks should be retrievable
+		// 单个random block可以被获取
+		{1, nil, nil, 1}, // A single random block should be retrievable
+		// 多个随机的blocks可以被获取
+		{10, nil, nil, 10}, // Multiple random blocks should be retrievable
+		// 最大的可以获取的blocks的数目
 		{limit, nil, nil, limit},     // The maximum possible blocks should be retrievable
 		{limit + 1, nil, nil, limit}, // No more than the possible block count should be returned
-		{0, []common.Hash{backend.chain.Genesis().Hash()}, []bool{true}, 1},      // The genesis block should be retrievable
+		// genesis block可以被获取
+		{0, []common.Hash{backend.chain.Genesis().Hash()}, []bool{true}, 1}, // The genesis block should be retrievable
+		// head block的chains可以被获取
 		{0, []common.Hash{backend.chain.CurrentBlock().Hash()}, []bool{true}, 1}, // The chains head block should be retrievable
-		{0, []common.Hash{{}}, []bool{false}, 0},                                 // A non existent block should not be returned
+		// 一个不存在的block不应该被返回
+		{0, []common.Hash{{}}, []bool{false}, 0}, // A non existent block should not be returned
 
 		// Existing and non-existing blocks interleaved should not cause problems
+		// 已经存在的和不存在的blocks交互不应该产生问题
 		{0, []common.Hash{
 			{},
 			backend.chain.GetBlockByNumber(1).Hash(),
@@ -358,8 +370,10 @@ func testGetBlockBodies(t *testing.T, protocol uint) {
 		}, []bool{false, true, false, true, false, true, false}, 3},
 	}
 	// Run each of the tests and verify the results against the chain
+	// 运行各个测试用例并且校验结果
 	for i, tt := range tests {
 		// Collect the hashes to request, and the response to expectva
+		// 收集用于请求的hahes以及期望的response
 		var (
 			hashes []common.Hash
 			bodies []*BlockBody
@@ -388,6 +402,7 @@ func testGetBlockBodies(t *testing.T, protocol uint) {
 			}
 		}
 		// Send the hash request and verify the response
+		// 发送hash request并且确认response
 		p2p.Send(peer.app, GetBlockBodiesMsg, &GetBlockBodiesPacket66{
 			RequestId:            123,
 			GetBlockBodiesPacket: hashes,
@@ -402,12 +417,14 @@ func testGetBlockBodies(t *testing.T, protocol uint) {
 }
 
 // Tests that the state trie nodes can be retrieved based on hashes.
+// 测试state trie nodes可以基于hashes获取
 func TestGetNodeData66(t *testing.T) { testGetNodeData(t, ETH66) }
 
 func testGetNodeData(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Define three accounts to simulate transactions with
+	// 定义三个accounts来模拟transactions
 	acc1Key, _ := crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
 	acc2Key, _ := crypto.HexToECDSA("49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee")
 	acc1Addr := crypto.PubkeyToAddress(acc1Key.PublicKey)
@@ -415,6 +432,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 
 	signer := types.HomesteadSigner{}
 	// Create a chain generator with some simple transactions (blatantly stolen from @fjl/chain_makers_test)
+	// 创建一个chain generator，用一些简单的transactions
 	generator := func(i int, block *core.BlockGen) {
 		switch i {
 		case 0:
@@ -434,6 +452,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 			block.SetExtra([]byte("yeehaw"))
 		case 3:
 			// Block 4 includes blocks 2 and 3 as uncle headers (with modified extra data).
+			// BLock 4包含blocks 2和3作为uncle headers
 			b2 := block.PrevBlock(1).Header()
 			b2.Extra = []byte("foo")
 			block.AddUncle(b2)
@@ -443,6 +462,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 		}
 	}
 	// Assemble the test environment
+	// 构建测试环境
 	backend := newTestBackendWithGenerator(4, generator)
 	defer backend.close()
 
@@ -450,6 +470,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 	defer peer.close()
 
 	// Collect all state tree hashes.
+	// 收集所有的state tree hashes
 	var hashes []common.Hash
 	it := backend.db.NewIterator(nil, nil)
 	for it.Next() {
@@ -460,10 +481,12 @@ func testGetNodeData(t *testing.T, protocol uint) {
 	it.Release()
 
 	// Request all hashes.
+	// 请求所有的hashes
 	p2p.Send(peer.app, GetNodeDataMsg, &GetNodeDataPacket66{
 		RequestId:         123,
 		GetNodeDataPacket: hashes,
 	})
+	// 从app中读取message
 	msg, err := peer.app.ReadMsg()
 	if err != nil {
 		t.Fatalf("failed to read node data response: %v", err)
@@ -477,6 +500,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 	}
 
 	// Verify that all hashes correspond to the requested data.
+	// 校验所有的hashes都和对应的requested data对应
 	data := res.NodeDataPacket
 	for i, want := range hashes {
 		if hash := crypto.Keccak256Hash(data[i]); hash != want {
@@ -485,12 +509,14 @@ func testGetNodeData(t *testing.T, protocol uint) {
 	}
 
 	// Reconstruct state tree from the received data.
+	// 从接收到的数据重新构建state tree
 	reconstructDB := rawdb.NewMemoryDatabase()
 	for i := 0; i < len(data); i++ {
 		rawdb.WriteTrieNode(reconstructDB, hashes[i], data[i])
 	}
 
 	// Sanity check whether all state matches.
+	// 检查所有的state都匹配
 	accounts := []common.Address{testAddr, acc1Addr, acc2Addr}
 	for i := uint64(0); i <= backend.chain.CurrentBlock().NumberU64(); i++ {
 		root := backend.chain.GetBlockByNumber(i).Root()
@@ -511,6 +537,7 @@ func testGetNodeData(t *testing.T, protocol uint) {
 }
 
 // Tests that the transaction receipts can be retrieved based on hashes.
+// 测试transaction receipts可以通过hashes获取
 func TestGetBlockReceipts66(t *testing.T) { testGetBlockReceipts(t, ETH66) }
 
 func testGetBlockReceipts(t *testing.T, protocol uint) {
@@ -559,6 +586,7 @@ func testGetBlockReceipts(t *testing.T, protocol uint) {
 	defer peer.close()
 
 	// Collect the hashes to request, and the response to expect
+	// 收集hashes用于请求，以及期望的response
 	var (
 		hashes   []common.Hash
 		receipts [][]*types.Receipt
@@ -570,6 +598,7 @@ func testGetBlockReceipts(t *testing.T, protocol uint) {
 		receipts = append(receipts, backend.chain.GetReceiptsByHash(block.Hash()))
 	}
 	// Send the hash request and verify the response
+	// 发送hash request并且确认response
 	p2p.Send(peer.app, GetReceiptsMsg, &GetReceiptsPacket66{
 		RequestId:         123,
 		GetReceiptsPacket: hashes,

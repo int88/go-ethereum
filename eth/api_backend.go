@@ -51,6 +51,7 @@ type EthAPIBackend struct {
 }
 
 // ChainConfig returns the active chain configuration.
+// ChainConfig返回active chain的配置
 func (b *EthAPIBackend) ChainConfig() *params.ChainConfig {
 	return b.eth.blockchain.Config()
 }
@@ -66,11 +67,13 @@ func (b *EthAPIBackend) SetHead(number uint64) {
 
 func (b *EthAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error) {
 	// Pending block is only known by the miner
+	// Pending block只有miner知道
 	if number == rpc.PendingBlockNumber {
 		block := b.eth.miner.PendingBlock()
 		return block.Header(), nil
 	}
 	// Otherwise resolve and return the block
+	// 否则解析并且返回block
 	if number == rpc.LatestBlockNumber {
 		return b.eth.blockchain.CurrentBlock().Header(), nil
 	}

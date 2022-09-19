@@ -151,6 +151,8 @@ func (api *PrivateMinerAPI) SetRecommitInterval(interval int) {
 
 // PrivateAdminAPI is the collection of Ethereum full node-related APIs
 // exposed over the private admin endpoint.
+// PrivateAdminAPI是一系列的Ethereum full node相关的APIs，通过private admin endpoint
+// 暴露
 type PrivateAdminAPI struct {
 	eth *Ethereum
 }

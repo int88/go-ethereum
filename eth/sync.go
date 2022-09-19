@@ -239,6 +239,7 @@ func (cs *chainSyncer) startSync(op *chainSyncOp) {
 }
 
 // doSync synchronizes the local blockchain with a remote peer.
+// doSync将本地的blockchain和一个remote peer进行同步
 func (h *handler) doSync(op *chainSyncOp) error {
 	if op.mode == downloader.SnapSync {
 		// Before launch the snap sync, we have to ensure user uses the same
@@ -259,6 +260,7 @@ func (h *handler) doSync(op *chainSyncOp) error {
 		}
 	}
 	// Run the sync cycle, and disable snap sync if we're past the pivot block
+	// 运行sync cule并且禁止snap sync，如果我们已经过了pivot block
 	err := h.downloader.LegacySync(op.peer.ID(), op.head, op.td, h.chain.Config().TerminalTotalDifficulty, op.mode)
 	if err != nil {
 		return err
@@ -269,6 +271,8 @@ func (h *handler) doSync(op *chainSyncOp) error {
 	}
 	// If we've successfully finished a sync cycle and passed any required checkpoint,
 	// enable accepting transactions from the network.
+	// 如果我们已经成功结束了一个sync cycle并且传输了任何需要的checkpoint，使能从
+	// network中接收tx
 	head := h.chain.CurrentBlock()
 	if head.NumberU64() >= h.checkpointNumber {
 		// Checkpoint passed, sanity check the timestamp to have a fallback mechanism

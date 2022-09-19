@@ -129,6 +129,7 @@ type handler struct {
 	requiredBlocks map[uint64]common.Hash
 
 	// channels for fetcher, syncer, txsyncLoop
+	// channels用于fetcher, syncer以及txsyncLoop
 	quitSync chan struct{}
 
 	chainSync *chainSyncer
@@ -138,8 +139,10 @@ type handler struct {
 
 // newHandler returns a handler for all Ethereum chain management protocol.
 // newHandler返回一个handler用于所有的Ethereum chain的管理协议
+// 构建downloader, validator, block fetcher, tx fetcher
 func newHandler(config *handlerConfig) (*handler, error) {
 	// Create the protocol manager with the base fields
+	// 用base fields创建protocol manager
 	if config.EventMux == nil {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
@@ -180,6 +183,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		}
 	}
 	// If we have trusted checkpoints, enforce them on the chain
+	// 如果我们有信任的checkpoints，
 	if config.Checkpoint != nil {
 		h.checkpointNumber = (config.Checkpoint.SectionIndex+1)*params.CHTFrequency - 1
 		h.checkpointHash = config.Checkpoint.SectionHead
@@ -522,6 +526,7 @@ func (h *handler) removePeer(id string) {
 }
 
 // unregisterPeer removes a peer from the downloader, fetchers and main peer set.
+// unregisterPeer从donwloader, fetcher以及main peer set中移除peer
 func (h *handler) unregisterPeer(id string) {
 	// Create a custom logger to avoid printing the entire id
 	var logger log.Logger
@@ -532,6 +537,7 @@ func (h *handler) unregisterPeer(id string) {
 		logger = log.New("peer", id[:8])
 	}
 	// Abort if the peer does not exist
+	// 终止，如果peer不存在的话
 	peer := h.peers.peer(id)
 	if peer == nil {
 		logger.Error("Ethereum peer removal failed", "err", errPeerNotRegistered)
@@ -580,6 +586,7 @@ func (h *handler) Stop() {
 
 	// Quit chainSync and txsync64.
 	// After this is done, no new peers will be accepted.
+	// 在这之后，不会有新的peers被添加
 	close(h.quitSync)
 	h.wg.Wait()
 
@@ -587,6 +594,8 @@ func (h *handler) Stop() {
 	// This also closes the gate for any new registrations on the peer set.
 	// sessions which are already established but not added to h.peers yet
 	// will exit when they try to register.
+	// 断开已有的session，它同时关闭了在peer set上新的registrations
+	// 已经建立的session但是没有添加到h.peers会退出，当它们试着注册的时候
 	h.peers.close()
 	h.peerWG.Wait()
 
@@ -595,9 +604,13 @@ func (h *handler) Stop() {
 
 // BroadcastBlock will either propagate a block to a subset of its peers, or
 // will only announce its availability (depending what's requested).
+// BroadcastBlock会发送一个block到它的peers的一个子集，或者只会声明它可用（决定于
+// 请求的是什么）
 func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	// Disable the block propagation if the chain has already entered the PoS
 	// stage. The block propagation is delegated to the consensus layer.
+	// 禁止block传播，如果chain已经进入了PoS阶段，block propagation已经委托给了
+	// 共识层
 	if h.merger.PoSFinalized() {
 		return
 	}
@@ -611,6 +624,7 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	peers := h.peers.peersWithoutBlock(hash)
 
 	// If propagation is requested, send to a subset of the peer
+	// 如果请求的是propagation，发送到peer的一个子集
 	if propagate {
 		// Calculate the TD of the block (it's not imported yet, so block.Td is not valid)
 		var td *big.Int
@@ -629,6 +643,7 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		return
 	}
 	// Otherwise if the block is indeed in out own chain, announce it
+	// 否则，如果block已经在我们的chain中，announce它
 	if h.chain.HasBlock(hash, block.NumberU64()) {
 		for _, peer := range peers {
 			peer.AsyncSendNewBlockHash(block)
@@ -651,7 +666,9 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		directCount int // Count of the txs sent directly to peers
 		directPeers int // Count of the peers that were sent transactions directly
 
+		// 设置peer->hash来直接transfer
 		txset = make(map[*ethPeer][]common.Hash) // Set peer->hash to transfer directly
+		// 设置peer->hash来announce
 		annos = make(map[*ethPeer][]common.Hash) // Set peer->hash to announce
 
 	)

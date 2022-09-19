@@ -25,6 +25,7 @@ import (
 
 // ethPeerInfo represents a short summary of the `eth` sub-protocol metadata known
 // about a connected peer.
+// ethPeerInfo代表了一个连接的peer的`eth`子协议元数据的一个short summary
 type ethPeerInfo struct {
 	Version    uint     `json:"version"`    // Ethereum protocol version negotiated
 	Difficulty *big.Int `json:"difficulty"` // Total difficulty of the peer's blockchain

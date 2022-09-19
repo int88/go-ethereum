@@ -116,6 +116,8 @@ func (h *ethHandler) handleBlockAnnounces(peer *eth.Peer, hashes []common.Hash, 
 
 // handleBlockBroadcast is invoked from a peer's message handler when it transmits a
 // block broadcast for the local node to process.
+// handleBlockBroadcast从一个peer的message handler中被调用，当它从local node发送一个
+// broadcast用于处理
 func (h *ethHandler) handleBlockBroadcast(peer *eth.Peer, block *types.Block, td *big.Int) error {
 	// Drop all incoming block announces from the p2p network if
 	// the chain already entered the pos stage and disconnect the
