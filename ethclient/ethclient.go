@@ -51,6 +51,7 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 }
 
 // NewClient creates a client that uses the given RPC client.
+// NewClient创建一个client，使用给定的RPC client
 func NewClient(c *rpc.Client) *Client {
 	return &Client{c}
 }

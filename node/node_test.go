@@ -46,6 +46,7 @@ func testNodeConfig() *Config {
 }
 
 // Tests that an empty protocol stack can be closed more than once.
+// 测试一个empty protocol stack可以被关闭多次
 func TestNodeCloseMultipleTimes(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	if err != nil {

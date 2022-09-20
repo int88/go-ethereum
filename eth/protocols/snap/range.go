@@ -25,6 +25,8 @@ import (
 
 // hashRange is a utility to handle ranges of hashes, Split up the
 // hash-space into sections, and 'walk' over the sections
+// hashRange是一个工具用来处理hashes的范围，将hash-space分割为sections
+// 并且遍历sections
 type hashRange struct {
 	current *uint256.Int
 	step    *uint256.Int

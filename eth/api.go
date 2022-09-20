@@ -273,6 +273,8 @@ type PublicDebugAPI struct {
 
 // NewPublicDebugAPI creates a new API definition for the full node-
 // related public debug methods of the Ethereum service.
+// NewPublicDebugAPI创建一个新的API定义，对于full node相关的公开的debug方法
+// 对于Ethereum服务
 func NewPublicDebugAPI(eth *Ethereum) *PublicDebugAPI {
 	return &PublicDebugAPI{eth: eth}
 }

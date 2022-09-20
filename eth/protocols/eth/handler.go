@@ -119,9 +119,11 @@ func MakeProtocols(backend Backend, network uint64, dnsdisc enode.Iterator) []p2
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+				// 构建新peer，提供的参数已经有了读写通道rw以及peer的信息
 				peer := NewPeer(version, p, rw, backend.TxPool())
 				defer peer.Close()
 
+				// 调用backend，运行peer
 				return backend.RunPeer(peer, func(peer *Peer) error {
 					return Handle(backend, peer)
 				})

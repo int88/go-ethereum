@@ -21,8 +21,10 @@ import (
 )
 
 // enrEntry is the ENR entry which advertises `snap` protocol on the discovery.
+// enrEntry是ENR entry，它在服务发现时建议`snap`协议
 type enrEntry struct {
 	// Ignore additional fields (for forward compatibility).
+	// 忽略额外的字段（为了向前兼容）
 	Rest []rlp.RawValue `rlp:"tail"`
 }
 

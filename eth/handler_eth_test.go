@@ -61,14 +61,17 @@ func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	// 直接将包发送到feed中
 	switch packet := packet.(type) {
 	case *eth.NewBlockPacket:
+		// 发送一个block
 		h.blockBroadcasts.Send(packet.Block)
 		return nil
 
 	case *eth.NewPooledTransactionHashesPacket:
+		// 处理tx hash packet
 		h.txAnnounces.Send(([]common.Hash)(*packet))
 		return nil
 
 	case *eth.TransactionsPacket:
+		// 处理tx
 		h.txBroadcasts.Send(([]*types.Transaction)(*packet))
 		return nil
 
@@ -83,6 +86,7 @@ func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // Tests that peers are correctly accepted (or rejected) based on the advertised
 // fork IDs in the protocol handshake.
+// 测试peers能被正确接受（或者拒绝）基于在protocol handshake中建议的fork IDs
 func TestForkIDSplit66(t *testing.T) { testForkIDSplit(t, eth.ETH66) }
 
 func testForkIDSplit(t *testing.T, protocol uint) {
@@ -114,6 +118,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 		blocksNoFork, _  = core.GenerateChain(configNoFork, genesisNoFork, engine, dbNoFork, 2, nil)
 		blocksProFork, _ = core.GenerateChain(configProFork, genesisProFork, engine, dbProFork, 2, nil)
 
+		// 构建handler
 		ethNoFork, _ = newHandler(&handlerConfig{
 			Database:   dbNoFork,
 			Chain:      chainNoFork,
@@ -144,6 +149,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 	defer ethProFork.Stop()
 
 	// Both nodes should allow the other to connect (same genesis, next fork is the same)
+	// 两个节点应该允许对方来连接（同样的genesis, next fork是一样的）
 	p2pNoFork, p2pProFork := p2p.MsgPipe()
 	defer p2pNoFork.Close()
 	defer p2pProFork.Close()
@@ -155,6 +161,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 
 	errc := make(chan error, 2)
 	go func(errc chan error) {
+		// 运行peer
 		errc <- ethNoFork.runEthPeer(peerProFork, func(peer *eth.Peer) error { return nil })
 	}(errc)
 	go func(errc chan error) {
@@ -172,6 +179,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 		}
 	}
 	// Progress into Homestead. Fork's match, so we don't care what the future holds
+	// 进入Homestead，Fork匹配，这样我们不需要关心未来是什么
 	chainNoFork.InsertChain(blocksNoFork[:1])
 	chainProFork.InsertChain(blocksProFork[:1])
 
@@ -203,6 +211,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 		}
 	}
 	// Progress into Spurious. Forks mismatch, signalling differing chains, reject
+	// 处理进入Spurious，Forks不匹配，通知是不同的chains，拒绝
 	chainNoFork.InsertChain(blocksNoFork[1:2])
 	chainProFork.InsertChain(blocksProFork[1:2])
 
@@ -230,6 +239,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			if err == nil {
 				successes++
 				if successes == 2 { // Only one side disconnects
+					// 只有一端disconnects
 					t.Fatalf("fork ID rejection didn't happen")
 				}
 			}
@@ -240,6 +250,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 }
 
 // Tests that received transactions are added to the local pool.
+// 测试接收到的transactions会被添加到local pool中
 func TestRecvTransactions66(t *testing.T) { testRecvTransactions(t, eth.ETH66) }
 
 func testRecvTransactions(t *testing.T, protocol uint) {
@@ -482,6 +493,8 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 // Tests that post eth protocol handshake, clients perform a mutual checkpoint
 // challenge to validate each other's chains. Hash mismatches, or missing ones
 // during a fast sync should lead to the peer getting dropped.
+// 测试发送了eth协议握手之后，客户端执行一个双向的checkpoint challenge来验证对方的chains
+// 哈希不匹配，或者在fast sync的时候缺失会导致peer被丢弃
 func TestCheckpointChallenge(t *testing.T) {
 	tests := []struct {
 		syncmode   downloader.SyncMode
@@ -623,6 +636,7 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 }
 
 // Tests that blocks are broadcast to a sqrt number of peers only.
+// 测试blocks只发送给平方数的peers
 func TestBroadcastBlock1Peer(t *testing.T)    { testBroadcastBlock(t, 1, 1) }
 func TestBroadcastBlock2Peers(t *testing.T)   { testBroadcastBlock(t, 2, 1) }
 func TestBroadcastBlock3Peers(t *testing.T)   { testBroadcastBlock(t, 3, 1) }
@@ -639,6 +653,7 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 
 	// Create a source handler to broadcast blocks from and a number of sinks
 	// to receive them.
+	// 创建一个source handler用于广播blocks以及一系列的sinks用于接收它们
 	source := newTestHandlerWithBlocks(1)
 	defer source.close()
 
@@ -647,6 +662,7 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 		sinks[i] = new(testEthHandler)
 	}
 	// Interconnect all the sink handlers with the source handler
+	// 将所有sink handlers和source handler相连
 	var (
 		genesis = source.chain.Genesis()
 		td      = source.chain.GetTd(genesis.Hash(), genesis.NumberU64())
@@ -658,33 +674,40 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 		defer sourcePipe.Close()
 		defer sinkPipe.Close()
 
+		// 构建source和sink peer
 		sourcePeer := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{byte(i)}, "", nil, sourcePipe), sourcePipe, nil)
 		sinkPeer := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{0}, "", nil, sinkPipe), sinkPipe, nil)
 		defer sourcePeer.Close()
 		defer sinkPeer.Close()
 
+		// 将peer加入source handler
 		go source.handler.runEthPeer(sourcePeer, func(peer *eth.Peer) error {
 			return eth.Handle((*ethHandler)(source.handler), peer)
 		})
+		// sinkPeer进行握手
 		if err := sinkPeer.Handshake(1, td, genesis.Hash(), genesis.Hash(), forkid.NewIDWithChain(source.chain), forkid.NewFilter(source.chain)); err != nil {
 			t.Fatalf("failed to run protocol handshake")
 		}
 		go eth.Handle(sink, sinkPeer)
 	}
 	// Subscribe to all the transaction pools
+	// 订阅所有的transaction pools
 	blockChs := make([]chan *types.Block, len(sinks))
 	for i := 0; i < len(sinks); i++ {
 		blockChs[i] = make(chan *types.Block, 1)
 		defer close(blockChs[i])
 
+		// 订阅block的广播
 		sub := sinks[i].blockBroadcasts.Subscribe(blockChs[i])
 		defer sub.Unsubscribe()
 	}
 	// Initiate a block propagation across the peers
+	// 初始化peers之间的block propagation
 	time.Sleep(100 * time.Millisecond)
 	source.handler.BroadcastBlock(source.chain.CurrentBlock(), true)
 
 	// Iterate through all the sinks and ensure the correct number got the block
+	// 遍历所有的sinks并且确保正确的number获取了block
 	done := make(chan struct{}, peers)
 	for _, ch := range blockChs {
 		ch := ch
@@ -701,6 +724,7 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 
 		case <-time.After(100 * time.Millisecond):
 			if received != bcasts {
+				// 只接收到bcasts个
 				t.Errorf("broadcast count mismatch: have %d, want %d", received, bcasts)
 			}
 			return
@@ -710,6 +734,7 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 
 // Tests that a propagated malformed block (uncles or transactions don't match
 // with the hashes in the header) gets discarded and not broadcast forward.
+// 测试一个传播的malformed block（uncles或者tx和header里的hash不匹配）会被丢弃并且不再转发
 func TestBroadcastMalformedBlock66(t *testing.T) { testBroadcastMalformedBlock(t, eth.ETH66) }
 
 func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
@@ -721,6 +746,7 @@ func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	defer source.close()
 
 	// Create a source handler to send messages through and a sink peer to receive them
+	// 创建一个source handler来发送messages以及一个sink peer来接收它们
 	p2pSrc, p2pSink := p2p.MsgPipe()
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
@@ -734,6 +760,7 @@ func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 		return eth.Handle((*ethHandler)(source.handler), peer)
 	})
 	// Run the handshake locally to avoid spinning up a sink handler
+	// 本地运行handshake来避免spinning up一个sink handler
 	var (
 		genesis = source.chain.Genesis()
 		td      = source.chain.GetTd(genesis.Hash(), genesis.NumberU64())
@@ -743,15 +770,19 @@ func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	}
 	// After the handshake completes, the source handler should stream the sink
 	// the blocks, subscribe to inbound network events
+	// 在握手完成之后，source handler应该向sink发送blocks，订阅inbound network events
 	backend := new(testEthHandler)
 
 	blocks := make(chan *types.Block, 1)
+	// 订阅blcoks事件
 	sub := backend.blockBroadcasts.Subscribe(blocks)
 	defer sub.Unsubscribe()
 
+	// 利用backend来处理sink中获取到的事件
 	go eth.Handle(backend, sink)
 
 	// Create various combinations of malformed blocks
+	// 创建各种malformed blocks的组合
 	head := source.chain.CurrentBlock()
 
 	malformedUncles := head.Header()
@@ -763,12 +794,16 @@ func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	malformedEverything.TxHash[0]++
 
 	// Try to broadcast all malformations and ensure they all get discarded
+	// 试着广播所有的malformations并且确保它们被丢弃
 	for _, header := range []*types.Header{malformedUncles, malformedTransactions, malformedEverything} {
+		// 构建block
 		block := types.NewBlockWithHeader(header).WithBody(head.Transactions(), head.Uncles())
+		// 发送新的block
 		if err := src.SendNewBlock(block, big.NewInt(131136)); err != nil {
 			t.Fatalf("failed to broadcast block: %v", err)
 		}
 		select {
+		// blocks不会收到事件
 		case <-blocks:
 			t.Fatalf("malformed block forwarded")
 		case <-time.After(100 * time.Millisecond):

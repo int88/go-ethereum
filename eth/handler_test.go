@@ -141,6 +141,7 @@ func newTestHandler() *testHandler {
 
 // newTestHandlerWithBlocks creates a new handler for testing purposes, with a
 // given number of initial blocks.
+// newTestHandlerWithBlocks创建一个新的handler用于测试，有着一个初始的blocks
 func newTestHandlerWithBlocks(blocks int) *testHandler {
 	// Create a database pre-initialize with a genesis block
 	// 创建一个database，用一个genesis block初始化

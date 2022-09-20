@@ -15,6 +15,7 @@
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 // bootnode runs a bootstrap node for the Ethereum Discovery Protocol.
+// bootnode运行一个bootstrap node用于Ethereum Discovery协议
 package main
 
 import (
@@ -120,6 +121,7 @@ func main() {
 
 	printNotice(&nodeKey.PublicKey, *realaddr)
 
+	// 打开DB，创建LocalNode
 	db, _ := enode.OpenDB("")
 	ln := enode.NewLocalNode(db, nodeKey)
 	cfg := discover.Config{
@@ -146,5 +148,6 @@ func printNotice(nodeKey *ecdsa.PublicKey, addr net.UDPAddr) {
 	n := enode.NewV4(nodeKey, addr.IP, 0, addr.Port)
 	fmt.Println(n.URLv4())
 	fmt.Println("Note: you're using cmd/bootnode, a developer tool.")
+	// 我们建议使用一个regular node作为bootstrap node，在生产部署的话
 	fmt.Println("We recommend using a regular node as bootstrap node for production deployments.")
 }

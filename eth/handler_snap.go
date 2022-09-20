@@ -24,6 +24,7 @@ import (
 
 // snapHandler implements the snap.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
+// snapHandler实现了snap.Backend接口用于处理各种network packets，它们发送用于replies或者广播
 type snapHandler handler
 
 func (h *snapHandler) Chain() *core.BlockChain { return h.chain }

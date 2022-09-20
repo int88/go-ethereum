@@ -275,7 +275,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	}
 
 	// Start the RPC service
-	// 启动RPC服务
+	// 启动RPC服务，构建Public API
 	eth.netRPCService = ethapi.NewPublicNetAPI(eth.p2pServer, config.NetworkId)
 
 	// Register the backend on the node

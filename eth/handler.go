@@ -506,6 +506,9 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 // starts handling inbound messages. As `snap` is only a satellite protocol to
 // `eth`, all subsystem registrations and lifecycle management will be done by
 // the main `eth` handler to prevent strange races.
+// runSnapExtension注册一个`snap` peer到joint eth/snap peerset并且启动处理所有的inbound messages
+// 因为`snap`只是`eth`的一个statellite protcol，所有子系统的注册以及生命周期管理都会由
+// 主要的`eth` handler处理来防止奇怪的冲突
 func (h *handler) runSnapExtension(peer *snap.Peer, handler snap.Handler) error {
 	h.peerWG.Add(1)
 	defer h.peerWG.Done()

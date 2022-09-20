@@ -551,6 +551,7 @@ func (n *Node) stopInProc() {
 }
 
 // Wait blocks until the node is closed.
+// Wait阻塞直到node被关闭
 func (n *Node) Wait() {
 	<-n.stop
 }

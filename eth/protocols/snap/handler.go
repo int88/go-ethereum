@@ -59,10 +59,13 @@ const (
 
 // Handler is a callback to invoke from an outside runner after the boilerplate
 // exchanges have passed.
+// Handler是一个由外部的runner调用的callback，在boilerplate exchanges完成之后
 type Handler func(peer *Peer) error
 
 // Backend defines the data retrieval methods to serve remote requests and the
 // callback methods to invoke on remote deliveries.
+// Backend定义了获取数据的方法，来服务远程的请求，以及在remote diliveries时的回调
+// 函数
 type Backend interface {
 	// Chain retrieves the blockchain object to serve data.
 	Chain() *core.BlockChain
@@ -71,14 +74,19 @@ type Backend interface {
 	// should do any peer maintenance work, handshakes and validations. If all
 	// is passed, control should be given back to the `handler` to process the
 	// inbound messages going forward.
+	// RunPeer在一个peer加入`eth`协议的时候被调用，handler应该做所有的peer的维护工作
+	// 握手以及校验，如果所有都通过，控制权应该交还给`handler`来处理inbound messages的转发
 	RunPeer(peer *Peer, handler Handler) error
 
 	// PeerInfo retrieves all known `snap` information about a peer.
+	// PeerInfo获取所有关于一个peer已知的`snap`信息
 	PeerInfo(id enode.ID) interface{}
 
 	// Handle is a callback to be invoked when a data packet is received from
 	// the remote peer. Only packets not consumed by the protocol handler will
 	// be forwarded to the backend.
+	// Handle是一个回调函数，当一个data packet从remote peer收到的时候，只有不被protocol
+	// handler消费的packets才会转发到backend
 	Handle(peer *Peer, packet Packet) error
 }
 
@@ -99,6 +107,7 @@ func MakeProtocols(backend Backend, dnsdisc enode.Iterator) []p2p.Protocol {
 			Version: version,
 			Length:  protocolLengths[version],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
+				// 在backend中运行peer
 				return backend.RunPeer(NewPeer(version, p, rw), func(peer *Peer) error {
 					return Handle(backend, peer)
 				})

@@ -1081,10 +1081,12 @@ func (srv *Server) checkpoint(c *conn, stage chan<- *conn) error {
 }
 
 func (srv *Server) launchPeer(c *conn) *Peer {
+	// 构建新的peer
 	p := newPeer(srv.log, c, srv.Protocols)
 	if srv.EnableMsgEvents {
 		// If message events are enabled, pass the peerFeed
 		// to the peer.
+		// 如果message event是使能的，传递peerFeed到peer
 		p.events = &srv.peerFeed
 	}
 	go srv.runPeer(p)

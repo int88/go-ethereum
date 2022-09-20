@@ -268,6 +268,8 @@ func main() {
 
 // prepare manipulates memory cache allowance and setups metric system.
 // This function should be called before launching devp2p stack.
+// prepare操控memory cache allowance并且设置metric system，这个函数应该被
+// 调用，在启动devp2p stack之前
 func prepare(ctx *cli.Context) {
 	// If we're running a known preset, log it for convenience.
 	switch {
@@ -335,14 +337,17 @@ func prepare(ctx *cli.Context) {
 }
 
 // geth is the main entry point into the system if no special subcommand is ran.
+// geth是进入系统的主要入口，如果没有特殊的子命令指定运行的话
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
+// 它基于命令行参数创建一个默认node并且以阻塞模式运行，等待被关闭
 func geth(ctx *cli.Context) error {
 	if args := ctx.Args(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
 
 	prepare(ctx)
+	// 构建full node
 	stack, backend := makeFullNode(ctx)
 	defer stack.Close()
 
@@ -354,10 +359,13 @@ func geth(ctx *cli.Context) error {
 // startNode boots up the system node and all registered protocols, after which
 // it unlocks any requested accounts, and starts the RPC/IPC interfaces and the
 // miner.
+// startNode启动system node并且所有注册的协议，在这之后解锁任意的requested accounts
+// 并且启动RPC/IPC接口以及miner
 func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isConsole bool) {
 	debug.Memsize.Add("node", stack)
 
 	// Start up the node itself
+	// 启动node自身
 	utils.StartNode(ctx, stack, isConsole)
 
 	// Unlock any account specifically requested
@@ -368,6 +376,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 	stack.AccountManager().Subscribe(events)
 
 	// Create a client to interact with local geth node.
+	// 创建一个client和本地的geth node进行交互
 	rpcClient, err := stack.Attach()
 	if err != nil {
 		utils.Fatalf("Failed to attach to self: %v", err)
@@ -376,6 +385,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 
 	go func() {
 		// Open any wallets already attached
+		// 打开任何已经关联的wallets
 		for _, wallet := range stack.AccountManager().Wallets() {
 			if err := wallet.Open(""); err != nil {
 				log.Warn("Failed to open wallet", "url", wallet.URL(), "err", err)
@@ -409,6 +419,8 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 
 	// Spawn a standalone goroutine for status synchronization monitoring,
 	// close the node when synchronization is complete if user required.
+	// 启动一个独立的goroutine，用于状态同步的检视 ，关闭节点，当同步完成之后
+	// 如果用户需要的话
 	if ctx.GlobalBool(utils.ExitWhenSyncedFlag.Name) {
 		go func() {
 			sub := stack.EventMux().Subscribe(downloader.DoneEvent{})
@@ -432,8 +444,10 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 	}
 
 	// Start auxiliary services if enabled
+	// 启动辅助的服务，如果enabled的话
 	if ctx.GlobalBool(utils.MiningEnabledFlag.Name) || ctx.GlobalBool(utils.DeveloperFlag.Name) {
 		// Mining only makes sense if a full Ethereum node is running
+		// 只有在运行full Ethereum node的时候，mining才是有意义的
 		if ctx.GlobalString(utils.SyncModeFlag.Name) == "light" {
 			utils.Fatalf("Light clients do not support mining")
 		}
@@ -442,6 +456,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 			utils.Fatalf("Ethereum service not running")
 		}
 		// Set the gas price to the limits from the CLI and start mining
+		// 从CLI设置gas price到limits并且开始mining
 		gasprice := utils.GlobalBig(ctx, utils.MinerGasPriceFlag.Name)
 		ethBackend.TxPool().SetGasPrice(gasprice)
 		// start mining

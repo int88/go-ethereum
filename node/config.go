@@ -67,6 +67,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
+	// p2p网络的配置
 	P2P p2p.Config
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can

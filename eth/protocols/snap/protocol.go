@@ -64,6 +64,7 @@ var (
 )
 
 // Packet represents a p2p message in the `snap` protocol.
+// Packet代表一个p2p message，在`snap`协议中
 type Packet interface {
 	Name() string // Name returns a string corresponding to the message type.
 	Kind() byte   // Kind returns the message type.
