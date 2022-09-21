@@ -139,6 +139,8 @@ func Handle(backend Backend, peer *Peer) error {
 // HandleMessage is invoked whenever an inbound message is received from a
 // remote peer on the `snap` protocol. The remote connection is torn down upon
 // returning any error.
+// HandleMessage被调用，当一个inbound message从一个remote peer被收到，在`snap`协议中
+// 在收到任何的error之后，远程连接被关闭
 func HandleMessage(backend Backend, peer *Peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := peer.rw.ReadMsg()
@@ -163,6 +165,7 @@ func HandleMessage(backend Backend, peer *Peer) error {
 		}(start)
 	}
 	// Handle the message depending on its contents
+	// 基于内容对message进行处理
 	switch {
 	case msg.Code == GetAccountRangeMsg:
 		// Decode the account retrieval request
@@ -187,6 +190,7 @@ func HandleMessage(backend Backend, peer *Peer) error {
 			return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 		}
 		// Ensure the range is monotonically increasing
+		// 确保range是单调递增的
 		for i := 1; i < len(res.Accounts); i++ {
 			if bytes.Compare(res.Accounts[i-1].Hash[:], res.Accounts[i].Hash[:]) >= 0 {
 				return fmt.Errorf("accounts not monotonically increasing: #%d [%x] vs #%d [%x]", i-1, res.Accounts[i-1].Hash[:], i, res.Accounts[i].Hash[:])
@@ -267,6 +271,7 @@ func HandleMessage(backend Backend, peer *Peer) error {
 			return err
 		}
 		// Send back anything accumulated (or empty in case of errors)
+		// 发送任何累计的（或者为空，如果返回错误的话）
 		return p2p.Send(peer.rw, TrieNodesMsg, &TrieNodesPacket{
 			ID:    req.ID,
 			Nodes: nodes,

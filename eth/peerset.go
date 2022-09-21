@@ -34,6 +34,8 @@ var (
 
 	// errPeerAlreadyRegistered is returned if a peer is attempted to be added
 	// to the peer set, but one with the same id already exists.
+	// errPeerAlreadyRegistered被返回，如果一个peer试着加入peer set，但是同样的id
+	// 已经存在了
 	errPeerAlreadyRegistered = errors.New("peer already registered")
 
 	// errPeerNotRegistered is returned if a peer is attempted to be removed from
@@ -75,6 +77,8 @@ func newPeerSet() *peerSet {
 // registerSnapExtension unblocks an already connected `eth` peer waiting for its
 // `snap` extension, or if no such peer exists, tracks the extension for the time
 // being until the `eth` main protocol starts looking for it.
+// registerSnapExtension unblocks一个已经连接的`eth` peer，等待它的`snap`扩展，如果没有
+// 这样的peer存在，追踪扩展，直到`eth` main protocol开始寻找它
 func (ps *peerSet) registerSnapExtension(peer *snap.Peer) error {
 	// Reject the peer if it advertises `snap` without `eth` as `snap` is only a
 	// satellite protocol meaningful with the chain selection of `eth`

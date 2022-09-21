@@ -71,12 +71,15 @@ type Packet interface {
 }
 
 // GetAccountRangePacket represents an account query.
+// GetAccountRangePacket代表一个account query
 type GetAccountRangePacket struct {
-	ID     uint64      // Request ID to match up responses with
-	Root   common.Hash // Root hash of the account trie to serve
+	ID   uint64      // Request ID to match up responses with
+	Root common.Hash // Root hash of the account trie to serve
+	// 第一个要获取的account
 	Origin common.Hash // Hash of the first account to retrieve
-	Limit  common.Hash // Hash of the last account to retrieve
-	Bytes  uint64      // Soft limit at which to stop returning data
+	// 最后一个要获取的account
+	Limit common.Hash // Hash of the last account to retrieve
+	Bytes uint64      // Soft limit at which to stop returning data
 }
 
 // AccountRangePacket represents an account query response.
@@ -119,9 +122,10 @@ type GetStorageRangesPacket struct {
 	ID       uint64        // Request ID to match up responses with
 	Root     common.Hash   // Root hash of the account trie to serve
 	Accounts []common.Hash // Account hashes of the storage tries to serve
-	Origin   []byte        // Hash of the first storage slot to retrieve (large contract mode)
-	Limit    []byte        // Hash of the last storage slot to retrieve (large contract mode)
-	Bytes    uint64        // Soft limit at which to stop returning data
+	// 第一个获取的storage slot的哈希
+	Origin []byte // Hash of the first storage slot to retrieve (large contract mode)
+	Limit  []byte // Hash of the last storage slot to retrieve (large contract mode)
+	Bytes  uint64 // Soft limit at which to stop returning data
 }
 
 // StorageRangesPacket represents a storage slot query response.
@@ -189,6 +193,7 @@ type GetTrieNodesPacket struct {
 type TrieNodePathSet [][]byte
 
 // TrieNodesPacket represents a state trie node query response.
+// TrieNodesPacket代表一个state trie node的query response
 type TrieNodesPacket struct {
 	ID    uint64   // ID of the request this is a response for
 	Nodes [][]byte // Requested state trie nodes

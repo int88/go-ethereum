@@ -28,6 +28,7 @@ import (
 
 // NodeSet stores a set of trie nodes. It implements trie.Database and can also
 // act as a cache for another trie.Database.
+// NodeSet存储一系列的trie nodes，它实现了trie.Database并且可以作为另一个trie.Database的cache
 type NodeSet struct {
 	nodes map[string][]byte
 	order []string
@@ -37,6 +38,7 @@ type NodeSet struct {
 }
 
 // NewNodeSet creates an empty node set
+// NewNodeSet创建一个空的node set
 func NewNodeSet() *NodeSet {
 	return &NodeSet{
 		nodes: make(map[string][]byte),

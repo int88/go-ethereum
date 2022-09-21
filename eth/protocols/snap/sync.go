@@ -46,6 +46,7 @@ import (
 
 var (
 	// emptyRoot is the known root hash of an empty trie.
+	// emptyRoot作为一个空的trie的已知的root hash
 	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyCode is the known hash of the empty EVM bytecode.
@@ -83,10 +84,12 @@ const (
 var (
 	// accountConcurrency is the number of chunks to split the account trie into
 	// to allow concurrent retrievals.
+	// accountConcurrency是分开account trie的chunks数目来允许并行的拉取
 	accountConcurrency = 16
 
 	// storageConcurrency is the number of chunks to split the a large contract
 	// storage trie into to allow concurrent retrievals.
+	// storageConcurrency是分开一个大的contract storage trie的chunks数目来并行的拉取
 	storageConcurrency = 16
 )
 
@@ -166,6 +169,8 @@ type bytecodeResponse struct {
 
 // storageRequest tracks a pending storage ranges request to ensure responses are
 // to actual requests and to validate any security constraints.
+// storageRequest追踪一个pending storage ranges请求，来确保responses是对于真的requests
+// 并且去检查任何安全约束
 //
 // Concurrency note: storage requests and responses are handled concurrently from
 // the main runloop to allow Merkle proof verifications on the peer's thread and
@@ -197,6 +202,9 @@ type storageRequest struct {
 // storageResponse is an already Merkle-verified remote response to a storage
 // range request. It contains the subtries for the requested storage ranges and
 // the databases that's going to be filled with the internal nodes on commit.
+// storageResponse是一个已经Merkle-verified的remote response，对于一个storage request
+// 它包含对于请求的storage ranges的subtries以及将要用internal nodes，在commit时需要填充的
+// databases
 type storageResponse struct {
 	mainTask *accountTask // Task which this response belongs to
 	subTask  *storageTask // Task which this response is filling
@@ -278,6 +286,7 @@ type bytecodeHealResponse struct {
 }
 
 // accountTask represents the sync task for a chunk of the account snapshot.
+// accountTask代表sync task，对于a chunk of the account snapshot
 type accountTask struct {
 	// These fields get serialized to leveldb on shutdown
 	Next     common.Hash                    // Next account to sync in this interval
@@ -318,11 +327,15 @@ type storageTask struct {
 }
 
 // healTask represents the sync task for healing the snap-synced chunk boundaries.
+// healTask代表sync task用于修复snap-synced chunk boundaries
 type healTask struct {
+	// State trie sync scheduler定义的任务
 	scheduler *trie.Sync // State trie sync scheduler defining the tasks
 
+	// 排队用于获取的trie node tasks
 	trieTasks map[common.Hash]trie.SyncPath // Set of trie node tasks currently queued for retrieval
-	codeTasks map[common.Hash]struct{}      // Set of byte code tasks currently queued for retrieval
+	// 排队用于获取的code tasks
+	codeTasks map[common.Hash]struct{} // Set of byte code tasks currently queued for retrieval
 }
 
 // SyncProgress is a database entry to allow suspending and resuming a snapshot state
@@ -356,24 +369,30 @@ type SyncPending struct {
 // SyncPeer abstracts out the methods required for a peer to be synced against
 // with the goal of allowing the construction of mock peers without the full
 // blown networking.
+// SyncPeer抽象了我们需要的一个peer，目标是允许对于mock peers的构建，而不用全速的networking
 type SyncPeer interface {
 	// ID retrieves the peer's unique identifier.
 	ID() string
 
 	// RequestAccountRange fetches a batch of accounts rooted in a specific account
 	// trie, starting with the origin.
+	// RequestAccountRange获取一批的accounts，根在特定的account trie，从origin开始
 	RequestAccountRange(id uint64, root, origin, limit common.Hash, bytes uint64) error
 
 	// RequestStorageRanges fetches a batch of storage slots belonging to one or
 	// more accounts. If slots from only one accout is requested, an origin marker
 	// may also be used to retrieve from there.
+	// RequestStorageRanges获取一批的storage slots，属于一个或者多个accounts，如果请求了
+	// 来自一个account的slots，一个origin marker可能可以用于获取它们
 	RequestStorageRanges(id uint64, root common.Hash, accounts []common.Hash, origin, limit []byte, bytes uint64) error
 
 	// RequestByteCodes fetches a batch of bytecodes by hash.
+	// RequestByteCodes通过哈希获取一批的bytecodes
 	RequestByteCodes(id uint64, hashes []common.Hash, bytes uint64) error
 
 	// RequestTrieNodes fetches a batch of account or storage trie nodes rooted in
 	// a specificstate trie.
+	// RequestTrieNodes抓取一批的account或者storage trie nodes，根在特定的trie
 	RequestTrieNodes(id uint64, root common.Hash, paths []TrieNodePathSet, bytes uint64) error
 
 	// Log retrieves the peer's own contextual logger.
@@ -414,17 +433,22 @@ type Syncer struct {
 	bytecodeIdlers map[string]struct{} // Peers that aren't serving bytecode requests
 	storageIdlers  map[string]struct{} // Peers that aren't serving storage requests
 
+	// 当前正在运行的Account requests, Bytecode requests以及Storage requests
 	accountReqs  map[uint64]*accountRequest  // Account requests currently running
 	bytecodeReqs map[uint64]*bytecodeRequest // Bytecode requests currently running
 	storageReqs  map[uint64]*storageRequest  // Storage requests currently running
 
-	accountSynced  uint64             // Number of accounts downloaded
-	accountBytes   common.StorageSize // Number of account trie bytes persisted to disk
+	// 需要下载的accounts
+	accountSynced uint64             // Number of accounts downloaded
+	accountBytes  common.StorageSize // Number of account trie bytes persisted to disk
+	// 需要下载的bytecodes
 	bytecodeSynced uint64             // Number of bytecodes downloaded
 	bytecodeBytes  common.StorageSize // Number of bytecode bytes downloaded
-	storageSynced  uint64             // Number of storage slots downloaded
-	storageBytes   common.StorageSize // Number of storage trie bytes persisted to disk
+	// 需要下载的storage slots
+	storageSynced uint64             // Number of storage slots downloaded
+	storageBytes  common.StorageSize // Number of storage trie bytes persisted to disk
 
+	// 进程可以暴露给external caller
 	extProgress *SyncProgress // progress that can be exposed to external caller.
 
 	// Request tracking during healing phase
@@ -552,9 +576,14 @@ func (s *Syncer) Unregister(id string) error {
 // with the given root and reconstruct the nodes based on the snapshot leaves.
 // Previously downloaded segments will not be redownloaded of fixed, rather any
 // errors will be healed after the leaves are fully accumulated.
+// Sync启动（或者继续一个之前的）同步周期来迭代遍历一个state trie，用给定的root并且重新构建
+// nodes，基于snapshot leaves，之前下载的segments不会重新下载，而是任何错误都会被修复
+// 在leaves已经完全被完全积累了
 func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 	// Move the trie root from any previous value, revert stateless markers for
 	// any peers and initialize the syncer if it was not yet run
+	// 移动从之前的值获取的trie root，撤销无状态的marker，对于任何的peers
+	// 并且初始化syncer，如果它还没有运行的话
 	s.lock.Lock()
 	s.root = root
 	s.healer = &healTask{
@@ -569,8 +598,10 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 		s.startTime = time.Now()
 	}
 	// Retrieve the previous sync status from LevelDB and abort if already synced
+	// 从levelDB获取之前的sync status，退出如果已经同步了
 	s.loadSyncStatus()
 	if len(s.tasks) == 0 && s.healer.scheduler.Pending() == 0 {
+		// Snapshot的同步已经完成了
 		log.Debug("Snapshot sync already completed")
 		return nil
 	}
@@ -582,6 +613,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 		s.saveSyncStatus()
 	}()
 
+	// 开始snapshot的同步周期
 	log.Debug("Starting snapshot sync cycle", "root", root)
 
 	// Flush out the last committed raw states
@@ -594,7 +626,9 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 	defer s.report(true)
 
 	// Whether sync completed or not, disregard any future packets
+	// 不论sync是否完成，模式任何的未来的packets
 	defer func() {
+		// 终止snapshot的sync cycle
 		log.Debug("Terminating snapshot sync cycle", "root", root)
 		s.lock.Lock()
 		s.accountReqs = make(map[uint64]*accountRequest)
@@ -605,6 +639,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 		s.lock.Unlock()
 	}()
 	// Keep scheduling sync tasks
+	// 保持调度sync tasks
 	peerJoin := make(chan string, 16)
 	peerJoinSub := s.peerJoin.Subscribe(peerJoin)
 	defer peerJoinSub.Unsubscribe()
@@ -616,6 +651,8 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 	// Create a set of unique channels for this sync cycle. We need these to be
 	// ephemeral so a data race doesn't accidentally deliver something stale on
 	// a persistent channel across syncs (yup, this happened)
+	// 创建一系列唯一的channels用于这个sync cycle，我们需要这些短暂的，这样一个data race
+	// 不会偶尔发生，如果在同步间，一个persistent channel发送一些stale
 	var (
 		accountReqFails      = make(chan *accountRequest)
 		storageReqFails      = make(chan *storageRequest)
@@ -636,6 +673,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 			return nil
 		}
 		// Assign all the data retrieval tasks to any free peers
+		// 对所有data retrieval tasks赋值给任何的free peers
 		s.assignAccountTasks(accountResps, accountReqFails, cancel)
 		s.assignBytecodeTasks(bytecodeResps, bytecodeReqFails, cancel)
 		s.assignStorageTasks(storageResps, storageReqFails, cancel)
@@ -661,6 +699,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 		}
 		s.lock.Unlock()
 		// Wait for something to happen
+		// 等待一些事情发生
 		select {
 		case <-s.update:
 			// Something happened (new peer, delivery, timeout), recheck tasks
@@ -694,6 +733,7 @@ func (s *Syncer) Sync(root common.Hash, cancel chan struct{}) error {
 			s.processBytecodeHealResponse(res)
 		}
 		// Report stats if something meaningful happened
+		// 汇报stats，如果一些有意义的事情发生了
 		s.report(false)
 	}
 }
@@ -753,8 +793,10 @@ func (s *Syncer) loadSyncStatus() {
 		}
 	}
 	// Either we've failed to decode the previus state, or there was none.
+	// 要么我们解析之前的状态失败，或者就没有
 	// Start a fresh sync by chunking up the account range and scheduling
 	// them for retrieval.
+	// 开始一个fresh sync通过chunking up account range并且调度它们用于获取
 	s.tasks = nil
 	s.accountSynced, s.accountBytes = 0, 0
 	s.bytecodeSynced, s.bytecodeBytes = 0, 0
@@ -781,6 +823,7 @@ func (s *Syncer) loadSyncStatus() {
 				s.accountBytes += common.StorageSize(len(key) + len(value))
 			},
 		}
+		// 构建account task
 		s.tasks = append(s.tasks, &accountTask{
 			Next:     next,
 			Last:     last,
@@ -901,11 +944,13 @@ func (s *Syncer) cleanStorageTasks() {
 
 // assignAccountTasks attempts to match idle peers to pending account range
 // retrievals.
+// assignAccountTasks试着匹配idle peers和pending account range的获取
 func (s *Syncer) assignAccountTasks(success chan *accountResponse, fail chan *accountRequest, cancel chan struct{}) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	// Sort the peers by download capacity to use faster ones if many available
+	// 根据下载能力将peers排队，使用更快的，如果有多个可用
 	idlers := &capacitySort{
 		ids:  make([]string, 0, len(s.accountIdlers)),
 		caps: make([]int, 0, len(s.accountIdlers)),
@@ -955,6 +1000,7 @@ func (s *Syncer) assignAccountTasks(success chan *accountResponse, fail chan *ac
 			break
 		}
 		// Generate the network query and send it to the peer
+		// 生成network query并且发送给peer
 		req := &accountRequest{
 			peer:    idle,
 			id:      reqid,
@@ -1101,6 +1147,7 @@ func (s *Syncer) assignBytecodeTasks(success chan *bytecodeResponse, fail chan *
 
 // assignStorageTasks attempts to match idle peers to pending storage range
 // retrievals.
+// assignStorageTasks试着匹配idle peers到pending storage的range retrievals
 func (s *Syncer) assignStorageTasks(success chan *storageResponse, fail chan *storageRequest, cancel chan struct{}) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -1762,6 +1809,7 @@ func (s *Syncer) revertBytecodeHealRequest(req *bytecodeHealRequest) {
 
 // processAccountResponse integrates an already validated account range response
 // into the account tasks.
+// processAccountResponse集成一个已经校验过的account range response到account tasks
 func (s *Syncer) processAccountResponse(res *accountResponse) {
 	// Switch the task from pending to filling
 	res.task.req = nil
@@ -1895,6 +1943,7 @@ func (s *Syncer) processBytecodeResponse(res *bytecodeResponse) {
 
 // processStorageResponse integrates an already validated storage response
 // into the account tasks.
+// processStorageResponse集成一个已经校验过的 storage response到account tasks
 func (s *Syncer) processStorageResponse(res *storageResponse) {
 	// Switch the subtask from pending to idle
 	if res.subTask != nil {
@@ -1912,6 +1961,7 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 	)
 	// Iterate over all the accounts and reconstruct their storage tries from the
 	// delivered slots
+	// 遍历所有的accounts并且重新构建它们的storage tries，从delivered slots
 	for i, account := range res.accounts {
 		// If the account was not delivered, reschedule it
 		if i >= len(res.hashes) {
@@ -2089,6 +2139,7 @@ func (s *Syncer) processStorageResponse(res *storageResponse) {
 
 	// If this delivery completed the last pending task, forward the account task
 	// to the next chunk
+	// 如果这次delivery完成了最后的pending task，转发account task到下一个chunk
 	if res.mainTask.pend == 0 {
 		s.forwardAccountTask(res.mainTask)
 		return
@@ -2172,6 +2223,8 @@ func (s *Syncer) processBytecodeHealResponse(res *bytecodeHealResponse) {
 // forwardAccountTask takes a filled account task and persists anything available
 // into the database, after which it forwards the next account marker so that the
 // task's next chunk may be filled.
+// forwardAccountTask拿到一个填充account task的任务并且持久化任何可用的到database
+// 之后它转发下一个account marker，这样task的下一个chunk可能被填充
 func (s *Syncer) forwardAccountTask(task *accountTask) {
 	// Remove any pending delivery
 	res := task.res
@@ -2223,6 +2276,7 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 		task.Next = incHash(hash)
 	}
 	// All accounts marked as complete, track if the entire task is done
+	// 所有accounts都标记为完成，追踪是否整个task都已经完成
 	task.done = !res.cont
 
 	// Stack trie could have generated trie nodes, push them to disk (we need to
@@ -2244,6 +2298,7 @@ func (s *Syncer) forwardAccountTask(task *accountTask) {
 
 // OnAccounts is a callback method to invoke when a range of accounts are
 // received from a remote peer.
+// OnAccounts是一个回调方法，当一系列的accounts从一个remote peer接收到之后
 func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, accounts [][]byte, proof [][]byte) error {
 	size := common.StorageSize(len(hashes) * common.HashLength)
 	for _, account := range accounts {
@@ -2267,6 +2322,7 @@ func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, acco
 	default:
 	}
 	// Ensure the response is for a valid request
+	// 确保response是对于合法的请求
 	req, ok := s.accountReqs[id]
 	if !ok {
 		// Request stale, perhaps the peer timed out but came through in the end
@@ -2301,6 +2357,7 @@ func (s *Syncer) OnAccounts(peer SyncPeer, id uint64, hashes []common.Hash, acco
 	s.lock.Unlock()
 
 	// Reconstruct a partial trie from the response and verify it
+	// 从response的partial trie重新构建并且校验
 	keys := make([][]byte, len(hashes))
 	for i, key := range hashes {
 		keys[i] = common.CopyBytes(key[:])
@@ -2453,6 +2510,7 @@ func (s *Syncer) onByteCodes(peer SyncPeer, id uint64, bytecodes [][]byte) error
 
 // OnStorage is a callback method to invoke when ranges of storage slots
 // are received from a remote peer.
+// OnStorage是一个回调函数，当从一个remote peer收到ranges of storage slots
 func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slots [][][]byte, proof [][]byte) error {
 	// Gather some trace stats to aid in debugging issues
 	var (
@@ -2576,6 +2634,7 @@ func (s *Syncer) OnStorage(peer SyncPeer, id uint64, hashes [][]common.Hash, slo
 		}
 	}
 	// Partial tries reconstructed, send them to the scheduler for storage filling
+	// 重构部分tries，发送它们到scheduler用于storage filling
 	response := &storageResponse{
 		mainTask: req.mainTask,
 		subTask:  req.subTask,
@@ -2822,6 +2881,7 @@ func (s *Syncer) report(force bool) {
 }
 
 // reportSyncProgress calculates various status reports and provides it to the user.
+// reportSyncProgress计算各种status reports并且提供它给用户
 func (s *Syncer) reportSyncProgress(force bool) {
 	// Don't report all the events, just occasionally
 	if !force && time.Since(s.logTime) < 8*time.Second {

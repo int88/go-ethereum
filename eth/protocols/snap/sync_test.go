@@ -178,6 +178,7 @@ func (t *testPeer) RequestAccountRange(id uint64, root, origin, limit common.Has
 }
 
 func (t *testPeer) RequestTrieNodes(id uint64, root common.Hash, paths []TrieNodePathSet, bytes uint64) error {
+	// 获取一系列的trie nodes
 	t.logger.Trace("Fetching set of trie nodes", "reqid", id, "root", root, "pathsets", len(paths), "bytes", common.StorageSize(bytes))
 	t.nTrienodeRequests++
 	go t.trieRequestHandler(t, id, root, paths, bytes)
@@ -233,6 +234,7 @@ func defaultTrieRequestHandler(t *testPeer, requestId uint64, root common.Hash, 
 
 // defaultAccountRequestHandler is a well-behaving handler for AccountRangeRequests
 func defaultAccountRequestHandler(t *testPeer, id uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
+	// 构建account request response
 	keys, vals, proofs := createAccountRequestResponse(t, root, origin, limit, cap)
 	if err := t.remote.OnAccounts(t, id, keys, vals, proofs); err != nil {
 		t.test.Errorf("Remote side rejected our delivery: %v", err)
@@ -245,9 +247,11 @@ func defaultAccountRequestHandler(t *testPeer, id uint64, root common.Hash, orig
 func createAccountRequestResponse(t *testPeer, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) (keys []common.Hash, vals [][]byte, proofs [][]byte) {
 	var size uint64
 	if limit == (common.Hash{}) {
+		// 没有限制
 		limit = common.HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
 	}
 	for _, entry := range t.accountValues {
+		// 遍历account values
 		if size > cap {
 			break
 		}
@@ -257,13 +261,16 @@ func createAccountRequestResponse(t *testPeer, root common.Hash, origin common.H
 			size += uint64(32 + len(entry.v))
 		}
 		// If we've exceeded the request threshold, abort
+		// 如果我们超过了request threshold，则中止
 		if bytes.Compare(entry.k, limit[:]) >= 0 {
 			break
 		}
 	}
 	// Unless we send the entire trie, we need to supply proofs
+	// 除非我们发送整个trie，我们需要提供 proofs
 	// Actually, we need to supply proofs either way! This seems to be an implementation
 	// quirk in go-ethereum
+	// 事实上，我们需要提供proofs，这看起来是go-ethereum的一个实现quirk
 	proof := light.NewNodeSet()
 	if err := t.accountTrie.Prove(origin[:], 0, proof); err != nil {
 		t.logger.Error("Could not prove inexistence of origin", "origin", origin, "error", err)
@@ -281,6 +288,7 @@ func createAccountRequestResponse(t *testPeer, root common.Hash, origin common.H
 }
 
 // defaultStorageRequestHandler is a well-behaving storage request handler
+// defaultStorageRequestHandler是一个行为良好的storage request handler
 func defaultStorageRequestHandler(t *testPeer, requestId uint64, root common.Hash, accounts []common.Hash, bOrigin, bLimit []byte, max uint64) error {
 	hashes, slots, proofs := createStorageRequestResponse(t, root, accounts, bOrigin, bLimit, max)
 	if err := t.remote.OnStorage(t, requestId, hashes, slots, proofs); err != nil {
@@ -434,6 +442,7 @@ func emptyRequestAccountRangeFn(t *testPeer, requestId uint64, root common.Hash,
 }
 
 func nonResponsiveRequestAccountRangeFn(t *testPeer, requestId uint64, root common.Hash, origin common.Hash, limit common.Hash, cap uint64) error {
+	// 直接返回nil
 	return nil
 }
 
@@ -550,6 +559,8 @@ func noProofStorageRequestHandler(t *testPeer, requestId uint64, root common.Has
 // TestSyncBloatedProof tests a scenario where we provide only _one_ value, but
 // also ship the entire trie inside the proof. If the attack is successful,
 // the remote side does not do any follow-up requests
+// TestSyncBloatedProof测试一个场景，当我们只提供一个value，但是还是在proof之内构建了整个
+// trie，如果攻击成功，remote side不会做任何follow-up requests
 func TestSyncBloatedProof(t *testing.T) {
 	t.Parallel()
 
@@ -618,16 +629,21 @@ func TestSyncBloatedProof(t *testing.T) {
 
 func setupSyncer(peers ...*testPeer) *Syncer {
 	stateDb := rawdb.NewMemoryDatabase()
+	// 构建Syncer
 	syncer := NewSyncer(stateDb)
 	for _, peer := range peers {
+		// 在sync中注册peer
 		syncer.Register(peer)
+		// 设置remote为syncer
 		peer.remote = syncer
 	}
 	return syncer
 }
 
 // TestSync tests a basic sync with one peer
+// TestSync测试和一个peer的基本的同步
 func TestSync(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 
 	var (
@@ -642,11 +658,13 @@ func TestSync(t *testing.T) {
 	sourceAccountTrie, elems := makeAccountTrieNoStorage(100)
 
 	mkSource := func(name string) *testPeer {
+		// 构建了一个test peer
 		source := newTestPeer(name, t, term)
 		source.accountTrie = sourceAccountTrie
 		source.accountValues = elems
 		return source
 	}
+	// 构建syncer
 	syncer := setupSyncer(mkSource("source"))
 	if err := syncer.Sync(sourceAccountTrie.Hash(), cancel); err != nil {
 		t.Fatalf("sync failed: %v", err)
@@ -656,6 +674,7 @@ func TestSync(t *testing.T) {
 
 // TestSyncTinyTriePanic tests a basic sync with one peer, and a tiny trie. This caused a
 // panic within the prover
+// TestSyncTinyTriePanic测试和一个peer的basic sync，以及一个tiny trie，这会在prover内导致panic
 func TestSyncTinyTriePanic(t *testing.T) {
 	t.Parallel()
 
@@ -686,7 +705,9 @@ func TestSyncTinyTriePanic(t *testing.T) {
 }
 
 // TestMultiSync tests a basic sync with multiple peers
+// TestMultiSync测试对于多个peers的一个basic sync
 func TestMultiSync(t *testing.T) {
+	log.Root().SetHandler(log.StdoutHandler)
 	t.Parallel()
 
 	var (
@@ -716,8 +737,10 @@ func TestMultiSync(t *testing.T) {
 }
 
 // TestSyncWithStorage tests  basic sync using accounts + storage + code
+// TestSyncWithStorage测试basic sync，使用accounts + storage + code
 func TestSyncWithStorage(t *testing.T) {
 	t.Parallel()
+	log.Root().SetHandler(log.StdoutHandler)
 
 	var (
 		once   sync.Once
@@ -748,6 +771,7 @@ func TestSyncWithStorage(t *testing.T) {
 }
 
 // TestMultiSyncManyUseless contains one good peer, and many which doesn't return anything valuable at all
+// TestMultiSyncManyUseless包含一个好的peer，以及很多不返回任何有价值的东西的peer
 func TestMultiSyncManyUseless(t *testing.T) {
 	t.Parallel()
 
@@ -782,9 +806,13 @@ func TestMultiSyncManyUseless(t *testing.T) {
 	}
 
 	syncer := setupSyncer(
+		// 完整的peer
 		mkSource("full", true, true, true),
+		// 没有account的peer
 		mkSource("noAccounts", false, true, true),
+		// 没有storage的peer
 		mkSource("noStorage", true, false, true),
+		// 没有trie
 		mkSource("noTrie", true, true, false),
 	)
 	done := checkStall(t, term)
@@ -836,6 +864,8 @@ func TestMultiSyncManyUselessWithLowTimeout(t *testing.T) {
 	// We're setting the timeout to very low, to increase the chance of the timeout
 	// being triggered. This was previously a cause of panic, when a response
 	// arrived simultaneously as a timeout was triggered.
+	// 我们将超时设置地非常小，来增加超时被触发的概率，这之前会导致一个panic，当一个response和
+	// 一个触发的超时同时到来
 	syncer.rates.OverrideTTLLimit = time.Millisecond
 
 	done := checkStall(t, term)
@@ -847,6 +877,7 @@ func TestMultiSyncManyUselessWithLowTimeout(t *testing.T) {
 }
 
 // TestMultiSyncManyUnresponsive contains one good peer, and many which doesn't respond at all
+// TestMultiSyncManyUnresponsive包含一个good peer以及许多根本不回复的peer
 func TestMultiSyncManyUnresponsive(t *testing.T) {
 	var (
 		once   sync.Once
@@ -885,6 +916,7 @@ func TestMultiSyncManyUnresponsive(t *testing.T) {
 		mkSource("noTrie", true, true, false),
 	)
 	// We're setting the timeout to very low, to make the test run a bit faster
+	// 我们设置timeout到非常低，来让test运行地更快一点
 	syncer.rates.OverrideTTLLimit = time.Millisecond
 
 	done := checkStall(t, term)
@@ -911,6 +943,7 @@ func checkStall(t *testing.T, term func()) chan struct{} {
 
 // TestSyncBoundaryAccountTrie tests sync against a few normal peers, but the
 // account trie has a few boundary elements.
+// TestSyncBoundaryAccountTrie测试一些正常的peers，但是account trie有一些boundary elements
 func TestSyncBoundaryAccountTrie(t *testing.T) {
 	t.Parallel()
 
@@ -945,6 +978,7 @@ func TestSyncBoundaryAccountTrie(t *testing.T) {
 
 // TestSyncNoStorageAndOneCappedPeer tests sync using accounts and no storage, where one peer is
 // consistently returning very small results
+// TestSyncNoStorageAndOneCappedPeer测试使用accounts并且没有storage，一个peer持续返回小的结果
 func TestSyncNoStorageAndOneCappedPeer(t *testing.T) {
 	t.Parallel()
 
@@ -986,6 +1020,7 @@ func TestSyncNoStorageAndOneCappedPeer(t *testing.T) {
 
 // TestSyncNoStorageAndOneCodeCorruptPeer has one peer which doesn't deliver
 // code requests properly.
+// TestSyncNoStorageAndOneCodeCorruptPeer有一个peer不会恰当地回复code requests
 func TestSyncNoStorageAndOneCodeCorruptPeer(t *testing.T) {
 	t.Parallel()
 
@@ -1062,6 +1097,7 @@ func TestSyncNoStorageAndOneAccountCorruptPeer(t *testing.T) {
 
 // TestSyncNoStorageAndOneCodeCappedPeer has one peer which delivers code hashes
 // one by one
+// TestSyncNoStorageAndOneCodeCappedPeer有一个peer，一个一个地传输code hashes
 func TestSyncNoStorageAndOneCodeCappedPeer(t *testing.T) {
 	t.Parallel()
 
@@ -1112,6 +1148,7 @@ func TestSyncNoStorageAndOneCodeCappedPeer(t *testing.T) {
 
 // TestSyncBoundaryStorageTrie tests sync against a few normal peers, but the
 // storage trie has a few boundary elements.
+// TestSyncBoundaryStorageTrie测试和一些正常的peers的同步，但是storage trie有一些boundary elements
 func TestSyncBoundaryStorageTrie(t *testing.T) {
 	t.Parallel()
 
@@ -1148,6 +1185,8 @@ func TestSyncBoundaryStorageTrie(t *testing.T) {
 
 // TestSyncWithStorageAndOneCappedPeer tests sync using accounts + storage, where one peer is
 // consistently returning very small results
+// TestSyncWithStorageAndOneCappedPeer测试用accounts + storage同步，其中一个peer持续返回非常小的
+// 结果
 func TestSyncWithStorageAndOneCappedPeer(t *testing.T) {
 	t.Parallel()
 
@@ -1189,6 +1228,7 @@ func TestSyncWithStorageAndOneCappedPeer(t *testing.T) {
 
 // TestSyncWithStorageAndCorruptPeer tests sync using accounts + storage, where one peer is
 // sometimes sending bad proofs
+// TestSyncWithStorageAndCorruptPeer测试用accounts + storage同步，一个peer有时会返回bad proofs
 func TestSyncWithStorageAndCorruptPeer(t *testing.T) {
 	t.Parallel()
 
@@ -1328,6 +1368,7 @@ var (
 )
 
 // getCodeHash returns a pseudo-random code hash
+// getCodeHash返回一个伪随机的code hash
 func getCodeHash(i uint64) []byte {
 	h := codehashes[int(i)%len(codehashes)]
 	return common.CopyBytes(h[:])
@@ -1347,6 +1388,7 @@ func getCodeByHash(hash common.Hash) []byte {
 }
 
 // makeAccountTrieNoStorage spits out a trie, along with the leafs
+// makeAccountTrieNoStorage分开一个trie，以及leafs
 func makeAccountTrieNoStorage(n int) (*trie.Trie, entrySlice) {
 	db := trie.NewDatabase(rawdb.NewMemoryDatabase())
 	accTrie, _ := trie.New(common.Hash{}, db)
@@ -1360,6 +1402,7 @@ func makeAccountTrieNoStorage(n int) (*trie.Trie, entrySlice) {
 		})
 		key := key32(i)
 		elem := &kv{key, value}
+		// 更新trie树
 		accTrie.Update(elem.k, elem.v)
 		entries = append(entries, elem)
 	}
@@ -1465,6 +1508,7 @@ func makeAccountTrieWithStorageWithUniqueStorage(accounts, slots int, code bool)
 }
 
 // makeAccountTrieWithStorage spits out a trie, along with the leafs
+// makeAccountTrieWithStorage吐出一个trie，以及还有leafs
 func makeAccountTrieWithStorage(accounts, slots int, code, boundary bool) (*trie.Trie, entrySlice, map[common.Hash]*trie.Trie, map[common.Hash]entrySlice) {
 	var (
 		db             = trie.NewDatabase(rawdb.NewMemoryDatabase())
@@ -1474,6 +1518,7 @@ func makeAccountTrieWithStorage(accounts, slots int, code, boundary bool) (*trie
 		storageEntries = make(map[common.Hash]entrySlice)
 	)
 	// Make a storage trie which we reuse for the whole lot
+	// 构建一个storage trie，我们重用很多
 	var (
 		stTrie    *trie.Trie
 		stEntries entrySlice
@@ -1486,6 +1531,7 @@ func makeAccountTrieWithStorage(accounts, slots int, code, boundary bool) (*trie
 	stRoot := stTrie.Hash()
 
 	// Create n accounts in the trie
+	// 在trie中创建n个accounts
 	for i := uint64(1); i <= uint64(accounts); i++ {
 		key := key32(i)
 		codehash := emptyCode[:]
@@ -1502,10 +1548,12 @@ func makeAccountTrieWithStorage(accounts, slots int, code, boundary bool) (*trie
 		accTrie.Update(elem.k, elem.v)
 		entries = append(entries, elem)
 		// we reuse the same one for all accounts
+		// 对于所有accounts，我们重用同一个
 		storageTries[common.BytesToHash(key)] = stTrie
 		storageEntries[common.BytesToHash(key)] = stEntries
 	}
 	sort.Sort(entries)
+	// 对storage trie和account trie进行commit
 	stTrie.Commit(nil)
 	accTrie.Commit(nil)
 	return accTrie, entries, storageTries, storageEntries
@@ -1514,6 +1562,8 @@ func makeAccountTrieWithStorage(accounts, slots int, code, boundary bool) (*trie
 // makeStorageTrieWithSeed fills a storage trie with n items, returning the
 // not-yet-committed trie and the sorted entries. The seeds can be used to ensure
 // that tries are unique.
+// makeStorageTrieWithSeed用n个items填充一个storage trie，返回还没有committed trie以及排好序的entries
+// 这个seeds可以用来确保tries是唯一的
 func makeStorageTrieWithSeed(n, seed uint64, db *trie.Database) (*trie.Trie, entrySlice) {
 	trie, _ := trie.New(common.Hash{}, db)
 	var entries entrySlice
@@ -1526,6 +1576,7 @@ func makeStorageTrieWithSeed(n, seed uint64, db *trie.Database) (*trie.Trie, ent
 		key := crypto.Keccak256Hash(slotKey[:])
 
 		elem := &kv{key[:], rlpSlotValue}
+		// 更新trie
 		trie.Update(elem.k, elem.v)
 		entries = append(entries, elem)
 	}
@@ -1587,6 +1638,7 @@ func makeBoundaryStorageTrie(n int, db *trie.Database) (*trie.Trie, entrySlice) 
 
 func verifyTrie(db ethdb.KeyValueStore, root common.Hash, t *testing.T) {
 	t.Helper()
+	// 构建account trie
 	triedb := trie.NewDatabase(db)
 	accTrie, err := trie.New(root, triedb)
 	if err != nil {
