@@ -220,6 +220,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	validator := func(header *types.Header) error {
 		// All the block fetcher activities should be disabled
 		// after the transition. Print the warning log.
+		// 所有的block fetcher活动都应该被禁止，在转换之后，打印日志
 		if h.merger.PoSFinalized() {
 			log.Warn("Unexpected validation activity", "hash", header.Hash(), "number", header.Number)
 			return errors.New("unexpected behavior after transition")
@@ -228,6 +229,8 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		// the chain has finished the transition or not, the PoS headers
 		// should only come from the trusted consensus layer instead of
 		// p2p network.
+		// 一开始拒绝所有的PoS风格的headers，不管chain是否已经完成了transition，PoS
+		// headers应该只来自于受信的共识层，而不是p2p network
 		if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
 			if beacon.IsPoSHeader(header) {
 				return errors.New("unexpected post-merge header")

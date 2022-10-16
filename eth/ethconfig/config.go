@@ -221,6 +221,7 @@ type Config struct {
 // CreateConsensusEngine用给定的chain configuration创建一个共识引擎
 func CreateConsensusEngine(stack *node.Node, chainConfig *params.ChainConfig, config *ethash.Config, notify []string, noverify bool, db ethdb.Database) consensus.Engine {
 	// If proof-of-authority is requested, set it up
+	// 如果请求了pos，设置它
 	var engine consensus.Engine
 	if chainConfig.Clique != nil {
 		engine = clique.New(chainConfig.Clique, db)

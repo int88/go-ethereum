@@ -2127,6 +2127,7 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 	// Copy the TestChainConfig so we can modify it during tests
 	chainConfig := *params.TestChainConfig
 	// Generate a canonical chain to act as the main dataset
+	// 生成一个canonical chain作为main dataset
 	var (
 		merger    = consensus.NewMerger(rawdb.NewMemoryDatabase())
 		genEngine = beacon.New(ethash.NewFaker())
@@ -2153,11 +2154,13 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 		t.Fatalf("failed to create tester chain: %v", err)
 	}
 	// Activate the transition since genesis if required
+	// 激活transition，从genesis开始就请求了
 	if mergePoint == 0 {
 		merger.ReachTTD()
 		merger.FinalizePoS()
 
 		// Set the terminal total difficulty in the config
+		// 在配置中设置ttd
 		gspec.Config.TerminalTotalDifficulty = big.NewInt(0)
 	}
 	blocks, _ := GenerateChain(&chainConfig, genesis, genEngine, db, 2*TriesInMemory, func(i int, gen *BlockGen) {
@@ -2186,10 +2189,12 @@ func testSideImport(t *testing.T, numCanonBlocksInSidechain, blocksBetweenCommon
 	}
 
 	// Activate the transition in the middle of the chain
+	// 在链的中间激活transition
 	if mergePoint == 1 {
 		merger.ReachTTD()
 		merger.FinalizePoS()
 		// Set the terminal total difficulty in the config
+		// 在配置中设置ttd
 		gspec.Config.TerminalTotalDifficulty = big.NewInt(int64(len(blocks)))
 	}
 
@@ -2435,12 +2440,14 @@ func testInsertKnownChainDataWithMerging(t *testing.T, typ string, mergeHeight i
 	}
 
 	// Apply merging since genesis
+	// 从genesis开始就设置merging
 	if mergeHeight == 0 {
 		applyMerge(genEngine, 0)
 	}
 	blocks, receipts := GenerateChain(&chainConfig, genesis, genEngine, db, 32, func(i int, b *BlockGen) { b.SetCoinbase(common.Address{1}) })
 
 	// Apply merging after the first segment
+	// 在第一个segment之后应用merging
 	if mergeHeight == 1 {
 		applyMerge(genEngine, len(blocks))
 	}

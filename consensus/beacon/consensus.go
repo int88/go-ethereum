@@ -58,6 +58,7 @@ var (
 // 这里的beacon是一个half-functional的共识引擎，有着部分功能，只用于必要的共识检查，老的共识引擎
 // 可用是任何的共识接口的实现（除了beacon自己）
 type Beacon struct {
+	// 原先在eth1中使用的共识引擎
 	ethone consensus.Engine // Original consensus engine used in eth1, e.g. ethash or clique
 }
 
@@ -87,6 +88,7 @@ func (beacon *Beacon) VerifyHeader(chain consensus.ChainHeaderReader, header *ty
 		return beacon.ethone.VerifyHeader(chain, header, seal)
 	}
 	// Short circuit if the parent is not known
+	// 如果parent未知，直接短路
 	parent := chain.GetHeader(header.ParentHash, header.Number.Uint64()-1)
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
@@ -173,13 +175,18 @@ func (beacon *Beacon) VerifyUncles(chain consensus.ChainReader, block *types.Blo
 
 // verifyHeader checks whether a header conforms to the consensus rules of the
 // stock Ethereum consensus engine. The difference between the beacon and classic is
+// verifyHeader检查给定的一个header是否符合stock Ethereum共识引擎，beacon和经典的不同之处在于
 // (a) The following fields are expected to be constants:
 //     - difficulty is expected to be 0
+//     - difficulty为0
 // 	   - nonce is expected to be 0
 //     - unclehash is expected to be Hash(emptyHeader)
 //     to be the desired constants
+//     - difficulty为0，nonce为0，uncleanhash期望为Hash（emptyHeader）
 // (b) the timestamp is not verified anymore
+// (b) 时间戳不再被校验
 // (c) the extradata is limited to 32 bytes
+// (c) extradata被限制在32字节
 func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, parent *types.Header) error {
 	// Ensure that the header's extra-data section is of a reasonable size
 	if len(header.Extra) > 32 {
@@ -189,6 +196,7 @@ func (beacon *Beacon) verifyHeader(chain consensus.ChainHeaderReader, header, pa
 	if header.Nonce != beaconNonce {
 		return errInvalidNonce
 	}
+	// beacon不再有uncle
 	if header.UncleHash != types.EmptyUncleHash {
 		return errInvalidUncleHash
 	}
@@ -256,6 +264,7 @@ func (beacon *Beacon) verifyHeaders(chain consensus.ChainHeaderReader, headers [
 // header to conform to the beacon protocol. The changes are done inline.
 func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.Header) error {
 	// Transition isn't triggered yet, use the legacy rules for preparation.
+	// Transition还没有触发，使用legacy rules进行准备
 	reached, err := IsTTDReached(chain, header.ParentHash, header.Number.Uint64()-1)
 	if err != nil {
 		return err
@@ -263,11 +272,13 @@ func (beacon *Beacon) Prepare(chain consensus.ChainHeaderReader, header *types.H
 	if !reached {
 		return beacon.ethone.Prepare(chain, header)
 	}
+	// 重置Difficulty而已
 	header.Difficulty = beaconDifficulty
 	return nil
 }
 
 // Finalize implements consensus.Engine, setting the final state on the header
+// Finalize实现了consensus.Engine，在header中设置final state
 func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header) {
 	// Finalize is different with Prepare, it can be used in both block generation
 	// and verification. So determine the consensus rules by header type.
@@ -277,6 +288,7 @@ func (beacon *Beacon) Finalize(chain consensus.ChainHeaderReader, header *types.
 	}
 	// The block reward is no longer handled here. It's done by the
 	// external consensus engine.
+	// block reward将不在这里进行处理，它由外部的共识引擎处理
 	header.Root = state.IntermediateRoot(true)
 }
 
@@ -289,12 +301,14 @@ func (beacon *Beacon) FinalizeAndAssemble(chain consensus.ChainHeaderReader, hea
 		return beacon.ethone.FinalizeAndAssemble(chain, header, state, txs, uncles, receipts)
 	}
 	// Finalize and assemble the block
+	// Finalize以及构建block
 	beacon.Finalize(chain, header, state, txs, uncles)
 	return types.NewBlock(header, txs, uncles, receipts, trie.NewStackTrie(nil)), nil
 }
 
 // Seal generates a new sealing request for the given input block and pushes
 // the result into the given channel.
+// Seal生成一个新的sealing request，对于给定的input block并且推送结果到给定的channel
 //
 // Note, the method returns immediately and will send the result async. More
 // than one result may also be returned depending on the consensus algorithm.
@@ -306,6 +320,9 @@ func (beacon *Beacon) Seal(chain consensus.ChainHeaderReader, block *types.Block
 	// return directly without pushing any block back. In another word
 	// beacon won't return any result by `results` channel which may
 	// blocks the receiver logic forever.
+	// seal verification是由外部的共识引擎直接返回的，而不需要推送任何的block
+	// 换句话说。beacon不会在`results` channel中返回任何结果，这可能导致receiver
+	// 一直阻塞
 	return nil
 }
 
@@ -336,12 +353,14 @@ func (beacon *Beacon) Close() error {
 }
 
 // IsPoSHeader reports the header belongs to the PoS-stage with some special fields.
+// IsPoSHeader报告header属于PoS阶段，其中有一些特殊的字段
 // This function is not suitable for a part of APIs like Prepare or CalcDifficulty
 // because the header difficulty is not set yet.
 func (beacon *Beacon) IsPoSHeader(header *types.Header) bool {
 	if header.Difficulty == nil {
 		panic("IsPoSHeader called with invalid difficulty")
 	}
+	// 确保beacon difficulty为0
 	return header.Difficulty.Cmp(beaconDifficulty) == 0
 }
 
@@ -362,8 +381,11 @@ func (beacon *Beacon) SetThreads(threads int) {
 }
 
 // IsTTDReached checks if the TotalTerminalDifficulty has been surpassed on the `parentHash` block.
+// IsTTDReached检查是否TotalTerminalDifficulty已经超越了`parentHash` block
 // It depends on the parentHash already being stored in the database.
+// 它取决于已经存储在数据库中的parentHash
 // If the parentHash is not stored in the database a UnknownAncestor error is returned.
+// 如果parentHash没有存在数据库中，返回一个UnknownAncestor
 func IsTTDReached(chain consensus.ChainHeaderReader, parentHash common.Hash, number uint64) (bool, error) {
 	if chain.Config().TerminalTotalDifficulty == nil {
 		return false, nil

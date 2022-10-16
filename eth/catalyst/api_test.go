@@ -81,7 +81,7 @@ func generatePreMergeChain(n int) (*core.Genesis, []*types.Block) {
 }
 
 func TestEth2AssembleBlock(t *testing.T) {
-	// 构建premerge chain
+	// 构建premerge chain并且已经到达TTD
 	genesis, blocks := generatePreMergeChain(10)
 	n, ethservice := startEthService(t, genesis, blocks)
 	defer n.Close()
@@ -115,6 +115,7 @@ func TestEth2AssembleBlockWithAnotherBlocksTxs(t *testing.T) {
 	api := NewConsensusAPI(ethservice)
 
 	// Put the 10th block's tx in the pool and produce a new block
+	// 将第十个block的tx加入到pool并且生成新的block
 	api.eth.TxPool().AddRemotesSync(blocks[9].Transactions())
 	blockParams := beacon.PayloadAttributesV1{
 		Timestamp: blocks[8].Time() + 5,
@@ -437,6 +438,7 @@ func TestFullAPI(t *testing.T) {
 	var (
 		parent = ethservice.BlockChain().CurrentBlock()
 		// This EVM code generates a log when the contract is created.
+		// 这个EVM代码产生一个log，当contract被创建的时候
 		logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
 	)
 
@@ -470,12 +472,15 @@ func setupBlocks(t *testing.T, ethservice *eth.Ethereum, n int, parent *types.Bl
 			FinalizedBlockHash: payload.ParentHash,
 		}
 		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
+			// 插入block失败
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if ethservice.BlockChain().CurrentBlock().NumberU64() != payload.Number {
+			// chain header应该被更新
 			t.Fatal("Chain head should be updated")
 		}
 		if ethservice.BlockChain().CurrentFinalizedBlock().NumberU64() != payload.Number-1 {
+			// Finalized block应该被更新
 			t.Fatal("Finalized block should be updated")
 		}
 		parent = ethservice.BlockChain().CurrentBlock()

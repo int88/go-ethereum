@@ -78,6 +78,7 @@ func (req *payload) resolve() *beacon.ExecutableDataV1 {
 
 // payloadQueueItem represents an id->payload tuple to store until it's retrieved
 // or evicted.
+// payloadQueueItem用来一个id->payload的元组，直到他被接收或者驱逐
 type payloadQueueItem struct {
 	id   beacon.PayloadID
 	data *payload
@@ -85,6 +86,8 @@ type payloadQueueItem struct {
 
 // payloadQueue tracks the latest handful of constructed payloads to be retrieved
 // by the beacon chain if block production is requested.
+// payloadQueue追踪最新的一系列constructed payloads，用于被beacon chain获取，如果
+// 请求了block production的话
 type payloadQueue struct {
 	payloads []*payloadQueueItem
 	lock     sync.RWMutex
@@ -92,6 +95,7 @@ type payloadQueue struct {
 
 // newPayloadQueue creates a pre-initialized queue with a fixed number of slots
 // all containing empty items.
+// newPayloadQueue创建一个提前初始化的队列，有着固定数目的slots，都包含空的items
 func newPayloadQueue() *payloadQueue {
 	return &payloadQueue{
 		payloads: make([]*payloadQueueItem, maxTrackedPayloads),
@@ -128,6 +132,7 @@ func (q *payloadQueue) get(id beacon.PayloadID) *beacon.ExecutableDataV1 {
 
 // headerQueueItem represents an hash->header tuple to store until it's retrieved
 // or evicted.
+// headerQueueItem代表了一个hash->header的映射元组，直到它被接收或者驱逐
 type headerQueueItem struct {
 	hash   common.Hash
 	header *types.Header

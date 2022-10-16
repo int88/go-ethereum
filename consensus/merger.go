@@ -29,8 +29,12 @@ import (
 // transitionStatus describes the status of eth1/2 transition. This switch
 // between modes is a one-way action which is triggered by corresponding
 // consensus-layer message.
+// transitionStatus描述了eth1/2转换的状态，模式之间的转换是单向的，它由共识层相关的message
+// 触发
 type transitionStatus struct {
-	LeftPoW    bool // The flag is set when the first NewHead message received
+	// 第一次收到NewHead的时候被设置
+	LeftPoW bool // The flag is set when the first NewHead message received
+	// 第一次收到FinalisedBlock的时候被设置
 	EnteredPoS bool // The flag is set when the first FinalisedBlock message received
 }
 
@@ -61,6 +65,7 @@ func NewMerger(db ethdb.KeyValueStore) *Merger {
 
 // ReachTTD is called whenever the first NewHead message received
 // from the consensus-layer.
+// ReachTTD被调用，当第一个NewHead message从共识层被接收到
 func (m *Merger) ReachTTD() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -68,6 +73,7 @@ func (m *Merger) ReachTTD() {
 	if m.status.LeftPoW {
 		return
 	}
+	// 到达TTD的时候，则设置LeftPoW
 	m.status = transitionStatus{LeftPoW: true}
 	blob, err := rlp.EncodeToBytes(m.status)
 	if err != nil {
@@ -79,6 +85,7 @@ func (m *Merger) ReachTTD() {
 
 // FinalizePoS is called whenever the first FinalisedBlock message received
 // from the consensus-layer.
+// FinalizePoS被调用，当第一个FinalisedBlock message从共识层被接收到
 func (m *Merger) FinalizePoS() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -96,6 +103,7 @@ func (m *Merger) FinalizePoS() {
 }
 
 // TDDReached reports whether the chain has left the PoW stage.
+// TDDReached会report，当chain已经离开PoW阶段
 func (m *Merger) TDDReached() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -104,6 +112,7 @@ func (m *Merger) TDDReached() bool {
 }
 
 // PoSFinalized reports whether the chain has entered the PoS stage.
+// PoSFinalized汇报，是否chain已经进入了PoS阶段
 func (m *Merger) PoSFinalized() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

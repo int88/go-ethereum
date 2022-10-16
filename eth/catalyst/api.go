@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package catalyst implements the temporary eth1/eth2 RPC integration.
+// catalyst包实现了临时的eth1/eth2 RPC的集成
 package catalyst
 
 import (
@@ -84,15 +85,21 @@ func NewConsensusAPI(eth *eth.Ethereum) *ConsensusAPI {
 }
 
 // ForkchoiceUpdatedV1 has several responsibilities:
+// ForkchoiceUpdatedV1有如下几个责任
 // If the method is called with an empty head block:
+// 如果方法被一个空的head block调用，我们返回success，它可以用来检查catalyst模式是否开启
 // 		we return success, which can be used to check if the catalyst mode is enabled
 // If the total difficulty was not reached:
 // 		we return INVALID
+// 如果没有达到total difficulty，我们返回INVALID
 // If the finalizedBlockHash is set:
 // 		we check if we have the finalizedBlockHash in our db, if not we start a sync
+// 如果设置了finalizedBlockHash，我们检查是否有finalizedBlockHash在我们的db中，如果没有，我们开始一个sync
 // We try to set our blockchain to the headBlock
+// 我们试着在我们的blockchain中设置headBlock
 // If there are payloadAttributes:
 // 		we try to assemble a block with the payloadAttributes and return its payloadID
+// 如果其中有payloadAttributes，我们试着构建一个block，用payloadAttributes并且返回它的payloadID
 func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, payloadAttributes *beacon.PayloadAttributesV1) (beacon.ForkChoiceResponse, error) {
 	api.forkChoiceLock.Lock()
 	defer api.forkChoiceLock.Unlock()

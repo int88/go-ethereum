@@ -361,6 +361,7 @@ type ChainConfig struct {
 
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
+	// TerminalTotalDifficulty是network将会到达的total difficulty，在触发共识升级之前
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
 
 	// Various consensus engines

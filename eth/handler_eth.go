@@ -88,10 +88,14 @@ func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // handleBlockAnnounces is invoked from a peer's message handler when it transmits a
 // batch of block announcements for the local node to process.
+// handleBlockAnnounces被一个peer的message handler被调用，当它传输一批的block announcements
+// 为了local node进行处理
 func (h *ethHandler) handleBlockAnnounces(peer *eth.Peer, hashes []common.Hash, numbers []uint64) error {
 	// Drop all incoming block announces from the p2p network if
 	// the chain already entered the pos stage and disconnect the
 	// remote peer.
+	// 丢弃所有来自p2p network的incoming block announces，如果chain已经进入了
+	// pos阶段，和remote peer断开
 	if h.merger.PoSFinalized() {
 		// TODO (MariusVanDerWijden) drop non-updated peers after the merge
 		return nil

@@ -656,11 +656,13 @@ func (ethash *Ethash) SetThreads(threads int) {
 	defer ethash.lock.Unlock()
 
 	// If we're running a shared PoW, set the thread count on that instead
+	// 如果我们运行的是一个共享的PoW，在上面设置thread count
 	if ethash.shared != nil {
 		ethash.shared.SetThreads(threads)
 		return
 	}
 	// Update the threads and ping any running seal to pull in any changes
+	// 更新threads并且ping任何的seal来拉入任何的更改
 	ethash.threads = threads
 	select {
 	case ethash.update <- struct{}{}:

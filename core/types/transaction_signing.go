@@ -331,6 +331,8 @@ func (s eip2930Signer) Hash(tx *Transaction) common.Hash {
 
 // EIP155Signer implements Signer using the EIP-155 rules. This accepts transactions which
 // are replay-protected as well as unprotected homestead transactions.
+// EIP155Signer使用EIP-155规则实现了Signer，它接收replay-protected以及unprotected homestead
+// transactions
 type EIP155Signer struct {
 	chainId, chainIdMul *big.Int
 }
