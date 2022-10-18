@@ -546,6 +546,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 }
 
 // SetFinalized sets the finalized block.
+// SetFinalized设置finalized block
 func (bc *BlockChain) SetFinalized(block *types.Block) {
 	bc.currentFinalizedBlock.Store(block)
 	rawdb.WriteFinalizedBlockHash(bc.db, block.Hash())

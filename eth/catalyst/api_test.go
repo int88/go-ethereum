@@ -150,6 +150,7 @@ func TestSetHeadBeforeTotalDifficulty(t *testing.T) {
 func TestEth2PrepareAndGetPayload(t *testing.T) {
 	genesis, blocks := generatePreMergeChain(10)
 	// We need to properly set the terminal total difficulty
+	// 我们需要恰当地设置ttd
 	genesis.Config.TerminalTotalDifficulty.Sub(genesis.Config.TerminalTotalDifficulty, blocks[9].Difficulty())
 	n, ethservice := startEthService(t, genesis, blocks[:9])
 	defer n.Close()
@@ -157,6 +158,7 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 	api := NewConsensusAPI(ethservice)
 
 	// Put the 10th block's tx in the pool and produce a new block
+	// 将第十个block的tx放入pool并且生成一个新的block
 	ethservice.TxPool().AddLocals(blocks[9].Transactions())
 	blockParams := beacon.PayloadAttributesV1{
 		Timestamp: blocks[8].Time() + 5,
@@ -175,10 +177,12 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting payload, err=%v", err)
 	}
+	// 此时在execData中就有transactions?
 	if len(execData.Transactions) != blocks[9].Transactions().Len() {
 		t.Fatalf("invalid number of transactions %d != 1", len(execData.Transactions))
 	}
 	// Test invalid payloadID
+	// 测试非法的payloadID
 	var invPayload beacon.PayloadID
 	copy(invPayload[:], payloadID[:])
 	invPayload[0] = ^invPayload[0]
@@ -198,6 +202,7 @@ func checkLogEvents(t *testing.T, logsCh <-chan []*types.Log, rmLogsCh <-chan co
 		t.Fatalf("wrong number of removed log events: got %d, want %d", len(rmLogsCh), wantRemoved)
 	}
 	// Drain events.
+	// 排干events
 	for i := 0; i < len(logsCh); i++ {
 		<-logsCh
 	}
@@ -262,6 +267,7 @@ func TestEth2NewBlock(t *testing.T) {
 		parent = preMergeBlocks[len(preMergeBlocks)-1]
 
 		// This EVM code generates a log when the contract is created.
+		// 这个EVM code生成一个log，当contract被创建的时候
 		logCode = common.Hex2Bytes("60606040525b7f24ec1d3ff24c2f6ff210738839dbc339cd45a5294d85c79361016243157aae7b60405180905060405180910390a15b600a8060416000396000f360606040526008565b00")
 	)
 	// The event channels.
@@ -273,9 +279,11 @@ func TestEth2NewBlock(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		statedb, _ := ethservice.BlockChain().StateAt(parent.Root())
 		nonce := statedb.GetNonce(testAddr)
+		// 构建tx，加入local
 		tx, _ := types.SignTx(types.NewContractCreation(nonce, new(big.Int), 1000000, big.NewInt(2*params.InitialBaseFee), logCode), types.LatestSigner(ethservice.BlockChain().Config()), testKey)
 		ethservice.TxPool().AddLocal(tx)
 
+		// 组建executable data
 		execData, err := assembleBlock(api, parent.Hash(), &beacon.PayloadAttributesV1{
 			Timestamp: parent.Time() + 5,
 		})
@@ -291,8 +299,10 @@ func TestEth2NewBlock(t *testing.T) {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if ethservice.BlockChain().CurrentBlock().NumberU64() != block.NumberU64()-1 {
+			// chain head不应该被更新
 			t.Fatalf("Chain head shouldn't be updated")
 		}
+		// 检查log events
 		checkLogEvents(t, newLogCh, rmLogsCh, 0, 0)
 		fcState := beacon.ForkchoiceStateV1{
 			HeadBlockHash:      block.Hash(),
@@ -303,6 +313,7 @@ func TestEth2NewBlock(t *testing.T) {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
 		if ethservice.BlockChain().CurrentBlock().NumberU64() != block.NumberU64() {
+			// 在fork choice update之后，block number应该被更新
 			t.Fatalf("Chain head should be updated")
 		}
 		checkLogEvents(t, newLogCh, rmLogsCh, 1, 0)
@@ -311,11 +322,13 @@ func TestEth2NewBlock(t *testing.T) {
 	}
 
 	// Introduce fork chain
+	// 引入fork chain
 	var (
 		head = ethservice.BlockChain().CurrentBlock().NumberU64()
 	)
 	parent = preMergeBlocks[len(preMergeBlocks)-1]
 	for i := 0; i < 10; i++ {
+		// 构建execution data
 		execData, err := assembleBlock(api, parent.Hash(), &beacon.PayloadAttributesV1{
 			Timestamp: parent.Time() + 6,
 		})
@@ -334,6 +347,7 @@ func TestEth2NewBlock(t *testing.T) {
 			t.Fatalf("Chain head shouldn't be updated")
 		}
 
+		// 构建fork choice state
 		fcState := beacon.ForkchoiceStateV1{
 			HeadBlockHash:      block.Hash(),
 			SafeBlockHash:      block.Hash(),
@@ -342,6 +356,7 @@ func TestEth2NewBlock(t *testing.T) {
 		if _, err := api.ForkchoiceUpdatedV1(fcState, nil); err != nil {
 			t.Fatalf("Failed to insert block: %v", err)
 		}
+		// 经过fork choice之后，chain head应该被更新
 		if ethservice.BlockChain().CurrentBlock().NumberU64() != block.NumberU64() {
 			t.Fatalf("Chain head should be updated")
 		}
@@ -446,6 +461,7 @@ func TestFullAPI(t *testing.T) {
 		statedb, _ := ethservice.BlockChain().StateAt(parent.Root())
 		nonce := statedb.GetNonce(testAddr)
 		tx, _ := types.SignTx(types.NewContractCreation(nonce, new(big.Int), 1000000, big.NewInt(2*params.InitialBaseFee), logCode), types.LatestSigner(ethservice.BlockChain().Config()), testKey)
+		// 添加一个本地的tx
 		ethservice.TxPool().AddLocal(tx)
 	}
 
@@ -461,6 +477,7 @@ func setupBlocks(t *testing.T, ethservice *eth.Ethereum, n int, parent *types.Bl
 
 		execResp, err := api.NewPayloadV1(*payload)
 		if err != nil {
+			// 执行payload失败
 			t.Fatalf("can't execute payload: %v", err)
 		}
 		if execResp.Status != beacon.VALID {
@@ -536,13 +553,18 @@ func TestExchangeTransitionConfig(t *testing.T) {
 /*
 TestNewPayloadOnInvalidChain sets up a valid chain and tries to feed blocks
 from an invalid chain to test if latestValidHash (LVH) works correctly.
+TestNewPayloadOnInvalidChain建立一个valid chain并且试着从一个invalid chain提供blocks
+来测试是否latestValidHash正确工作
 
 We set up the following chain where P1 ... Pn and P1'' are valid while
 P1' is invalid.
 We expect
 (1) The LVH to point to the current inserted payload if it was valid.
+(1) LVH指向当前插入的payload，如果它是合法的
 (2) The LVH to point to the valid parent on an invalid payload (if the parent is available).
+(2) LVH指向合法的parent，在一个invalid payload（如果parent可用的话）
 (3) If the parent is unavailable, the LVH should not be set.
+(3) 如果parent不可用，LVH不应该被设置
 
 CommonAncestor◄─▲── P1 ◄── P2  ◄─ P3  ◄─ ... ◄─ Pn
 				│
@@ -579,6 +601,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			SafeBlockHash:      common.Hash{},
 			FinalizedBlockHash: common.Hash{},
 		}
+		// 从ForkChoiceUpdateV1中可以获取下一个block的payload ID
 		resp, err := api.ForkchoiceUpdatedV1(fcState, &params)
 		if err != nil {
 			t.Fatalf("error preparing payload, err=%v", err)
@@ -635,9 +658,11 @@ func TestEmptyBlocks(t *testing.T) {
 	api := NewConsensusAPI(ethservice)
 
 	// Setup 10 blocks on the canonical chain
+	// 在canonical chain设置10个blocks
 	setupBlocks(t, ethservice, 10, commonAncestor, func(parent *types.Block) {})
 
 	// (1) check LatestValidHash by sending a normal payload (P1'')
+	// (1) 检查LatestValidHash，通过发送一个正常的payload (P1'')
 	payload := getNewPayload(t, api, commonAncestor)
 
 	status, err := api.NewPayloadV1(*payload)
@@ -652,10 +677,12 @@ func TestEmptyBlocks(t *testing.T) {
 	}
 
 	// (2) Now send P1' which is invalid
+	// (2) 现在发送P1'，它是非法的
 	payload = getNewPayload(t, api, commonAncestor)
 	payload.GasUsed += 1
 	payload = setBlockhash(payload)
 	// Now latestValidHash should be the common ancestor
+	// 现在latestValidHash应该为一个common ancestor
 	status, err = api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
@@ -669,10 +696,12 @@ func TestEmptyBlocks(t *testing.T) {
 	}
 
 	// (3) Now send a payload with unknown parent
+	// (3) 现在发送一个payload，没有已知的parent
 	payload = getNewPayload(t, api, commonAncestor)
 	payload.ParentHash = common.Hash{1}
 	payload = setBlockhash(payload)
 	// Now latestValidHash should be the common ancestor
+	// 现在latestValidHash应该为common ancestor
 	status, err = api.NewPayloadV1(*payload)
 	if err != nil {
 		t.Fatal(err)
@@ -759,6 +788,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 	commonAncestor := ethserviceA.BlockChain().CurrentBlock()
 
 	// Setup 10 blocks on the canonical chain
+	// 在canonical chain中建立10个blocks
 	setupBlocks(t, ethserviceA, 10, commonAncestor, func(parent *types.Block) {})
 	commonAncestor = ethserviceA.BlockChain().CurrentBlock()
 
@@ -776,6 +806,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 
 	head := payload2
 	// create some valid payloads on top
+	// 在invalid之上构建一些valid payloads
 	for i := 0; i < 10; i++ {
 		payload := getNewPayload(t, apiA, commonAncestor)
 		payload.ParentHash = head.BlockHash
@@ -785,6 +816,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 	}
 
 	// feed the payloads to node B
+	// 将payloads交给node B
 	for _, payload := range invalidChain {
 		status, err := apiB.NewPayloadV1(*payload)
 		if err != nil {
@@ -794,6 +826,7 @@ func TestTrickRemoteBlockCache(t *testing.T) {
 			panic("success")
 		}
 		// Now reorg to the head of the invalid chain
+		// 现在对invalid chain的head进行reorg
 		resp, err := apiB.ForkchoiceUpdatedV1(beacon.ForkchoiceStateV1{HeadBlockHash: payload.BlockHash, SafeBlockHash: payload.BlockHash, FinalizedBlockHash: payload.ParentHash}, nil)
 		if err != nil {
 			t.Fatal(err)

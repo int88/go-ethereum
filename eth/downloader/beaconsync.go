@@ -31,14 +31,19 @@ import (
 // the skeleton syncer has successfully reverse downloaded all the headers up to
 // the genesis block or an existing header in the database. Its operation is fully
 // directed by the skeleton sync's head/tail events.
+// beaconBackfiller是chain以及state的backfilling，它可以开始，一旦skeleton syncer已经成功
+// 反向下载所以后的headers直到genesis block或者db中已经存在的header，它的操作直接由skeleton
+// sync的head/tail events指导
 type beaconBackfiller struct {
-	downloader *Downloader   // Downloader to direct via this callback implementation
-	syncMode   SyncMode      // Sync mode to use for backfilling the skeleton chains
-	success    func()        // Callback to run on successful sync cycle completion
-	filling    bool          // Flag whether the downloader is backfilling or not
-	filled     *types.Header // Last header filled by the last terminated sync loop
-	started    chan struct{} // Notification channel whether the downloader inited
-	lock       sync.Mutex    // Mutex protecting the sync lock
+	downloader *Downloader // Downloader to direct via this callback implementation
+	syncMode   SyncMode    // Sync mode to use for backfilling the skeleton chains
+	success    func()      // Callback to run on successful sync cycle completion
+	// Flag表示downloader是否在回填
+	filling bool // Flag whether the downloader is backfilling or not
+	// 上一个terminated sync loop已经填充的header
+	filled  *types.Header // Last header filled by the last terminated sync loop
+	started chan struct{} // Notification channel whether the downloader inited
+	lock    sync.Mutex    // Mutex protecting the sync lock
 }
 
 // newBeaconBackfiller is a helper method to create the backfiller.
@@ -51,8 +56,10 @@ func newBeaconBackfiller(dl *Downloader, success func()) backfiller {
 
 // suspend cancels any background downloader threads and returns the last header
 // that has been successfully backfilled.
+// suspend取消后台的downloader threads并且返回已经成功填充的last header
 func (b *beaconBackfiller) suspend() *types.Header {
 	// If no filling is running, don't waste cycles
+	// 如果没有filling正在运行，不要浪费时间
 	b.lock.Lock()
 	filling := b.filling
 	filled := b.filled
@@ -71,6 +78,7 @@ func (b *beaconBackfiller) suspend() *types.Header {
 
 	// Now that we're sure the downloader successfully started up, we can cancel
 	// it safely without running the risk of data races.
+	// 现在我们确保downloader成功启动，我们可以安全地取消它而不用担心有数据竞争的风险
 	b.downloader.Cancel()
 
 	// Sync cycle was just terminated, retrieve and return the last filled header.
@@ -79,11 +87,13 @@ func (b *beaconBackfiller) suspend() *types.Header {
 }
 
 // resume starts the downloader threads for backfilling state and chain data.
+// resume启动downloader threads用于填充state以及chain data
 func (b *beaconBackfiller) resume() {
 	b.lock.Lock()
 	if b.filling {
 		// If a previous filling cycle is still running, just ignore this start
 		// request. // TODO(karalabe): We should make this channel driven
+		// 如果之前的filling cycle仍在运行，只是忽略这个start request
 		b.lock.Unlock()
 		return
 	}
@@ -95,8 +105,10 @@ func (b *beaconBackfiller) resume() {
 
 	// Start the backfilling on its own thread since the downloader does not have
 	// its own lifecycle runloop.
+	// 在它自己的线程启动回填，因为downloader没有它自己的lifecycle runloop
 	go func() {
 		// Set the backfiller to non-filling when download completes
+		// 设置backfiller为non-filling，当download完成之后
 		defer func() {
 			b.lock.Lock()
 			b.filling = false
@@ -105,12 +117,15 @@ func (b *beaconBackfiller) resume() {
 		}()
 		// If the downloader fails, report an error as in beacon chain mode there
 		// should be no errors as long as the chain we're syncing to is valid.
+		// 如果downloader失败，report一个errror，因为在beacon chain模式下，不应该有问题
+		// 只要我们同步的chain是合法的
 		if err := b.downloader.synchronise("", common.Hash{}, nil, nil, mode, true, b.started); err != nil {
 			log.Error("Beacon backfilling failed", "err", err)
 			return
 		}
 		// Synchronization succeeded. Since this happens async, notify the outer
 		// context to disable snap syncing and enable transaction propagation.
+		// 同步成功，因为这是异步发生的，通知outer context禁止snap syncing并且使能transaction propagation
 		if b.success != nil {
 			b.success()
 		}
@@ -119,8 +134,11 @@ func (b *beaconBackfiller) resume() {
 
 // setMode updates the sync mode from the current one to the requested one. If
 // there's an active sync in progress, it will be cancelled and restarted.
+// setMode将当前的sync mode更新到请求的sync mode，如果后台有一个active sync，它会被取消
+// 并且重启
 func (b *beaconBackfiller) setMode(mode SyncMode) {
 	// Update the old sync mode and track if it was changed
+	// 更新老的sync mode并且追踪它是否变了
 	b.lock.Lock()
 	updated := b.syncMode != mode
 	filling := b.filling
@@ -129,9 +147,12 @@ func (b *beaconBackfiller) setMode(mode SyncMode) {
 
 	// If the sync mode was changed mid-sync, restart. This should never ever
 	// really happen, we just handle it to detect programming errors.
+	// 如果sync mode在mid-sync的时候变更，重启，这在现实中不应该发生，我们只是处理它来检测
+	// 程序错误
 	if !updated || !filling {
 		return
 	}
+	// Downloader的sync mode在mid-run的时候发生变更
 	log.Error("Downloader sync mode changed mid-run", "old", mode.String(), "new", mode.String())
 	b.suspend()
 	b.resume()
@@ -140,9 +161,12 @@ func (b *beaconBackfiller) setMode(mode SyncMode) {
 // BeaconSync is the post-merge version of the chain synchronization, where the
 // chain is not downloaded from genesis onward, rather from trusted head announces
 // backwards.
+// BeaconSync是post-merge版本的chain synchronization，chain不是从genesis开始下载的，而不是
+// 从可信的header向后announces
 //
 // Internally backfilling and state sync is done the same way, but the header
 // retrieval and scheduling is replaced.
+// 内部的回填以及state sync的操作方式相同，但是header获取和调度被替换了
 func (d *Downloader) BeaconSync(mode SyncMode, head *types.Header) error {
 	return d.beaconSync(mode, head, true)
 }
@@ -167,12 +191,15 @@ func (d *Downloader) beaconSync(mode SyncMode, head *types.Header, force bool) e
 	// When the downloader starts a sync cycle, it needs to be aware of the sync
 	// mode to use (full, snap). To keep the skeleton chain oblivious, inject the
 	// mode into the backfiller directly.
+	// 当downloader开始一个sync cycle，它需要意识到使用的sync mode（full, snap），来保持
+	// skeleton意识不到，直接将mode注入backfiller
 	//
 	// Super crazy dangerous type cast. Should be fine (TM), we're only using a
 	// different backfiller implementation for skeleton tests.
 	d.skeleton.filler.(*beaconBackfiller).setMode(mode)
 
 	// Signal the skeleton sync to switch to a new head, however it wants
+	// 通知skeleton sync切换到一个新的head
 	if err := d.skeleton.Sync(head, force); err != nil {
 		return err
 	}

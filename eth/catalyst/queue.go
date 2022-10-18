@@ -37,6 +37,8 @@ const maxTrackedHeaders = 10
 
 // payload wraps the miner's block production channel, allowing the mined block
 // to be retrieved later upon the GetPayload engine API call.
+// payload封装了miner的block production channel，允许mined block在后面被获取，当GetPayload
+// engine API被调用的时候
 type payload struct {
 	lock   sync.Mutex
 	done   bool

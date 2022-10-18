@@ -157,12 +157,17 @@ type backfiller interface {
 	//
 	// The method should return the last block header that has been successfully
 	// backfilled, or nil if the backfiller was not resumed.
+	// 这个方法应该返回最后一个已经成功回填的block header，或者为nil，如果backfiller
+	// 没有恢复
 	suspend() *types.Header
 
 	// resume requests the backfiller to start running fill or snap sync based on
 	// the skeleton chain as it has successfully been linked. Appending new heads
 	// to the end of the chain will not result in suspend/resume cycles.
 	// leaking too much sync logic out to the filler.
+	// resume请求bakfiller开始运行full或者snap sync，基于skeleton chain它已经
+	// 成功连接的，扩展新的headers到end of the chain不会导致suspend/resume cycles
+	// 泄露太多的sync logic在filler之外
 	resume()
 }
 

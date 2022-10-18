@@ -113,12 +113,17 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	// Check whether we have the block yet in our database or not. If not, we'll
 	// need to either trigger a sync, or to reject this forkchoice update for a
 	// reason.
+	// 检查在db中是否有block，如果没有的话，我们要么触发一次sync，或者因为一些原因拒绝
+	// forkchoice update
 	block := api.eth.BlockChain().GetBlockByHash(update.HeadBlockHash)
 	if block == nil {
 		// If the head hash is unknown (was not given to us in a newPayload request),
 		// we cannot resolve the header, so not much to do. This could be extended in
 		// the future to resolve from the `eth` network, but it's an unexpected case
 		// that should be fixed, not papered over.
+		// 如果head hash未知（没有在newPayload request中给我们），我们不能解析header，没有太多
+		// 可以做，它应该在未来扩展来从`eth` network中解析，但是它现在是一个需要被修复的unexpected case
+		// 还没有被覆盖
 		header := api.remoteBlocks.get(update.HeadBlockHash)
 		if header == nil {
 			log.Warn("Forkchoice requested unknown head", "hash", update.HeadBlockHash)
@@ -127,10 +132,13 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 		// Header advertised via a past newPayload request. Start syncing to it.
 		// Before we do however, make sure any legacy sync in switched off so we
 		// don't accidentally have 2 cycles running.
+		// Header已经通过过去的newPayload request提出来了，开始同步它，在我们做之前，确保
+		// 任何legacy sync已经关闭，这样我们不会意外地运行两个cycles
 		if merger := api.eth.Merger(); !merger.TDDReached() {
 			merger.ReachTTD()
 			api.eth.Downloader().Cancel()
 		}
+		// Forkchoice请求同步到新的head
 		log.Info("Forkchoice requested sync to new head", "number", header.Number, "hash", header.Hash())
 		if err := api.eth.Downloader().BeaconSync(api.eth.SyncMode(), header); err != nil {
 			return beacon.STATUS_SYNCING, err
@@ -139,6 +147,7 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	}
 	// Block is known locally, just sanity check that the beacon client does not
 	// attempt to push us back to before the merge.
+	// Block是本地已知的，进行校验确保beacon client不会把我们推回merge之前
 	if block.Difficulty().BitLen() > 0 || block.NumberU64() == 0 {
 		var (
 			td  = api.eth.BlockChain().GetTd(update.HeadBlockHash, block.NumberU64())
@@ -157,35 +166,43 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 
 	if rawdb.ReadCanonicalHash(api.eth.ChainDb(), block.NumberU64()) != update.HeadBlockHash {
 		// Block is not canonical, set head.
+		// Block当前不是canonical，设置head
 		if latestValid, err := api.eth.BlockChain().SetCanonical(block); err != nil {
 			return beacon.ForkChoiceResponse{PayloadStatus: beacon.PayloadStatusV1{Status: beacon.INVALID, LatestValidHash: &latestValid}}, err
 		}
 	} else {
 		// If the head block is already in our canonical chain, the beacon client is
 		// probably resyncing. Ignore the update.
+		// 如果block已经在我们的canonical chain，beacon client可能正在resyncing，忽略更新
 		log.Info("Ignoring beacon update to old head", "number", block.NumberU64(), "hash", update.HeadBlockHash, "age", common.PrettyAge(time.Unix(int64(block.Time()), 0)), "have", api.eth.BlockChain().CurrentBlock().NumberU64())
 	}
 	api.eth.SetSynced()
 
 	// If the beacon client also advertised a finalized block, mark the local
 	// chain final and completely in PoS mode.
+	// 如果beacon client同时建议了一个finalized block，标记local chain为final并且completely，在PoS模式
 	if update.FinalizedBlockHash != (common.Hash{}) {
 		if merger := api.eth.Merger(); !merger.PoSFinalized() {
 			merger.FinalizePoS()
 		}
 		// If the finalized block is not in our canonical tree, somethings wrong
+		// 如果finalized block不在我们的canonical tree，则哪里有问题
 		finalBlock := api.eth.BlockChain().GetBlockByHash(update.FinalizedBlockHash)
 		if finalBlock == nil {
+			// Final block不在数据库中
 			log.Warn("Final block not available in database", "hash", update.FinalizedBlockHash)
 			return beacon.STATUS_INVALID, beacon.InvalidForkChoiceState.With(errors.New("final block not available in database"))
 		} else if rawdb.ReadCanonicalHash(api.eth.ChainDb(), finalBlock.NumberU64()) != update.FinalizedBlockHash {
+			// Final block不在canonical chain中
 			log.Warn("Final block not in canonical chain", "number", block.NumberU64(), "hash", update.HeadBlockHash)
 			return beacon.STATUS_INVALID, beacon.InvalidForkChoiceState.With(errors.New("final block not in canonical chain"))
 		}
 		// Set the finalized block
+		// 设置finalized block
 		api.eth.BlockChain().SetFinalized(finalBlock)
 	}
 	// Check if the safe block hash is in our canonical tree, if not somethings wrong
+	// 检查是否safe block hash在我们的canonical tree中，如果不是，则哪里出了问题
 	if update.SafeBlockHash != (common.Hash{}) {
 		safeBlock := api.eth.BlockChain().GetBlockByHash(update.SafeBlockHash)
 		if safeBlock == nil {
@@ -206,20 +223,26 @@ func (api *ConsensusAPI) ForkchoiceUpdatedV1(update beacon.ForkchoiceStateV1, pa
 	// If payload generation was requested, create a new block to be potentially
 	// sealed by the beacon client. The payload will be requested later, and we
 	// might replace it arbitrarily many times in between.
+	// 如果请求了payload generation，创建一个新的block，它可能潜在地被beacon client挖掘
+	// payload会在后面请求，并且我们可能在中间多次尝试将它替换
 	if payloadAttributes != nil {
 		// Create an empty block first which can be used as a fallback
+		// 创建一个空的block，它可以被作为一个fallback
 		empty, err := api.eth.Miner().GetSealingBlockSync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, true)
 		if err != nil {
+			// 创建空的sealing payload失败
 			log.Error("Failed to create empty sealing payload", "err", err)
 			return valid(nil), beacon.InvalidPayloadAttributes.With(err)
 		}
 		// Send a request to generate a full block in the background.
 		// The result can be obtained via the returned channel.
+		// 发送请求在后台创建一个full block，result可以通过返回的channel获取
 		resCh, err := api.eth.Miner().GetSealingBlockAsync(update.HeadBlockHash, payloadAttributes.Timestamp, payloadAttributes.SuggestedFeeRecipient, payloadAttributes.Random, false)
 		if err != nil {
 			log.Error("Failed to create async sealing payload", "err", err)
 			return valid(nil), beacon.InvalidPayloadAttributes.With(err)
 		}
+		// 计算id，在ForkchoiceUpdateV1中就算好下一个block
 		id := computePayloadId(update.HeadBlockHash, payloadAttributes)
 		api.localBlocks.put(id, &payload{empty: empty, result: resCh})
 		return valid(&id), nil
@@ -253,6 +276,7 @@ func (api *ConsensusAPI) ExchangeTransitionConfigurationV1(config beacon.Transit
 }
 
 // GetPayloadV1 returns a cached payload by id.
+// GetPayloadV1返回一个缓存的payload id
 func (api *ConsensusAPI) GetPayloadV1(payloadID beacon.PayloadID) (*beacon.ExecutableDataV1, error) {
 	log.Trace("Engine API request received", "method", "GetPayload", "id", payloadID)
 	data := api.localBlocks.get(payloadID)
@@ -263,6 +287,7 @@ func (api *ConsensusAPI) GetPayloadV1(payloadID beacon.PayloadID) (*beacon.Execu
 }
 
 // NewPayloadV1 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
+// NewPayloadV1创建一个Eth1 block，将它插入到chain中，并且返回chain的状态
 func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.PayloadStatusV1, error) {
 	log.Trace("Engine API request received", "method", "ExecutePayload", "number", params.Number, "hash", params.BlockHash)
 	block, err := beacon.ExecutableDataToBlock(params)
@@ -272,6 +297,7 @@ func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.Pa
 	}
 	// If we already have the block locally, ignore the entire execution and just
 	// return a fake success.
+	// 如果我们在本地已经有block，忽略整个执行并且仅仅返回一个fake success
 	if block := api.eth.BlockChain().GetBlockByHash(params.BlockHash); block != nil {
 		log.Warn("Ignoring already known beacon payload", "number", params.Number, "hash", params.BlockHash, "age", common.PrettyAge(time.Unix(int64(block.Time()), 0)))
 		hash := block.Hash()
@@ -283,6 +309,10 @@ func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.Pa
 	// our live chain. As such, payload execution will not permit reorgs and thus
 	// will not trigger a sync cycle. That is fine though, if we get a fork choice
 	// update after legit payload executions.
+	// 如果parent缺失，我们理论上需要触发一个sync，但是这也会触发一个reorg，这是有问题的，
+	// 如果多个sibling blocks正在投向我们，甚至更多，如果有的semi-distant uncle缩短了
+	// 我们的live chain，因此，payload execution会不运行reorgs并且因此不会触发一个sync cycle
+	// 这已经足够好了，如果我们获取一个fork choice更新，在合法的payload executions之后
 	parent := api.eth.BlockChain().GetBlock(block.ParentHash(), block.NumberU64()-1)
 	if parent == nil {
 		// Stash the block away for a potential forced forckchoice update to it
@@ -305,6 +335,7 @@ func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.Pa
 	}
 	// We have an existing parent, do some sanity checks to avoid the beacon client
 	// triggering too early
+	// 我们已经有一个已经存在的parent，做一些sanity checks来避免beacon client触发太早
 	var (
 		td  = api.eth.BlockChain().GetTd(parent.Hash(), parent.NumberU64())
 		ttd = api.eth.BlockChain().Config().TerminalTotalDifficulty
@@ -319,17 +350,21 @@ func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.Pa
 	}
 	if !api.eth.BlockChain().HasBlockAndState(block.ParentHash(), block.NumberU64()-1) {
 		api.remoteBlocks.put(block.Hash(), block.Header())
+		// state不存在，忽略新的payload
 		log.Warn("State not available, ignoring new payload")
 		return beacon.PayloadStatusV1{Status: beacon.ACCEPTED}, nil
 	}
 	log.Trace("Inserting block without sethead", "hash", block.Hash(), "number", block.Number)
 	if err := api.eth.BlockChain().InsertBlockWithoutSetHead(block); err != nil {
+		// NewPayloadV1: 插入block失败
 		log.Warn("NewPayloadV1: inserting block failed", "error", err)
 		return api.invalid(err, parent), nil
 	}
 	// We've accepted a valid payload from the beacon client. Mark the local
 	// chain transitions to notify other subsystems (e.g. downloader) of the
 	// behavioral change.
+	// 我们已经从beacon client接收到一个合法的payload，标记local chain过渡到通知其他
+	// 子系统（例如downloader）关于行为的变更
 	if merger := api.eth.Merger(); !merger.TDDReached() {
 		merger.ReachTTD()
 		api.eth.Downloader().Cancel()
@@ -339,6 +374,7 @@ func (api *ConsensusAPI) NewPayloadV1(params beacon.ExecutableDataV1) (beacon.Pa
 }
 
 // computePayloadId computes a pseudo-random payloadid, based on the parameters.
+// computePayloadId基于参数计算生成一个伪随机的payloadid
 func computePayloadId(headBlockHash common.Hash, params *beacon.PayloadAttributesV1) beacon.PayloadID {
 	// Hash
 	hasher := sha256.New()

@@ -255,6 +255,7 @@ func NewBlockWithHeader(header *Header) *Block {
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
+// CopyHeader创建一个block header的deep copy来防止修改一个header变量的副作用
 func CopyHeader(h *Header) *Header {
 	cpy := *h
 	if cpy.Difficulty = new(big.Int); h.Difficulty != nil {
@@ -385,6 +386,7 @@ func (b *Block) WithSeal(header *Header) *Block {
 }
 
 // WithBody returns a new block with the given transaction and uncle contents.
+// WithBody返回一个新的block，有着给定的transaction以及uncle
 func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 	block := &Block{
 		header:       CopyHeader(b.header),

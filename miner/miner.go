@@ -283,12 +283,13 @@ func (miner *Miner) GetSealingBlockAsync(parent common.Hash, timestamp uint64, c
 // GetSealingBlockSync creates a sealing block according to the given parameters.
 // If the generation is failed or the underlying work is already closed, an error
 // will be returned.
-// GetSealingBlockSync创建一个sealing block，根据给定的参数，如果generation失败或者底层的work已经关闭了
+// GetSealingBlockSync创建一个sealing block，根据给定的参数，如果generation失败或者底层的worker已经关闭了
 // 返回一个error
 func (miner *Miner) GetSealingBlockSync(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, noTxs bool) (*types.Block, error) {
 	resCh, errCh, err := miner.worker.getSealingBlock(parent, timestamp, coinbase, random, noTxs)
 	if err != nil {
 		return nil, err
 	}
+	// 从res ch获取block
 	return <-resCh, <-errCh
 }
