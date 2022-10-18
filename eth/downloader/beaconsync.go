@@ -174,9 +174,13 @@ func (d *Downloader) BeaconSync(mode SyncMode, head *types.Header) error {
 // BeaconExtend is an optimistic version of BeaconSync, where an attempt is made
 // to extend the current beacon chain with a new header, but in case of a mismatch,
 // the old sync will not be terminated and reorged, rather the new head is dropped.
+// BeaconExtend是一个优化版本的BeaconSync，试着用一个新的header扩展当前的beacon chain
+// 但是万一不匹配，old sync不会被终止以及reorged，而是新的head会被丢弃
 //
 // This is useful if a beacon client is feeding us large chunks of payloads to run,
 // but is not setting the head after each.
+// 这是有用的，如果一个beacon client被给予大量的chunks of payloads来运行，但是每次之后
+// 都不设置head
 func (d *Downloader) BeaconExtend(mode SyncMode, head *types.Header) error {
 	return d.beaconSync(mode, head, false)
 }
@@ -211,6 +215,10 @@ func (d *Downloader) beaconSync(mode SyncMode, head *types.Header, force bool) e
 // sync and on the correct chain, checking the top N links should already get us
 // a match. In the rare scenario when we ended up on a long reorganisation (i.e.
 // none of the head links match), we do a binary search to find the ancestor.
+// findBeaconAncestor试着定位local chain和请求的beacon chain的common ancestor
+// 一般情况下，当我们的节点在同步中并且在正确的chain上，检查top N个links应该给我们一个匹配
+// 在很少的场景下，我们在一个long reorganisation中结束（例如，没有header links匹配）
+// 我们做二分查找来找到ancestor
 func (d *Downloader) findBeaconAncestor() (uint64, error) {
 	// Figure out the current local head position
 	var chainHead *types.Header
@@ -226,11 +234,15 @@ func (d *Downloader) findBeaconAncestor() (uint64, error) {
 	number := chainHead.Number.Uint64()
 
 	// Retrieve the skeleton bounds and ensure they are linked to the local chain
+	// 获取skeleton bounds并且确保它们连接到local chain
 	beaconHead, beaconTail, err := d.skeleton.Bounds()
 	if err != nil {
 		// This is a programming error. The chain backfiller was called with an
 		// invalid beacon sync state. Ideally we would panic here, but erroring
 		// gives us at least a remote chance to recover. It's still a big fault!
+		// 这是一个编程错误，chain backfiller用一个错误的beacon sync state被调用
+		// 理想情况下，我们应该在这里panic，但是erroring至少给我们一个remote chance恢复
+		// 这依然是一个big fault
 		log.Error("Failed to retrieve beacon bounds", "err", err)
 		return 0, err
 	}
@@ -254,11 +266,14 @@ func (d *Downloader) findBeaconAncestor() (uint64, error) {
 		return 0, fmt.Errorf("beacon linkup unavailable locally: %d [%x]", beaconTail.Number.Uint64()-1, beaconTail.ParentHash)
 	}
 	// Binary search to find the ancestor
+	// 二分查找来找到ancestor
 	start, end := beaconTail.Number.Uint64()-1, number
 	if number := beaconHead.Number.Uint64(); end > number {
 		// This shouldn't really happen in a healty network, but if the consensus
 		// clients feeds us a shorter chain as the canonical, we should not attempt
 		// to access non-existent skeleton items.
+		// 这个在healty network中不应该存在，但是如果consensus clients给我们一个更短的chain作为
+		// canonical，我们应该不要试着访问一个不存在的skeleton items
 		log.Warn("Beacon head lower than local chain", "beacon", number, "local", end)
 		end = number
 	}
@@ -289,6 +304,8 @@ func (d *Downloader) findBeaconAncestor() (uint64, error) {
 
 // fetchBeaconHeaders feeds skeleton headers to the downloader queue for scheduling
 // until sync errors or is finished.
+// fetchBeaconHeaders将skeleton headers填充给downloader queue用于调度，直到出现sync errors
+// 或者结束
 func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 	head, tail, err := d.skeleton.Bounds()
 	if err != nil {
@@ -298,17 +315,21 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 	// them from the local chain. Note the range should be very short
 	// and it should only happen when there are less than 64 post-merge
 	// blocks in the network.
+	// 一部分的headers不在skeleton space，试着从local chain解析它们，注意range应该非常短
+	// 它应该只会在network中少于64个post-merge blocks的时候发生
 	var localHeaders []*types.Header
 	if from < tail.Number.Uint64() {
 		count := tail.Number.Uint64() - from
 		if count > uint64(fsMinFullBlocks) {
 			return fmt.Errorf("invalid origin (%d) of beacon sync (%d)", from, tail.Number)
 		}
+		// 从local读取beacon headers
 		localHeaders = d.readHeaderRange(tail, int(count))
 		log.Warn("Retrieved beacon headers from local", "from", from, "count", count)
 	}
 	for {
 		// Retrieve a batch of headers and feed it to the header processor
+		// 获取批量的headers并且投喂给header processor
 		var (
 			headers = make([]*types.Header, 0, maxHeadersProcess)
 			hashes  = make([]common.Hash, 0, maxHeadersProcess)
@@ -317,6 +338,7 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 			header := d.skeleton.Header(from)
 
 			// The header is not found in skeleton space, try to find it in local chain.
+			// header在skeleton space中找不到，试着在local chain中进行查找
 			if header == nil && from < tail.Number.Uint64() {
 				dist := tail.Number.Uint64() - from
 				if len(localHeaders) >= int(dist) {
@@ -325,6 +347,7 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 			}
 			// The header is still missing, the beacon sync is corrupted and bail out
 			// the error here.
+			// header依然缺失，beacon sync被破坏了，在这里打出错误
 			if header == nil {
 				return fmt.Errorf("missing beacon header %d", from)
 			}
@@ -333,6 +356,7 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 			from++
 		}
 		if len(headers) > 0 {
+			// 调度新的beacon headers
 			log.Trace("Scheduling new beacon headers", "count", len(headers), "from", from-uint64(len(headers)))
 			select {
 			case d.headerProcCh <- &headerTask{
@@ -344,10 +368,12 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 			}
 		}
 		// If we still have headers to import, loop and keep pushing them
+		// 如果我们还有headers来导入，循环并且持续推送它们
 		if from <= head.Number.Uint64() {
 			continue
 		}
 		// If the pivot block is committed, signal header sync termination
+		// 如果pivot block已经被提交，通知header sync结束
 		if atomic.LoadInt32(&d.committed) == 1 {
 			select {
 			case d.headerProcCh <- nil:
@@ -357,6 +383,7 @@ func (d *Downloader) fetchBeaconHeaders(from uint64) error {
 			}
 		}
 		// State sync still going, wait a bit for new headers and retry
+		// State sync依然在进行，等待新的headers并且重试
 		log.Trace("Pivot not yet committed, waiting...")
 		select {
 		case <-time.After(fsHeaderContCheck):

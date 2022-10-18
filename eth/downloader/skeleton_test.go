@@ -47,6 +47,7 @@ type hookedBackfiller struct {
 
 // newHookedBackfiller creates a hooked backfiller with all callbacks disabled,
 // essentially acting as a noop.
+// newHookedBackfiller创建一个hooked backfiller，所有的回调都被禁止了，本质上是作为一个noop
 func newHookedBackfiller() backfiller {
 	return new(hookedBackfiller)
 }
@@ -55,6 +56,9 @@ func newHookedBackfiller() backfiller {
 // based on the skeleton chain as it might be invalid. The backfiller should
 // gracefully handle multiple consecutive suspends without a resume, even
 // on initial sartup.
+// suspend请求backfiller来中止任何正在运行的full或者snap sync，基于skeleton chain，以为它可能是
+// 非法的，backfiller应该优雅地处理多个consecutive suspends，在没有resume的情况下，即使
+// 在initial startup
 func (hf *hookedBackfiller) suspend() *types.Header {
 	if hf.suspendHook != nil {
 		hf.suspendHook()
@@ -65,6 +69,8 @@ func (hf *hookedBackfiller) suspend() *types.Header {
 // resume requests the backfiller to start running fill or snap sync based on
 // the skeleton chain as it has successfully been linked. Appending new heads
 // to the end of the chain will not result in suspend/resume cycles.
+// resume请求backfiller启动运行full或者snap sync，基于skeleton chain，因为它被成功连接了
+// 扩展新的heads到chain的最后，不会导致suspend/resume cycles
 func (hf *hookedBackfiller) resume() {
 	if hf.resumeHook != nil {
 		hf.resumeHook()
@@ -207,6 +213,7 @@ func (p *skeletonTestPeer) RequestReceipts([]common.Hash, chan *eth.Response) (*
 
 // Tests various sync initialzations based on previous leftovers in the database
 // and announced heads.
+// 测试各种sync initialization，基于之前在数据库中的残留以及announced heads
 func TestSkeletonSyncInit(t *testing.T) {
 	// Create a few key headers
 	var (
@@ -216,10 +223,14 @@ func TestSkeletonSyncInit(t *testing.T) {
 		block50  = &types.Header{Number: big.NewInt(50), ParentHash: block49.Hash()}
 	)
 	tests := []struct {
-		headers  []*types.Header // Database content (beside the genesis)
-		oldstate []*subchain     // Old sync state with various interrupted subchains
-		head     *types.Header   // New head header to announce to reorg to
-		newstate []*subchain     // Expected sync state after the reorg
+		// 数据库的内容（除了genesis）
+		headers []*types.Header // Database content (beside the genesis)
+		// 老的sync state，有着各种被破坏的subchains
+		oldstate []*subchain // Old sync state with various interrupted subchains
+		// 新的head header来announce，用于reorg
+		head *types.Header // New head header to announce to reorg to
+		// 在reorg之后期望的sync state
+		newstate []*subchain // Expected sync state after the reorg
 	}{
 		// Completely empty database with only the genesis set. The sync is expected
 		// to create a single subchain with the requested head.
@@ -356,6 +367,7 @@ func TestSkeletonSyncInit(t *testing.T) {
 	}
 	for i, tt := range tests {
 		// Create a fresh database and initialize it with the starting state
+		// 创建一个新的数据库并且用starting state初始化它
 		db := rawdb.NewMemoryDatabase()
 
 		rawdb.WriteHeader(db, genesis)
@@ -364,19 +376,24 @@ func TestSkeletonSyncInit(t *testing.T) {
 		}
 		if tt.oldstate != nil {
 			blob, _ := json.Marshal(&skeletonProgress{Subchains: tt.oldstate})
+			// 将skeleton sync status写入数据库
 			rawdb.WriteSkeletonSyncStatus(db, blob)
 		}
 		// Create a skeleton sync and run a cycle
+		// 创建一个skeleton sync并且运行一个cycle
 		wait := make(chan struct{})
 
+		// 构建skeleton
 		skeleton := newSkeleton(db, newPeerSet(), nil, newHookedBackfiller())
 		skeleton.syncStarting = func() { close(wait) }
+		// 开始sync
 		skeleton.Sync(tt.head, true)
 
 		<-wait
 		skeleton.Terminate()
 
 		// Ensure the correct resulting sync status
+		// 确保正确的resulting sync status
 		var progress skeletonProgress
 		json.Unmarshal(rawdb.ReadSkeletonSyncStatus(db), &progress)
 

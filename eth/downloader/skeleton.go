@@ -71,6 +71,8 @@ var errTerminated = errors.New("terminated")
 
 // errReorgDenied is returned if an attempt is made to extend the beacon chain
 // with a new header, but it does not link up to the existing sync.
+// errReorgDenied被返回，如果尝试扩展beacon chain，用一个新的header，但是它没有链接到
+// 已经存在的sync
 var errReorgDenied = errors.New("non-forced head reorg denied")
 
 func init() {
@@ -85,11 +87,15 @@ func init() {
 // but may not be linked to the live chain. The skeleton downloader may produce
 // a new one of these every time it is restarted until the subchain grows large
 // enough to connect with a previous subchain.
+// subchain是连续的header chain segment，背后由数据库支持，但是可能没有连接到live chain
+// skeleton downloader可能在每次重启之后生成一个新的，直到subchain长得足够大来连接之前的subchain
 //
 // The subchains use the exact same database namespace and are not disjoint from
 // each other. As such, extending one to overlap the other entails reducing the
 // second one first. This combined buffer model is used to avoid having to move
 // data on disk when two subchains are joined together.
+// subchains使用同样的database namespace并且不是和彼此不连接的，延伸一个和另一个重叠
+// 会首先减小第一个，这种重合的buffer model会用于避免在磁盘中移动data，当两个subchain连接在一起的时候
 type subchain struct {
 	Head uint64      // Block number of the newest header in the subchain
 	Tail uint64      // Block number of the oldest header in the subchain
@@ -100,21 +106,32 @@ type subchain struct {
 // sync. As the skeleton header chain is downloaded backwards, restarts can and
 // will produce temporarily disjoint subchains. There is no way to restart a
 // suspended skeleton sync without prior knowledge of all prior suspension points.
+// skeletonProgress是一个database entry，用于允许暂停以及继续chain sync，因为skeleton header
+// chain是向后下载的，重启可以并且会导致临时的disjoint subchains，没有办法重启一个一个skeleton
+// sync，如果没有所有之前的prior suspension points的知识的话
 type skeletonProgress struct {
+	// 到现在为止下载的subchains
 	Subchains []*subchain // Disjoint subchains downloaded until now
 }
 
 // headUpdate is a notification that the beacon sync should switch to a new target.
+// headUpdate是一个通知，表明beacon sync应该转换到一个新的target
 // The update might request whether to forcefully change the target, or only try to
 // extend it and fail if it's not possible.
+// 这个update可能请求是否强制改变target，或者只是试着扩展它，并且失败，如果不可能的话
 type headUpdate struct {
+	// 用于更新sync update的Header
 	header *types.Header // Header to update the sync target to
-	force  bool          // Whether to force the update or only extend if possible
-	errc   chan error    // Channel to signal acceptance of the new head
+	// 是否强制更新或者只是扩展，如果可能的话
+	force bool // Whether to force the update or only extend if possible
+	// 用于表明新的head是否被接受的channel
+	errc chan error // Channel to signal acceptance of the new head
 }
 
 // headerRequest tracks a pending header request to ensure responses are to
 // actual requests and to validate any security constraints.
+// headerRequest追踪一个pending header request来确保responses是响应真正的requests
+// 并且来校验security constraints
 //
 // Concurrency note: header requests and responses are handled concurrently from
 // the main runloop to allow Keccak256 hash verifications on the peer's thread and
@@ -122,15 +139,24 @@ type headUpdate struct {
 // construct the response without accessing runloop internals (i.e. subchains).
 // That is only included to allow the runloop to match a response to the task being
 // synced without having yet another set of maps.
+// header requests和responses从main runloop被并发处理，来运行Keccak256的hash verification
+// 在peer的thread并且对invalid response进行丢弃，request结构包含了所有的data用于构建response
+// 而不需要访问runloop内部（例如，subchains）
 type headerRequest struct {
+	// 这个request被请求的Peer
 	peer string // Peer to which this request is assigned
-	id   uint64 // Request ID of this request
+	// 这个请求的Request ID
+	id uint64 // Request ID of this request
 
+	// 用于传递成功的response的channel
 	deliver chan *headerResponse // Channel to deliver successful response on
-	revert  chan *headerRequest  // Channel to deliver request failure on
-	cancel  chan struct{}        // Channel to track sync cancellation
-	stale   chan struct{}        // Channel to signal the request was dropped
+	// 用于传递失败的request的channel
+	revert chan *headerRequest // Channel to deliver request failure on
+	cancel chan struct{}       // Channel to track sync cancellation
+	// 用来表明请求已经被丢弃的channel
+	stale chan struct{} // Channel to signal the request was dropped
 
+	// 批量请求的headers的数目
 	head uint64 // Head number of the requested batch of headers
 }
 
@@ -182,17 +208,24 @@ type backfiller interface {
 // a separate entity, not mixed in with the logical sequential transition of the
 // blocks. Once the skeleton is connected to an existing, validated chain, the
 // headers will be moved into the main downloader for filling and execution.
+// 因为skeleton从head反向长回genesis，它由一个单独的实例进行处理，不和blocks的逻辑线性转换关联
+// 一旦skeleton和一个已经存在的，合法的chain连接，headers会被移动到main downloader用于填充和执行
 //
 // Opposed to the original Ethereum block synchronization which is trustless (and
 // uses a master peer to minimize the attack surface), post-merge block sync starts
 // from a trusted head. As such, there is no need for a master peer any more and
 // headers can be requested fully concurrently (though some batches might be
 // discarded if they don't link up correctly).
+// 和原先的Ethereum block同步相反，它是trustless（使用一个master peer来最小化攻击界面），post-merge
+// block sync从一个trusted head开始，这样的话，就不再需要一个master peer并且headers可以完全并发
+// 地请求（尽管有的batches会被抛弃，因为他们没有正确地被连接）
 //
 // Although a skeleton is part of a sync cycle, it is not recreated, rather stays
 // alive throughout the lifetime of the downloader. This allows it to be extended
 // concurrently with the sync cycle, since extensions arrive from an API surface,
 // not from within (vs. legacy Ethereum sync).
+// 尽管skeleton是sync cycle的一部分，它不会被重新创建，而是在downloader的整个生命周期存在
+// 这允许它在sync cycle并发扩展，因为extension从一个API接口到来，而不是来自内部（和传统的Ethereum sync对比）
 //
 // Since the skeleton tracks the entire header chain until it is consumed by the
 // forward block filling, it needs 0.5KB/block storage. At current mainnet sizes
@@ -200,9 +233,14 @@ type backfiller interface {
 // the node's header chain, storing the headers ephemerally until sync finishes
 // is wasted disk IO, but it's a price we're going to pay to keep things simple
 // for now.
+// 因为skeleton追踪整个的header chain，直到它被forward block filling消费，它需要每个block
+// 0.5KB的存储，当前的mainnet的大小，它需要一个disk backend，因为skeleton和node的header chain
+// 分开存储，临时存储headers直到sync结束会浪费磁盘IO，但是这是我们让事情保持简单需要付出的代价
 type skeleton struct {
-	db     ethdb.Database // Database backing the skeleton
-	filler backfiller     // Chain syncer suspended/resumed by head events
+	// skeleton背后的Database
+	db ethdb.Database // Database backing the skeleton
+	// 由head events暂停/启动的Chain syncer
+	filler backfiller // Chain syncer suspended/resumed by head events
 
 	peers *peerSet                   // Set of peers we can sync from
 	idles map[string]*peerConnection // Set of idle peers in the current sync cycle
@@ -213,17 +251,23 @@ type skeleton struct {
 	logged   time.Time         // Timestamp when progress was last logged to the user
 	pulled   uint64            // Number of headers downloaded in this run
 
-	scratchSpace  []*types.Header // Scratch space to accumulate headers in (first = recent)
-	scratchOwners []string        // Peer IDs owning chunks of the scratch space (pend or delivered)
-	scratchHead   uint64          // Block number of the first item in the scratch space
+	scratchSpace []*types.Header // Scratch space to accumulate headers in (first = recent)
+	// Peer IDs拥有批量的scratch space（pend或者delivered）
+	scratchOwners []string // Peer IDs owning chunks of the scratch space (pend or delivered)
+	scratchHead   uint64   // Block number of the first item in the scratch space
 
+	// 当前正在运行请求的Header
 	requests map[uint64]*headerRequest // Header requests currently running
 
+	// 对于新的heads的Notification channel
 	headEvents chan *headUpdate // Notification channel for new heads
-	terminate  chan chan error  // Termination channel to abort sync
-	terminated chan struct{}    // Channel to signal that the syner is dead
+	// 用于中止sync的Termination channel
+	terminate chan chan error // Termination channel to abort sync
+	// 用于表明syncer已经dead的Channel
+	terminated chan struct{} // Channel to signal that the syner is dead
 
 	// Callback hooks used during testing
+	// 用于在测试中使用的callback hooks，在一个sync cycle已经初始化但是没有启动的时候被调用
 	syncStarting func() // callback triggered after a sync cycle is inited but before started
 }
 
@@ -250,6 +294,8 @@ func newSkeleton(db ethdb.Database, peers *peerSet, drop peerDropFn, filler back
 // tear the syncer down. This is required to make the skeleton sync loop once
 // per process but at the same time not start before the beacon chain announces
 // a new (existing) head.
+// startup是一个初始的background loop，等待一个event来启动或者关闭syncer，这是必须的，让
+// skeleton sync loop一次，对于每个process，但是同时不在beacon chain宣布一个新的head之前启动
 func (s *skeleton) startup() {
 	// Close a notification channel so anyone sending us events will know if the
 	// sync loop was torn down for good.
@@ -258,16 +304,20 @@ func (s *skeleton) startup() {
 	// Wait for startup or teardown. This wait might loop a few times if a beacon
 	// client requests sync head extensions, but not forced reorgs (i.e. they are
 	// giving us new payloads without setting a starting head initially).
+	// 等待启动或者teardown，这个wait可能循环多次，如果一个beacon client请求sync head extensions
+	// 但是不强制reorgs（例如它给我们新的payloads，而不初始设置一个starting head）
 	for {
 		select {
 		case errc := <-s.terminate:
 			// No head was announced but Geth is shutting down
+			// 没有head被announced，但是Geth被关闭了
 			errc <- nil
 			return
 
 		case event := <-s.headEvents:
 			// New head announced, start syncing to it, looping every time a current
 			// cycle is terminated due to a chain event (head reorg, old chain merge).
+			// 有新的head announced，启动同步它，循环，每次一个当前的cycle被终止，由于一个chain event
 			if !event.force {
 				event.errc <- errors.New("forced head needed for startup")
 				continue
@@ -332,15 +382,19 @@ func (s *skeleton) Terminate() error {
 // Sync starts or resumes a previous sync cycle to download and maintain a reverse
 // header chain starting at the head and leading towards genesis to an available
 // ancestor.
+// Sync启动或者重启一个之前的sync cycle，来下载并且维护一个反向的header chain，从header启动并且
+// 指向gesis，到一个可用的ancestor
 //
 // This method does not block, rather it just waits until the syncer receives the
 // fed header. What the syncer does with it is the syncer's problem.
+// 这个方法不会阻塞，它只是等待，直到syncer收到fed header，syncer怎么做是syncer的问题
 func (s *skeleton) Sync(head *types.Header, force bool) error {
 	log.Trace("New skeleton head announced", "number", head.Number, "hash", head.Hash(), "force", force)
 	errc := make(chan error)
 
 	select {
 	case s.headEvents <- &headUpdate{header: head, force: force, errc: errc}:
+		// 直到新的header被接受
 		return <-errc
 	case <-s.terminated:
 		return errTerminated
@@ -350,6 +404,8 @@ func (s *skeleton) Sync(head *types.Header, force bool) error {
 // sync is the internal version of Sync that executes a single sync cycle, either
 // until some termination condition is reached, or until the current cycle merges
 // with a previously aborted run.
+// sync是Sync的内部版本，执行一个sync cycle，要么达到一些termination condition，或者直到
+// 当前的cycle和一个之前终止的合并
 func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 	// If we're continuing a previous merge interrupt, just access the existing
 	// old state without initing from disk.
@@ -371,6 +427,7 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 
 	// If the sync is already done, resume the backfiller. When the loop stops,
 	// terminate the backfiller too.
+	// 如果sync已经结束了，继续backfiller，当loop结束的时候，也停止backfiller
 	linked := len(s.progress.Subchains) == 1 &&
 		rawdb.HasBody(s.db, s.progress.Subchains[0].Next, s.scratchHead) &&
 		rawdb.HasReceipts(s.db, s.progress.Subchains[0].Next, s.scratchHead)
@@ -391,6 +448,8 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 	// Create a set of unique channels for this sync cycle. We need these to be
 	// ephemeral so a data race doesn't accidentally deliver something stale on
 	// a persistent channel across syncs (yup, this happened)
+	// 创建一系列的unique channels，对于这个sync cycle，我们需要它们是临时的，这样一个data race
+	// 不会意外地传输一些过时的东西，在一个持久的，跨越多个syncs的channel
 	var (
 		requestFails = make(chan *headerRequest)
 		responses    = make(chan *headerResponse)
@@ -407,6 +466,7 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 	}()
 
 	// Start tracking idle peers for task assignments
+	// 开始追踪idle peers用于task assignments
 	peering := make(chan *peeringEvent, 64) // arbitrary buffer, just some burst protection
 
 	peeringSub := s.peers.SubscribeEvents(peering)
@@ -417,19 +477,24 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 		s.idles[peer.id] = peer
 	}
 	// Nofity any tester listening for startup events
+	// 通知任何tester，在监听startup events
 	if s.syncStarting != nil {
 		s.syncStarting()
 	}
 	for {
 		// Something happened, try to assign new tasks to any idle peers
+		// 发生一些事情，试着将新的tasks赋予任何的idle peers
 		if !linked {
 			s.assignTasks(responses, requestFails, cancel)
 		}
 		// Wait for something to happen
+		// 等待一些事情发生
 		select {
 		case event := <-peering:
 			// A peer joined or left, the tasks queue and allocations need to be
 			// checked for potential assignment or reassignment
+			// 一个peer加入或者离开，task queue以及allocations需要对潜在的assignment或者
+			// reassignment进行检查
 			peerid := event.peer.id
 			if event.join {
 				log.Debug("Joining skeleton peer", "id", peerid)
@@ -450,10 +515,15 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 			// we don't seamlessly integrate reorgs to keep things simple. If the
 			// network starts doing many mini reorgs, it might be worthwhile handling
 			// a limited depth without an error.
+			// 宣布了新的head，试着集成它，如果成功的话，什么都不需要做，因为head只是简单地扩展
+			// last range，现在我们没有无缝集成reorgs，为了让事情保持简单，如果network启动许多
+			// mini reorgs，可能值得处理一个limited depth，而没有错误
 			if reorged := s.processNewHead(event.header, event.force); reorged {
 				// If a reorg is needed, and we're forcing the new head, signal
 				// the syncer to tear down and start over. Otherwise, drop the
 				// non-force reorg.
+				// 如果需要一个reorg，并且我们正在逼近新的head，通知syncer结束并且重启
+				// 否则丢弃non-force reorg
 				if event.force {
 					event.errc <- nil // forced head reorg accepted
 					return event.header, errSyncReorged
@@ -466,6 +536,8 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 			// New head was integrated into the skeleton chain. If the backfiller
 			// is still running, it will pick it up. If it already terminated,
 			// a new cycle needs to be spun up.
+			// 新的head已经集成到了skeleton，如果backfiller仍然在运行，它会拿起它
+			// 如果它已经终止了，一个新的cycle需要被启动
 			if linked {
 				s.filler.resume()
 			}
@@ -839,8 +911,11 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 
 // revertRequests locates all the currently pending reuqests from a particular
 // peer and reverts them, rescheduling for others to fulfill.
+// revertRequests定位所有当前的pending requests，从一个特定的peer，并且恢复它们
+// 重新调度它们到其他peer来填充
 func (s *skeleton) revertRequests(peer string) {
 	// Gather the requests first, revertals need the lock too
+	// 首先收集requests，恢复也需要锁
 	var requests []*headerRequest
 	for _, req := range s.requests {
 		if req.peer == peer {
@@ -868,9 +943,11 @@ func (s *skeleton) scheduleRevertRequest(req *headerRequest) {
 
 // revertRequest cleans up a request and returns all failed retrieval tasks to
 // the scheduler for reassignment.
+// revertRequest清理一个request并且返回所有失败的retrieval tasks到scheduler来进行reassignment
 //
 // Note, this needs to run on the event runloop thread to reschedule to idle peers.
 // On peer threads, use scheduleRevertRequest.
+// 注意这需要运行在event runloop thread来重新调度到idle peers，在peer threads，使用scheduleRevertRequest
 func (s *skeleton) revertRequest(req *headerRequest) {
 	log.Trace("Reverting header request", "peer", req.peer, "reqid", req.id)
 	select {
@@ -882,10 +959,12 @@ func (s *skeleton) revertRequest(req *headerRequest) {
 	close(req.stale)
 
 	// Remove the request from the tracked set
+	// 从tracked set中移除request
 	delete(s.requests, req.id)
 
 	// Remove the request from the tracked set and mark the task as not-pending,
 	// ready for resheduling
+	// 将request从tracked set中移除并且标记task为not-pending，准备好进行重新调度
 	s.scratchOwners[(s.scratchHead-req.head)/requestHeaders] = ""
 }
 
@@ -1162,6 +1241,8 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 // Bounds retrieves the current head and tail tracked by the skeleton syncer.
 // This method is used by the backfiller, whose life cycle is controlled by the
 // skeleton syncer.
+// Bounds获取skeleton syncer追踪的当前的head以及tail，这个方法由backfiller使用，它的lifecycle
+// 由skeleton syncer控制
 //
 // Note, the method will not use the internal state of the skeleton, but will
 // rather blindly pull stuff from the database. This is fine, because the back-
@@ -1169,6 +1250,9 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 // There might be new heads appended, but those are atomic from the perspective
 // of this method. Any head reorg will first tear down the backfiller and only
 // then make the modification.
+// 注意，这个方法不会使用skeleton的内部状态，但是会盲目地从数据库中进行拉取，这没问题，因为
+// backfiller只会在skeleton chain完全下载并且稳定时才运行，可能有新的heads扩展，但是这些都是
+// 原子的，从这个方法的角度，任何head reorg会首先关闭backfiller并且之后才会修改
 func (s *skeleton) Bounds() (head *types.Header, tail *types.Header, err error) {
 	// Read the current sync progress from disk and figure out the current head.
 	// Although there's a lot of error handling here, these are mostly as sanity

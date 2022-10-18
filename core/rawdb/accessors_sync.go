@@ -32,6 +32,7 @@ func ReadSkeletonSyncStatus(db ethdb.KeyValueReader) []byte {
 }
 
 // WriteSkeletonSyncStatus stores the serialized sync status to save at shutdown.
+// WriteSkeletonSyncStatus存储在关闭的时候序列化的sync status
 func WriteSkeletonSyncStatus(db ethdb.KeyValueWriter, status []byte) {
 	if err := db.Put(skeletonSyncStatusKey, status); err != nil {
 		log.Crit("Failed to store skeleton sync status", "err", err)
@@ -61,6 +62,7 @@ func ReadSkeletonHeader(db ethdb.KeyValueReader, number uint64) *types.Header {
 }
 
 // WriteSkeletonHeader stores a block header into the skeleton sync store.
+// WriteSkeletonHeader存储一个block header到skeleton sync store
 func WriteSkeletonHeader(db ethdb.KeyValueWriter, header *types.Header) {
 	data, err := rlp.EncodeToBytes(header)
 	if err != nil {

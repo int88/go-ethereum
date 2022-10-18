@@ -586,6 +586,7 @@ func (d *Downloader) syncWithPeer(p *peerConnection, hash common.Hash, td, ttd *
 		}
 	} else {
 		// In beacon mode, use the skeleton chain for the ancestor lookup
+		// 在beacon mode，使用skeleton chain进行ancestor查找
 		origin, err = d.findBeaconAncestor()
 		if err != nil {
 			return err
