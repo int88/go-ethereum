@@ -37,8 +37,12 @@ import (
 // about using too much memory. The only catch is that we can only validate gaps
 // afer they're linked to the head, so the bigger the scratch space, the larger
 // potential for invalid headers.
+// scratchHeaders是在scratch space中存储的headers的数目，从而允许并发的下载，一个header大概
+// 0.5KB，因此不用担心消耗太多内存，唯一的陷阱是我们只有在连接到head之后才能检测gaps
+// 因此scratch space越大，invalid headers存在的可能性越大
 //
 // The current scratch space of 131072 headers is expected to use 64MB RAM.
+// 当前的scratch space为131072，期望使用64MB的RAM
 const scratchHeaders = 131072
 
 // requestHeaders is the number of header to request from a remote peer in a single
@@ -46,6 +50,9 @@ const scratchHeaders = 131072
 // capacities when picking idlers, the packet size was decided to remain constant
 // since headers are relatively small and it's easier to work with fixed batches
 // vs. dynamic interval fillings.
+// requestHeaders是在单个network packet中从一个remote peer中请求的headers的数目，尽管
+// 在选择idlers的时候，skeleton downloader会考虑peer capacities，packet size依然保持不变
+// 因此Headers相对较小并且fixed batches和dynamic interval fillings相比更简单
 const requestHeaders = 512
 
 // errSyncLinked is an internal helper error to signal that the current sync
@@ -97,7 +104,9 @@ func init() {
 // subchains使用同样的database namespace并且不是和彼此不连接的，延伸一个和另一个重叠
 // 会首先减小第一个，这种重合的buffer model会用于避免在磁盘中移动data，当两个subchain连接在一起的时候
 type subchain struct {
-	Head uint64      // Block number of the newest header in the subchain
+	// 在subchain中最新的header
+	Head uint64 // Block number of the newest header in the subchain
+	// 在subchain中最老的header
 	Tail uint64      // Block number of the oldest header in the subchain
 	Next common.Hash // Block hash of the next oldest header in the subchain
 }
@@ -242,19 +251,24 @@ type skeleton struct {
 	// 由head events暂停/启动的Chain syncer
 	filler backfiller // Chain syncer suspended/resumed by head events
 
-	peers *peerSet                   // Set of peers we can sync from
+	peers *peerSet // Set of peers we can sync from
+	// 当前的sync cyle中一系列的idle peers
 	idles map[string]*peerConnection // Set of idle peers in the current sync cycle
-	drop  peerDropFn                 // Drops a peer for misbehaving
+	// 对于misbehaving的peer进行drop
+	drop peerDropFn // Drops a peer for misbehaving
 
+	// Sync progress tracker用于恢复以及监控
 	progress *skeletonProgress // Sync progress tracker for resumption and metrics
 	started  time.Time         // Timestamp when the skeleton syncer was created
 	logged   time.Time         // Timestamp when progress was last logged to the user
 	pulled   uint64            // Number of headers downloaded in this run
 
+	// 用来累计headers的Scratch space
 	scratchSpace []*types.Header // Scratch space to accumulate headers in (first = recent)
 	// Peer IDs拥有批量的scratch space（pend或者delivered）
 	scratchOwners []string // Peer IDs owning chunks of the scratch space (pend or delivered)
-	scratchHead   uint64   // Block number of the first item in the scratch space
+	// 在scratch space中的第一个item的block number
+	scratchHead uint64 // Block number of the first item in the scratch space
 
 	// 当前正在运行请求的Header
 	requests map[uint64]*headerRequest // Header requests currently running
@@ -299,6 +313,7 @@ func newSkeleton(db ethdb.Database, peers *peerSet, drop peerDropFn, filler back
 func (s *skeleton) startup() {
 	// Close a notification channel so anyone sending us events will know if the
 	// sync loop was torn down for good.
+	// 关闭一个notification channel，这样任何发送给我们event的人都会知道是否sync loop已经关闭了
 	defer close(s.terminated)
 
 	// Wait for startup or teardown. This wait might loop a few times if a beacon
@@ -358,6 +373,8 @@ func (s *skeleton) startup() {
 				default:
 					// Sync either successfully terminated or failed with an unhandled
 					// error. Abort and wait until Geth requests a termination.
+					// Sync要么成功终止或者失败，有着一个未处理的error，中止并且等待，直到
+					// Geth请求一个termination
 					errc := <-s.terminate
 					errc <- err
 					return
@@ -368,13 +385,16 @@ func (s *skeleton) startup() {
 }
 
 // Terminate tears down the syncer indefinitely.
+// Terminate不定期地中止syncer
 func (s *skeleton) Terminate() error {
 	// Request termination and fetch any errors
+	// 请求termination并且获取任何的errors
 	errc := make(chan error)
 	s.terminate <- errc
 	err := <-errc
 
 	// Wait for full shutdown (not necessary, but cleaner)
+	// 等待完整的shutdown（不必要，但是更干净）
 	<-s.terminated
 	return err
 }
@@ -409,15 +429,19 @@ func (s *skeleton) Sync(head *types.Header, force bool) error {
 func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 	// If we're continuing a previous merge interrupt, just access the existing
 	// old state without initing from disk.
+	// 如果我们正在继续一个之前的merge interrupt，只是访问已经存在的old state，而不是从磁盘初始化
 	if head == nil {
 		head = rawdb.ReadSkeletonHeader(s.db, s.progress.Subchains[0].Head)
 	} else {
 		// Otherwise, initialize the sync, trimming and previous leftovers until
 		// we're consistent with the newly requested chain head
+		// 否则，初始化sync，截取并且之前的leftovers直到我们和新请求的chain head一致
 		s.initSync(head)
 	}
 	// Create the scratch space to fill with concurrently downloaded headers
+	// 创建scratch space来填充当前下载的headers
 	s.scratchSpace = make([]*types.Header, scratchHeaders)
+	// 在同步之后，不要维护引用
 	defer func() { s.scratchSpace = nil }() // don't hold on to references after sync
 
 	s.scratchOwners = make([]string, scratchHeaders/requestHeaders)
@@ -457,9 +481,11 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 	cancel := make(chan struct{})
 	defer close(cancel)
 
+	// 开始方向的header sync cycle
 	log.Debug("Starting reverse header sync cycle", "head", head.Number, "hash", head.Hash(), "cont", s.scratchHead)
 
 	// Whether sync completed or not, disregard any future packets
+	// 不管sync是否完成 ，无视任何的future packets
 	defer func() {
 		log.Debug("Terminating reverse header sync cycle", "head", head.Number, "hash", head.Hash(), "cont", s.scratchHead)
 		s.requests = make(map[uint64]*headerRequest)
@@ -507,6 +533,7 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 
 		case errc := <-s.terminate:
 			errc <- nil
+			// 已经被终结了
 			return nil, errTerminated
 
 		case event := <-s.headEvents:
@@ -543,6 +570,7 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 			}
 
 		case req := <-requestFails:
+			// 请求失败了
 			s.revertRequest(req)
 
 		case res := <-responses:
@@ -552,16 +580,22 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 			//
 			// If we managed to link to the existing local chain or genesis block,
 			// abort sync altogether.
+			// 处理批量的headers，如果管理连接到当前的subchain到一个之前下载的，中止sync
+			// 并且重新启动merged subchains
+			// 如果我们管理连接到一个已经存在的local chain或者genesis block，则全部停止sync
 			linked, merged := s.processResponse(res)
 			if linked {
+				// Beacon sync连接到local chain
 				log.Debug("Beacon sync linked to local chain")
 				return nil, errSyncLinked
 			}
 			if merged {
+				// beacon sync合并了subchain
 				log.Debug("Beacon sync merged subchains")
 				return nil, errSyncMerged
 			}
 			// We still have work to do, loop and repeat
+			// 我们依然有工作要做，loop并且重复
 		}
 	}
 }
@@ -569,8 +603,11 @@ func (s *skeleton) sync(head *types.Header) (*types.Header, error) {
 // initSync attempts to get the skeleton sync into a consistent state wrt any
 // past state on disk and the newly requested head to sync to. If the new head
 // is nil, the method will return and continue from the previous head.
+// initSync试着将skeleton同步到一个一致的状态，写入磁盘上任何过去的状态，以及新请求的head
+// 用于同步，如果新的head是nil，这个方法会返回并且继续之前的head
 func (s *skeleton) initSync(head *types.Header) {
 	// Extract the head number, we'll need it all over
+	// 抽取出head number，我们需要它
 	number := head.Number.Uint64()
 
 	// Retrieve the previously saved sync progress
@@ -642,6 +679,8 @@ func (s *skeleton) initSync(head *types.Header) {
 	// Either we've failed to decode the previus state, or there was none. Start
 	// a fresh sync with a single subchain represented by the currently sent
 	// chain head.
+	// 要么解码之前的状态失败，或者没有之前的状态，启动一个fresh sync，用当前发送的chain head
+	// 作为single subchain
 	s.progress = &skeletonProgress{
 		Subchains: []*subchain{
 			{
@@ -663,6 +702,7 @@ func (s *skeleton) initSync(head *types.Header) {
 }
 
 // saveSyncStatus marshals the remaining sync tasks into leveldb.
+// saveSyncStatus序列化剩余的sync tasks到leveldb
 func (s *skeleton) saveSyncStatus(db ethdb.KeyValueWriter) {
 	status, err := json.Marshal(s.progress)
 	if err != nil {
@@ -675,6 +715,9 @@ func (s *skeleton) saveSyncStatus(db ethdb.KeyValueWriter) {
 // accepts and integrates it into the skeleton or requests a reorg. Upon reorg,
 // the syncer will tear itself down and restart with a fresh head. It is simpler
 // to reconstruct the sync state than to mutate it and hope for the best.
+// processNewHead做internal shuffling，对于一个新的head marker，要么接收并且集成它到
+// skeleton中，要么请求一个reorg，对于reorg，syncer会停止自己并且用一个新的head重启
+// 重新构建sync state比修改它来得更简单
 func (s *skeleton) processNewHead(head *types.Header, force bool) bool {
 	// If the header cannot be inserted without interruption, return an error for
 	// the outer loop to tear down the skeleton sync and restart it
@@ -725,8 +768,10 @@ func (s *skeleton) processNewHead(head *types.Header, force bool) bool {
 }
 
 // assignTasks attempts to match idle peers to pending header retrievals.
+// assignTasks试着匹配idle peers和pending header retrievals
 func (s *skeleton) assignTasks(success chan *headerResponse, fail chan *headerRequest, cancel chan struct{}) {
 	// Sort the peers by download capacity to use faster ones if many available
+	// 对peers的下载能力进行排序，使用更快的peers，如果有许多peer可用的话
 	idlers := &peerCapacitySort{
 		peers: make([]*peerConnection, 0, len(s.idles)),
 		caps:  make([]int, 0, len(s.idles)),
@@ -737,31 +782,38 @@ func (s *skeleton) assignTasks(success chan *headerResponse, fail chan *headerRe
 		idlers.caps = append(idlers.caps, s.peers.rates.Capacity(peer.id, eth.BlockHeadersMsg, targetTTL))
 	}
 	if len(idlers.peers) == 0 {
+		// 没有peers，直接返回
 		return
 	}
 	sort.Sort(idlers)
 
 	// Find header regions not yet downloading and fill them
+	// 找到还没有下载的header regions并且填充它们
 	for task, owner := range s.scratchOwners {
 		// If we're out of idle peers, stop assigning tasks
+		// 如果我们用完了idle peers，停止分配tasks
 		if len(idlers.peers) == 0 {
 			return
 		}
 		// Skip any tasks already filling
+		// 跳过任何已经在填充的tasks
 		if owner != "" {
 			continue
 		}
 		// If we've reached the genesis, stop assigning tasks
+		// 如果我们到达了genesis，停止分配tasks
 		if uint64(task*requestHeaders) >= s.scratchHead {
 			return
 		}
 		// Found a task and have peers available, assign it
+		// 找到一个task以及有peers可用，则进行分配
 		idle := idlers.peers[0]
 
 		idlers.peers = idlers.peers[1:]
 		idlers.caps = idlers.caps[1:]
 
 		// Matched a pending task to an idle peer, allocate a unique request id
+		// 匹配一个pending task到一个idle peer，分配一个唯一的request id
 		var reqid uint64
 		for {
 			reqid = uint64(rand.Int63())
@@ -774,6 +826,7 @@ func (s *skeleton) assignTasks(success chan *headerResponse, fail chan *headerRe
 			break
 		}
 		// Generate the network query and send it to the peer
+		// 生成一个network query并且发送到peer
 		req := &headerRequest{
 			peer:    idle.id,
 			id:      reqid,
@@ -781,15 +834,18 @@ func (s *skeleton) assignTasks(success chan *headerResponse, fail chan *headerRe
 			revert:  fail,
 			cancel:  cancel,
 			stale:   make(chan struct{}),
-			head:    s.scratchHead - uint64(task*requestHeaders),
+			// 计算出请求的task的head
+			head: s.scratchHead - uint64(task*requestHeaders),
 		}
 		s.requests[reqid] = req
 		delete(s.idles, idle.id)
 
 		// Generate the network query and send it to the peer
+		// 执行network query并且发送到peer
 		go s.executeTask(idle, req)
 
 		// Inject the request into the task to block further assignments
+		// 注入request到task来阻塞后面的分配
 		s.scratchOwners[task] = idle.id
 	}
 }
@@ -797,6 +853,8 @@ func (s *skeleton) assignTasks(success chan *headerResponse, fail chan *headerRe
 // executeTask executes a single fetch request, blocking until either a result
 // arrives or a timeouts / cancellation is triggered. The method should be run
 // on its own goroutine and will deliver on the requested channels.
+// executeTask执行单个的fetch request，阻塞直到一个result到达或者触发了一个timeouts/cancellation
+// 这个方法应该在它自己的goroutine运行并且会在请求的channels进行传输
 func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 	start := time.Now()
 	resCh := make(chan *eth.Response)
@@ -805,6 +863,9 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 	// but for the very tail of the chain, trim the request to the number left.
 	// Since nodes may or may not return the genesis header for a batch request,
 	// don't even request it. The parent hash of block #1 is enough to link.
+	// 搞清楚要抓取的headers，通常会是一个full batch，但是对于very tail of the chain
+	// 修剪request到剩下的number，因为nodes可能会或者不会返回一个batch request的genesis header
+	// 甚至不要请求它，block #1的parent hash足够进行link
 	requestCount := requestHeaders
 	if req.head < requestHeaders {
 		requestCount = int(req.head)
@@ -813,12 +874,14 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 	netreq, err := peer.peer.RequestHeadersByNumber(req.head, requestCount, 0, true, resCh)
 	if err != nil {
 		peer.log.Trace("Failed to request headers", "err", err)
+		// 重新调度revert request
 		s.scheduleRevertRequest(req)
 		return
 	}
 	defer netreq.Close()
 
 	// Wait until the response arrives, the request is cancelled or times out
+	// 等待直到response到达，request被取消或者超时
 	ttl := s.peers.rates.TargetTimeout()
 
 	timeoutTimer := time.NewTimer(ttl)
@@ -831,6 +894,7 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 
 	case <-timeoutTimer.C:
 		// Header retrieval timed out, update the metrics
+		// Header获取超时，更新metrics
 		peer.log.Warn("Header request timed out, dropping peer", "elapsed", ttl)
 		headerTimeoutMeter.Mark(1)
 		s.peers.rates.Update(peer.id, eth.BlockHeadersMsg, 0, 0)
@@ -845,19 +909,23 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 		// gone stale and monitor them. However, in that case too, we need a way
 		// to protect against malicious peers never responding, so it would need
 		// a second, hard-timeout mechanism.
+		// 对peer进行丢弃
 		s.drop(peer.id)
 
 	case res := <-resCh:
 		// Headers successfully retrieved, update the metrics
+		// Headers成功被获取，更新metrics
 		headers := *res.Res.(*eth.BlockHeadersPacket)
 
 		headerReqTimer.Update(time.Since(start))
 		s.peers.rates.Update(peer.id, eth.BlockHeadersMsg, res.Time, len(headers))
 
 		// Cross validate the headers with the requests
+		// 用requests交叉验证headers
 		switch {
 		case len(headers) == 0:
 			// No headers were delivered, reject the response and reschedule
+			// 没有headers被传输，拒绝response并且重新调度
 			peer.log.Debug("No headers delivered")
 			res.Done <- errors.New("no headers delivered")
 			s.scheduleRevertRequest(req)
@@ -876,6 +944,7 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 
 		case req.head < requestHeaders && uint64(len(headers)) != req.head:
 			// Invalid number of genesis headers delivered, reject the response and reschedule
+			// 非法的genesis header传输，拒绝response并且重新调度
 			peer.log.Debug("Invalid genesis header count", "have", len(headers), "want", headers[0].Number.Uint64())
 			res.Done <- errors.New("not enough genesis headers delivered")
 			s.scheduleRevertRequest(req)
@@ -883,6 +952,8 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 		default:
 			// Packet seems structurally valid, check hash progression and if it
 			// is correct too, deliver for storage
+			// Packet的结构看起来是正确的，检查hash progression并且如果它是正确的 ，
+			// 传输用于存储
 			for i := 0; i < len(headers)-1; i++ {
 				if headers[i].ParentHash != headers[i+1].Hash() {
 					peer.log.Debug("Invalid hash progression", "index", i, "wantparenthash", headers[i].ParentHash, "haveparenthash", headers[i+1].Hash())
@@ -895,9 +966,13 @@ func (s *skeleton) executeTask(peer *peerConnection, req *headerRequest) {
 			// downloading batches concurrently (so no way to link the headers
 			// until gaps are filled); in that case, we'll nuke the peer when
 			// we detect the fault.
+			// Hash chain是合法的，delivery仍然可能是垃圾，因为我们并发地下载batches
+			// 因此没有办法对headers进行连接，直到gaps被填充，在这种情况下，我们会nuke the peer
+			// 当我们检测到失败的时候
 			res.Done <- nil
 
 			select {
+			// 将response发送给req.deliver
 			case req.deliver <- &headerResponse{
 				peer:    peer,
 				reqid:   req.id,
@@ -923,6 +998,7 @@ func (s *skeleton) revertRequests(peer string) {
 		}
 	}
 	// Revert all the requests matching the peer
+	// Revert所有匹配peer的请求
 	for _, req := range requests {
 		s.revertRequest(req)
 	}
@@ -930,14 +1006,19 @@ func (s *skeleton) revertRequests(peer string) {
 
 // scheduleRevertRequest asks the event loop to clean up a request and return
 // all failed retrieval tasks to the scheduler for reassignment.
+// scheduleRevertRequest请求event loop来清理一个request并且返回所有失败的retrieval tasks
+// 来调度用于reassignment
 func (s *skeleton) scheduleRevertRequest(req *headerRequest) {
 	select {
 	case req.revert <- req:
 		// Sync event loop notified
+		// Sync event loop被通知
 	case <-req.cancel:
 		// Sync cycle got cancelled
+		// Sync cycle被取消
 	case <-req.stale:
 		// Request already reverted
+		// 请求已经被取消
 	}
 }
 
@@ -956,6 +1037,7 @@ func (s *skeleton) revertRequest(req *headerRequest) {
 		return
 	default:
 	}
+	// 关闭req.stale
 	close(req.stale)
 
 	// Remove the request from the tracked set
@@ -974,13 +1056,18 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 	// Whether the response is valid, we can mark the peer as idle and notify
 	// the scheduler to assign a new task. If the response is invalid, we'll
 	// drop the peer in a bit.
+	// response是否是合法的，我们可以标记peer为idle并且通知scheduler赋予一个新的task
+	// 如果response是非法的，我们会丢弃peer
 	s.idles[res.peer.id] = res.peer
 
 	// Ensure the response is for a valid request
+	// 确保response是用于一个合法的request
 	if _, ok := s.requests[res.reqid]; !ok {
 		// Some internal accounting is broken. A request either times out or it
 		// gets fulfilled successfully. It should not be possible to deliver a
 		// response to a non-existing request.
+		// 内部的记录出了问题，一个request要么超时或者已经成功被填充了，应该不可能
+		// 传输一个response到一个不存在的request
 		res.peer.log.Error("Unexpected header packet")
 		return false, false
 	}
@@ -988,18 +1075,22 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 
 	// Insert the delivered headers into the scratch space independent of the
 	// content or continuation; those will be validated in a moment
+	// 插入delivered headers到scatch space，独立于内容或者连续性；它们会在之后被校验
 	head := res.headers[0].Number.Uint64()
 	copy(s.scratchSpace[s.scratchHead-head:], res.headers)
 
 	// If there's still a gap in the head of the scratch space, abort
+	// 如果head of the scratch space还是有gap，中止
 	if s.scratchSpace[0] == nil {
 		return false, false
 	}
 	// Try to consume any head headers, validating the boundary conditions
+	// 试着消费任何的head headers，校验边界条件
 	batch := s.db.NewBatch()
 	for s.scratchSpace[0] != nil {
 		// Next batch of headers available, cross-reference with the subchain
 		// we are extending and either accept or discard
+		// 下一批headers可用，用subchain交叉引用，我们正在扩展，要么接收要么丢弃
 		if s.progress.Subchains[0].Next != s.scratchSpace[0].Hash() {
 			// Print a log messages to track what's going on
 			tail := s.progress.Subchains[0].Tail
@@ -1020,6 +1111,7 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 		}
 		// Scratch delivery matches required subchain, deliver the batch of
 		// headers and push the subchain forward
+		// Scratch delivery匹配请求的subchain，传输批量的headers并且推进subchain
 		var consumed int
 		for _, header := range s.scratchSpace[:requestHeaders] {
 			if header != nil { // nil when the genesis is reached
@@ -1057,6 +1149,7 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 
 		// If the beacon chain was linked to the local chain, completely swap out
 		// all internal progress and abort header synchronization.
+		// 如果beacon chain被连接到local chain，完全交换所有的internal progress并且中止header synchronization
 		if linked {
 			// Linking into the local chain should also mean that there are no
 			// leftover subchains, but in the case of importing the blocks via
@@ -1100,6 +1193,7 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 			break
 		}
 		// Batch of headers consumed, shift the download window forward
+		// 消费了Batch of headers，往前提升download window
 		copy(s.scratchSpace, s.scratchSpace[requestHeaders:])
 		for i := 0; i < requestHeaders; i++ {
 			s.scratchSpace[scratchHeaders-i-1] = nil
@@ -1112,6 +1206,8 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 		// If the subchain extended into the next subchain, we need to handle
 		// the overlap. Since there could be many overlaps (come on), do this
 		// in a loop.
+		// 如果subchain被扩展到下一个subchain，我们需要处理overlap，因为会有很多overlaps
+		// 在一个loop里完成
 		for len(s.progress.Subchains) > 1 && s.progress.Subchains[1].Head >= s.progress.Subchains[0].Tail {
 			// Extract some stats from the second subchain
 			head := s.progress.Subchains[1].Head
@@ -1153,6 +1249,7 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 		log.Crit("Failed to write skeleton headers and progress", "err", err)
 	}
 	// Print a progress report making the UX a bit nicer
+	// 输出一个progress report，让UX更好
 	left := s.progress.Subchains[0].Tail - 1
 	if linked {
 		left = 0
@@ -1172,6 +1269,8 @@ func (s *skeleton) processResponse(res *headerResponse) (linked bool, merged boo
 
 // cleanStales removes previously synced beacon headers that have become stale
 // due to the downloader backfilling past the tracked tail.
+// cleanStales移除之前已经同步的beacon headers，它们已经变为stale，因为downloader往回
+// 填充超过了tracked tail
 func (s *skeleton) cleanStales(filled *types.Header) error {
 	number := filled.Number.Uint64()
 	log.Trace("Cleaning stale beacon headers", "filled", number, "hash", filled.Hash())

@@ -186,17 +186,21 @@ func roundCapacity(cap float64) int {
 // measurement. If the delivery is zero, the peer is assumed to have either timed
 // out or to not have the requested data, resulting in a slash to 0 capacity. This
 // avoids assigning the peer retrievals that it won't be able to honour.
+// Update修改peer的capacity value，对一个特定的data类型，基于新的测量，如果delivery为0，peer假设
+// 要么超时，要么没有请求data，导致slash到0 capacity，这避免了分配给一个不能工作的peer
 func (t *Tracker) Update(kind uint64, elapsed time.Duration, items int) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
 	// If nothing was delivered (timeout / unavailable data), reduce throughput
 	// to minimum
+	// 如果没有被传输（超时/数据不可用），减小throughput到最小
 	if items == 0 {
 		t.capacity[kind] = 0
 		return
 	}
 	// Otherwise update the throughput with a new measurement
+	// 用一个新的measurement来更新throughput
 	if elapsed <= 0 {
 		elapsed = 1 // +1 (ns) to ensure non-zero divisor
 	}
@@ -458,6 +462,7 @@ func (t *Trackers) Capacity(id string, kind uint64, targetRTT time.Duration) int
 
 // Update is a helper function to access a specific tracker without having to
 // track it explicitly outside.
+// Update是一个helper函数用于访问一个特定的tracker，而不用在外部追踪它
 func (t *Trackers) Update(id string, kind uint64, elapsed time.Duration, items int) {
 	t.lock.RLock()
 	defer t.lock.RUnlock()

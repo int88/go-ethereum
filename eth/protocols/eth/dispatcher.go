@@ -103,15 +103,22 @@ type cancel struct {
 // Response是对于之前创建的request的一个reply packet，它在由requester subsystem赋值的channel
 // 中传输，并且包含original request从而允许对于caller side的唯一匹配
 type Response struct {
+	// 这个reply对应的Request ID
 	id   uint64    // Request ID to match up this reply to
 	recv time.Time // Timestamp when the request was received
-	code uint64    // Response packet type to cross validate with request
+	// 用于交叉校验request的Response packet类型
+	code uint64 // Response packet type to cross validate with request
 
-	Req  *Request      // Original request to cross-reference with
-	Res  interface{}   // Remote response for the request query
-	Meta interface{}   // Metadata generated locally on the receiver thread
+	// 用于交叉引用的Original request
+	Req *Request // Original request to cross-reference with
+	// 用于request query的Remote response
+	Res interface{} // Remote response for the request query
+	// 在receiver thread本地生成的元数据
+	Meta interface{} // Metadata generated locally on the receiver thread
+	// 请求的服务时间
 	Time time.Duration // Time it took for the request to be served
-	Done chan error    // Channel to signal message handling to the reader
+	// 用于通知reader进行message handling的channel
+	Done chan error // Channel to signal message handling to the reader
 }
 
 // response is a wrapper around a remote Response that has an error channel to

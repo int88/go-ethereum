@@ -220,6 +220,7 @@ func newPeerSet() *peerSet {
 }
 
 // SubscribeEvents subscribes to peer arrival and departure events.
+// SubscribeEvents订阅peer到达以及离开的事件
 func (ps *peerSet) SubscribeEvents(ch chan<- *peeringEvent) event.Subscription {
 	return ps.events.Subscribe(ch)
 }
@@ -312,6 +313,8 @@ func (ps *peerSet) AllPeers() []*peerConnection {
 
 // peerCapacitySort implements sort.Interface.
 // It sorts peer connections by capacity (descending).
+// peerCapacitySort实现了sort.Interface接口，它对peer connections按照capacity
+// 进行降序排序
 type peerCapacitySort struct {
 	peers []*peerConnection
 	caps  []int

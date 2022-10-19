@@ -79,21 +79,29 @@ func (hf *hookedBackfiller) resume() {
 
 // skeletonTestPeer is a mock peer that can only serve header requests from a
 // pre-perated header chain (which may be arbitrarily wrong for testing).
+// skeletonTestPeer是一个mock peer，只能利用pre-perated header chain服务header requests
+// (对于测试，可能有错误)
 //
 // Requesting anything else from these peers will hard panic. Note, do *not*
 // implement any other methods. We actually want to make sure that the skeleton
 // syncer only depends on - and will only ever do so - on header requests.
+// 从这些peers请求其他任何东西都会导致hard panic，注意，不要实现任何其他方法，我们想要确保
+// skeleton syncer只依赖这些header requests
 type skeletonTestPeer struct {
 	id      string          // Unique identifier of the mock peer
 	headers []*types.Header // Headers to serve when requested
 
+	// 用于允许custom responses的Hook
 	serve func(origin uint64) []*types.Header // Hook to allow custom responses
 
-	served  uint64 // Number of headers served by this peer
+	// 这个peer服务的headers的数目
+	served uint64 // Number of headers served by this peer
+	// Flag表明这个peer是否被dropped（停止responding）
 	dropped uint64 // Flag whether the peer was dropped (stop responding)
 }
 
 // newSkeletonTestPeer creates a new mock peer to test the skeleton sync with.
+// newSkeletonTestPeer创建一个新的mock peer来测试skeleton sync
 func newSkeletonTestPeer(id string, headers []*types.Header) *skeletonTestPeer {
 	return &skeletonTestPeer{
 		id:      id,
@@ -105,6 +113,8 @@ func newSkeletonTestPeer(id string, headers []*types.Header) *skeletonTestPeer {
 // and sets an optional serve hook that can return headers for delivery instead
 // of the predefined chain. Useful for emulating malicious behavior that would
 // otherwise require dedicated peer types.
+// 设置一个可选的serve hook，设置一个可选的serve hook，可以返回headers用于delivery，而不是
+// predefined chain，对于模拟的malicious behavior，否则会需要特定的peer类型
 func newSkeletonTestPeerWithHook(id string, headers []*types.Header, serve func(origin uint64) []*types.Header) *skeletonTestPeer {
 	return &skeletonTestPeer{
 		id:      id,
@@ -116,6 +126,8 @@ func newSkeletonTestPeerWithHook(id string, headers []*types.Header, serve func(
 // RequestHeadersByNumber constructs a GetBlockHeaders function based on a numbered
 // origin; associated with a particular peer in the download tester. The returned
 // function can be used to retrieve batches of headers from the particular peer.
+// RequestHeadersByNumber构建一个GetBlockHeaders函数，基于一个numbered origin
+// 和downloader tester中一个特定的peer相关联，返回的函数可以用于获取批量的headers，从一个特定的peer
 func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool, sink chan *eth.Response) (*eth.Request, error) {
 	// Since skeleton test peer are in-memory mocks, dropping the does not make
 	// them inaccepssible. As such, check a local `dropped` field to see if the
@@ -127,6 +139,8 @@ func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, ski
 	// This ensures we can follow a clean parent progression without any reorg
 	// hiccups. There is no need for any other type of header retrieval, so do
 	// panic if there's such a request.
+	// Skeleton sync获取批量的headers，没有gaps，这确保我们可以follow一个clean parent progression
+	// 而不需要任何的reorg，不需要任何其他类型的header retrieval，因此panic，如果有这样的请求的话
 	if !reverse || skip != 0 {
 		// Note, if other clients want to do these kinds of requests, it's their
 		// problem, it will still work. We just don't want *us* making complicated
@@ -143,23 +157,30 @@ func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, ski
 	// To make concurrency easier, the skeleton syncer always requests fixed size
 	// batches of headers. Panic if the peer is requested an amount other than the
 	// configured batch size (apart from the request leading to the genesis).
+	// 为了让并行更简单，skeleton syncer总是请求fixed size batches of headers，Panic，如果peer
+	// 请求了不是配置的batch size的数目（除了请求到genesis的请求）
 	if amount > requestHeaders || (amount < requestHeaders && origin > uint64(amount)) {
 		panic(fmt.Sprintf("non-chunk size header batch requested: requested %d, want %d, origin %d", amount, requestHeaders, origin))
 	}
 	// Simple reverse header retrieval. Fill from the peer's chain and return.
 	// If the tester has a serve hook set, try to use that before falling back
 	// to the default behavior.
+	// 简单地反向获取header，填充peer的chain并且返回，如果tester设置了一个serve hook，试着
+	// 使用它，在回退到default behavior之前
 	var headers []*types.Header
 	if p.serve != nil {
 		headers = p.serve(origin)
 	}
 	if headers == nil {
 		headers = make([]*types.Header, 0, amount)
+		// 如果我们缺少origin，则我们不服务
 		if len(p.headers) > int(origin) { // Don't serve headers if we're missing the origin
 			for i := 0; i < amount; i++ {
 				// Consider nil headers as a form of attack and withhold them. Nil
 				// cannot be decoded from RLP, so it's not possible to produce an
 				// attack by sending/receiving those over eth.
+				// 考虑headers是一种形式的attack，Nil不能被RLP解码，因此不能通过发送/接收
+				// nil基于eth来生成一个攻击
 				header := p.headers[int(origin)-i]
 				if header == nil {
 					continue
@@ -175,6 +196,7 @@ func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, ski
 		hashes[i] = header.Hash()
 	}
 	// Deliver the headers to the downloader
+	// 传输headers到downloader
 	req := &eth.Request{
 		Peer: p.id,
 	}
@@ -188,7 +210,9 @@ func (p *skeletonTestPeer) RequestHeadersByNumber(origin uint64, amount int, ski
 	go func() {
 		sink <- res
 		if err := <-res.Done; err != nil {
+			// Skeleton test的peer response被拒绝了
 			log.Warn("Skeleton test peer response rejected", "err", err)
+			// peer response被拒绝了
 			atomic.AddUint64(&p.dropped, 1)
 		}
 	}()
@@ -531,11 +555,13 @@ func TestSkeletonSyncExtend(t *testing.T) {
 
 // Tests that the skeleton sync correctly retrieves headers from one or more
 // peers without duplicates or other strange side effects.
+// 测试skeleton sync能正确地从一个或者多个peers获取headers，没有重复或者其他奇怪的副作用
 func TestSkeletonSyncRetrievals(t *testing.T) {
 	log.Root().SetHandler(log.LvlFilterHandler(log.LvlTrace, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	// Since skeleton headers don't need to be meaningful, beyond a parent hash
 	// progression, create a long fake chain to test with.
+	// 因为skeleton headers不一定要有意义，除了parent hash的处理，创建一个long fake chain进行测试
 	chain := []*types.Header{{Number: big.NewInt(0)}}
 	for i := 1; i < 10000; i++ {
 		chain = append(chain, &types.Header{
@@ -544,27 +570,38 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		})
 	}
 	tests := []struct {
-		headers  []*types.Header // Database content (beside the genesis)
-		oldstate []*subchain     // Old sync state with various interrupted subchains
+		headers []*types.Header // Database content (beside the genesis)
+		// 有多个断开的subchains的old sync state
+		oldstate []*subchain // Old sync state with various interrupted subchains
 
-		head     *types.Header       // New head header to announce to reorg to
-		peers    []*skeletonTestPeer // Initial peer set to start the sync with
-		midstate []*subchain         // Expected sync state after initial cycle
-		midserve uint64              // Expected number of header retrievals after initial cycle
-		middrop  uint64              // Expectd number of peers dropped after initial cycle
+		// 声明要reorg to的head header
+		head  *types.Header       // New head header to announce to reorg to
+		peers []*skeletonTestPeer // Initial peer set to start the sync with
+		// 在初始化之后期望的sync state
+		midstate []*subchain // Expected sync state after initial cycle
+		// initial cycle之后期望的header retrievals数目
+		midserve uint64 // Expected number of header retrievals after initial cycle
+		// initial cycle之后期望的peers dropped数目
+		middrop uint64 // Expectd number of peers dropped after initial cycle
 
-		newHead  *types.Header     // New header to annount on top of the old one
-		newPeer  *skeletonTestPeer // New peer to join the skeleton syncer
-		endstate []*subchain       // Expected sync state after the post-init event
-		endserve uint64            // Expected number of header retrievals after the post-init event
-		enddrop  uint64            // Expectd number of peers dropped after the post-init event
+		// 发布在老的之上的新的header
+		newHead *types.Header // New header to annount on top of the old one
+		// 新加入到skeleton syncer的peer
+		newPeer *skeletonTestPeer // New peer to join the skeleton syncer
+		// 在post-init事件之后的sync state
+		endstate []*subchain // Expected sync state after the post-init event
+		endserve uint64      // Expected number of header retrievals after the post-init event
+		enddrop  uint64      // Expectd number of peers dropped after the post-init event
 	}{
 		// Completely empty database with only the genesis set. The sync is expected
 		// to create a single subchain with the requested head. No peers however, so
 		// the sync should be stuck without any progression.
+		// sync期望创建一个subchain，没有请求的head，然而没有peers，因此sync应该阻塞而没有任何
+		// 进展
 		//
 		// When a new peer is added, it should detect the join and fill the headers
 		// to the genesis block.
+		// 当一个新的peer被添加，它应该检测到peer的加入并且填充headers到genesis block
 		{
 			head:     chain[len(chain)-1],
 			midstate: []*subchain{{Head: uint64(len(chain) - 1), Tail: uint64(len(chain) - 1)}},
@@ -576,8 +613,11 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// Completely empty database with only the genesis set. The sync is expected
 		// to create a single subchain with the requested head. With one valid peer,
 		// the sync is expected to complete already in the initial round.
+		// 完全空的database，只有genesis set，sync期望创建一个有着请求的head的subchain，有一个
+		// 合法的peer，sync期望在initial round中就全部完成
 		//
 		// Adding a second peer should not have any effect.
+		// 添加第二个peer不会有任何的影响
 		{
 			head:     chain[len(chain)-1],
 			peers:    []*skeletonTestPeer{newSkeletonTestPeer("test-peer-1", chain)},
@@ -591,6 +631,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// Completely empty database with only the genesis set. The sync is expected
 		// to create a single subchain with the requested head. With many valid peers,
 		// the sync is expected to complete already in the initial round.
+		// 有多个合法的peers，sync期望在initial round就完成
 		//
 		// Adding a new peer should not have any effect.
 		{
@@ -610,8 +651,11 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// This test checks if a peer tries to withhold a header - *on* the sync
 		// boundary - instead of sending the requested amount. The malicious short
 		// package should not be accepted.
+		// 如果一个peer试着暂扣一个header - 在sync boundary - 而不是发送requested amount
+		// malicious short package不应该被接收
 		//
 		// Joining with a new peer should however unblock the sync.
+		// 新加入一个peer应该unblock the sync
 		{
 			head: chain[requestHeaders+100],
 			peers: []*skeletonTestPeer{
@@ -781,15 +825,18 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 	}
 	for i, tt := range tests {
 		// Create a fresh database and initialize it with the starting state
+		// 创建一个新的database并且用starting state初始化
 		db := rawdb.NewMemoryDatabase()
 		rawdb.WriteHeader(db, chain[0])
 
 		// Create a peer set to feed headers through
+		// 创建一个peer set来feed headers
 		peerset := newPeerSet()
 		for _, peer := range tt.peers {
 			peerset.Register(newPeerConnection(peer.id, eth.ETH66, peer, log.New("id", peer.id)))
 		}
 		// Create a peer dropper to track malicious peers
+		// 创建一个peer dropper来追踪mailicous peers
 		dropped := make(map[string]int)
 		drop := func(peer string) {
 			if p := peerset.Peer(peer); p != nil {
@@ -799,12 +846,15 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 			dropped[peer]++
 		}
 		// Create a skeleton sync and run a cycle
+		// 创建一个skeleton sync并且运行一个cycle
 		skeleton := newSkeleton(db, peerset, drop, newHookedBackfiller())
 		skeleton.Sync(tt.head, true)
 
 		var progress skeletonProgress
-		// Wait a bit (bleah) for the initial sync loop to go to idle. This might
+		// Wait a bit (bleah) for the initial sync loop t go to idle. This might
 		// be either a finish or a never-start hence why there's no event to hook.
+		// 等待initial sync loop变为idle，这可能是一个finish或者一个never-start，因为
+		// 这是为什么没有event进行hook
 		check := func() error {
 			if len(progress.Subchains) != len(tt.midstate) {
 				return fmt.Errorf("test %d, mid state: subchain count mismatch: have %d, want %d", i, len(progress.Subchains), len(tt.midstate))
@@ -849,6 +899,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 			t.Errorf("test %d, mid state: dropped peers mismatch: have %d, want %d", i, drops, tt.middrop)
 		}
 		// Apply the post-init events if there's any
+		// 应用post-init，如果有的话
 		if tt.newHead != nil {
 			skeleton.Sync(tt.newHead, true)
 		}
@@ -859,6 +910,8 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		}
 		// Wait a bit (bleah) for the second sync loop to go to idle. This might
 		// be either a finish or a never-start hence why there's no event to hook.
+		// 等待第二个sync loop变为idle，这可能是一个finish或者一个never-start，因此这是
+		// 没有event进行hook的原因
 		check = func() error {
 			if len(progress.Subchains) != len(tt.endstate) {
 				return fmt.Errorf("test %d, end state: subchain count mismatch: have %d, want %d", i, len(progress.Subchains), len(tt.endstate))
@@ -877,6 +930,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		for waitTime := 20 * time.Millisecond; time.Since(waitStart) < time.Second; waitTime = waitTime * 2 {
 			time.Sleep(waitTime)
 			// Check the post-init end state if it matches the required results
+			// 检查post-init end state，如果它匹配所需的results
 			json.Unmarshal(rawdb.ReadSkeletonSyncStatus(db), &progress)
 			if err := check(); err == nil {
 				break
@@ -887,6 +941,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 			continue
 		}
 		// Check that the peers served no more headers than we actually needed
+		// 确认peers没有提供超过我们需要的headers
 		served = 0
 		for _, peer := range tt.peers {
 			served += atomic.LoadUint64(&peer.served)
@@ -908,6 +963,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 			t.Errorf("test %d, end state: dropped peers mismatch: have %d, want %d", i, drops, tt.middrop)
 		}
 		// Clean up any leftover skeleton sync resources
+		// 清理任何留下的skeleton sync resources
 		skeleton.Terminate()
 	}
 }
