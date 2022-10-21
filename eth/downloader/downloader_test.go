@@ -91,6 +91,7 @@ func newTesterWithNotification(t *testing.T, success func()) *downloadTester {
 
 // terminate aborts any operations on the embedded downloader and releases all
 // held resources.
+// terminate中止任何的操作，在embedded downloader并且释放所有占有的资源
 func (dl *downloadTester) terminate() {
 	dl.downloader.Terminate()
 	dl.chain.Stop()
@@ -1474,6 +1475,7 @@ func testCheckpointEnforcement(t *testing.T, protocol uint, mode SyncMode) {
 
 // Tests that peers below a pre-configured checkpoint block are prevented from
 // being fast-synced from, avoiding potential cheap eclipse attacks.
+// 测试peers在一个提前配置的checkpoint block之下
 func TestBeaconSync66Full(t *testing.T) { testBeaconSync(t, eth.ETH66, FullSync) }
 func TestBeaconSync66Snap(t *testing.T) { testBeaconSync(t, eth.ETH66, SnapSync) }
 
@@ -1481,8 +1483,9 @@ func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 	//log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
 
 	var cases = []struct {
-		name  string // The name of testing scenario
-		local int    // The length of local chain(canonical chain assumed), 0 means genesis is the head
+		name string // The name of testing scenario
+		// local chain的长度（假设是canonical chain），0意味着genesis是head
+		local int // The length of local chain(canonical chain assumed), 0 means genesis is the head
 	}{
 		{name: "Beacon sync since genesis", local: 0},
 		{name: "Beacon sync with short local chain", local: 1},
@@ -1501,6 +1504,7 @@ func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 			tester.newPeer("peer", protocol, chain.blocks[1:])
 
 			// Build the local chain segment if it's required
+			// 构建local chain segment，如果需要的话
 			if c.local > 0 {
 				tester.chain.InsertChain(chain.blocks[1 : c.local+1])
 			}
@@ -1510,6 +1514,7 @@ func testBeaconSync(t *testing.T, protocol uint, mode SyncMode) {
 			select {
 			case <-success:
 				// Ok, downloader fully cancelled after sync cycle
+				// downloader完全取消，在sync cycle之后
 				if bs := int(tester.chain.CurrentBlock().NumberU64()) + 1; bs != len(chain.blocks) {
 					t.Fatalf("synchronised blocks mismatch: have %v, want %v", bs, len(chain.blocks))
 				}

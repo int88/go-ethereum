@@ -244,7 +244,8 @@ func TestSkeletonSyncInit(t *testing.T) {
 		genesis  = &types.Header{Number: big.NewInt(0)}
 		block49  = &types.Header{Number: big.NewInt(49)}
 		block49B = &types.Header{Number: big.NewInt(49), Extra: []byte("B")}
-		block50  = &types.Header{Number: big.NewInt(50), ParentHash: block49.Hash()}
+		// block50的parent是block49
+		block50 = &types.Header{Number: big.NewInt(50), ParentHash: block49.Hash()}
 	)
 	tests := []struct {
 		// 数据库的内容（除了genesis）
@@ -297,6 +298,8 @@ func TestSkeletonSyncInit(t *testing.T) {
 		},
 		// A single leftover subchain is present, newer than the new head. The
 		// newer subchain should be deleted and a fresh one created for the head.
+		// 有单个的leftover subchain，比新的head更新，更新的subchain应该被删除并且一个新的
+		// subchain应该为head创建
 		{
 			oldstate: []*subchain{{Head: 65, Tail: 60}},
 			head:     block50,
@@ -347,6 +350,8 @@ func TestSkeletonSyncInit(t *testing.T) {
 		// A single leftover subchain is present and the new head is extending
 		// it with one more header. We expect the subchain head to be pushed
 		// forward.
+		// 有单个的leftover subchain存在并且新的head用一个新的header扩展，我们期望subchain
+		// head能向前推进
 		{
 			headers:  []*types.Header{block49},
 			oldstate: []*subchain{{Head: 49, Tail: 5}},
@@ -356,6 +361,8 @@ func TestSkeletonSyncInit(t *testing.T) {
 		// A single leftover subchain is present and although the new head does
 		// extend it number wise, the hash chain does not link up. We expect a
 		// new subchain to be created for the dangling head.
+		// 有单个的subchain，并且经过新的head没有扩展number，hash chain没有连接，我们期望
+		// 一个新的subchain被创建，对于dangling head
 		{
 			headers:  []*types.Header{block49B},
 			oldstate: []*subchain{{Head: 49, Tail: 5}},
@@ -369,6 +376,7 @@ func TestSkeletonSyncInit(t *testing.T) {
 		// links into the middle of it, correctly anchoring into an existing
 		// header. We expect the old subchain to be truncated and extended with
 		// the new head.
+		// old chain被截断并且用新的head扩展
 		{
 			headers:  []*types.Header{block49},
 			oldstate: []*subchain{{Head: 100, Tail: 5}},
@@ -379,6 +387,7 @@ func TestSkeletonSyncInit(t *testing.T) {
 		// links into the middle of it, but does not anchor into an existing
 		// header. We expect the old subchain to be truncated and a new chain
 		// be created for the dangling head.
+		// old subchain被截断并且一个新的chain被创建，对于dangling head
 		{
 			headers:  []*types.Header{block49B},
 			oldstate: []*subchain{{Head: 100, Tail: 5}},
@@ -438,6 +447,7 @@ func TestSkeletonSyncInit(t *testing.T) {
 
 // Tests that a running skeleton sync can be extended with properly linked up
 // headers but not with side chains.
+// 测试一个正在运行的skeleton sync可以用恰当的linked up headers进行扩展，而不是side chains
 func TestSkeletonSyncExtend(t *testing.T) {
 	// Create a few key headers
 	var (
@@ -448,7 +458,9 @@ func TestSkeletonSyncExtend(t *testing.T) {
 		block51  = &types.Header{Number: big.NewInt(51), ParentHash: block50.Hash()}
 	)
 	tests := []struct {
-		head     *types.Header // New head header to announce to reorg to
+		// 声明要reorg的head header
+		head *types.Header // New head header to announce to reorg to
+		// 用于扩展的新的head header
 		extend   *types.Header // New head header to announce to extend with
 		newstate []*subchain   // Expected sync state after the reorg
 		err      error         // Whether extension succeeds or not
@@ -470,6 +482,7 @@ func TestSkeletonSyncExtend(t *testing.T) {
 			},
 		},
 		// Initialize a sync and try to extend it with a sibling block.
+		// 初始化一个sync并且试着用一个sibling block进行扩展
 		{
 			head:   block49,
 			extend: block49B,
@@ -489,6 +502,7 @@ func TestSkeletonSyncExtend(t *testing.T) {
 			err: errReorgDenied,
 		},
 		// Initialize a sync and try to extend it with a non-linking future block.
+		// 试着用一个non-linking future block进行扩展
 		{
 			head:   block49,
 			extend: block51,
@@ -498,6 +512,7 @@ func TestSkeletonSyncExtend(t *testing.T) {
 			err: errReorgDenied,
 		},
 		// Initialize a sync and try to extend it with a past canonical block.
+		// 试着用一个过去的canonical block进行扩展
 		{
 			head:   block50,
 			extend: block49,
@@ -507,6 +522,7 @@ func TestSkeletonSyncExtend(t *testing.T) {
 			err: errReorgDenied,
 		},
 		// Initialize a sync and try to extend it with a past sidechain block.
+		// 试着用一个past sidechain block进行扩展
 		{
 			head:   block50,
 			extend: block49B,
@@ -673,8 +689,11 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// This test checks if a peer tries to withhold a header - *off* the sync
 		// boundary - instead of sending the requested amount. The malicious short
 		// package should not be accepted.
+		// 这个测试检查如果一个peer试着暂扣一个header - 在sync boundary之外 - 而不是发送请求的数目
+		// malicious short package不会被接收
 		//
 		// Joining with a new peer should however unblock the sync.
+		// 加入一个新的peer应该unblock the sync
 		{
 			head: chain[requestHeaders+100],
 			peers: []*skeletonTestPeer{
@@ -682,7 +701,8 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 			},
 			midstate: []*subchain{{Head: requestHeaders + 100, Tail: 100}},
 			midserve: requestHeaders + 101 - 3, // len - head - genesis - missing
-			middrop:  1,                        // penalize shortened header deliveries
+			// 处罚shortened header deliveries
+			middrop: 1, // penalize shortened header deliveries
 
 			newPeer:  newSkeletonTestPeer("good-peer", chain),
 			endstate: []*subchain{{Head: requestHeaders + 100, Tail: 1}},
@@ -692,9 +712,12 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// This test checks if a peer tries to duplicate a header - *on* the sync
 		// boundary - instead of sending the correct sequence. The malicious duped
 		// package should not be accepted.
+		// 这个测试检查如果一个peer试着重复一个header - 在sync boundary - 而不是发送正确的sequence
+		// malicious duped package不应该被接收
 		//
 		// Joining with a new peer should however unblock the sync.
 		{
+			// 我们想要第100个header作为一个request boundary
 			head: chain[requestHeaders+100], // We want to force the 100th header to be a request boundary
 			peers: []*skeletonTestPeer{
 				newSkeletonTestPeer("header-duper", append(append(append([]*types.Header{}, chain[:99]...), chain[98]), chain[100:]...)),
@@ -793,6 +816,9 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 		// ahead during subchain merge). In that case it is expected to ignore
 		// the queued up data instead of trying to process on top of a shifted
 		// task set.
+		// 当一个subchain和之前interrupted合并时，导致pending data在scratch space中变为invalid
+		// 因为我们在subchain合并的时候jump ahead，这种情况下，我们期望忽略queued up data
+		// 而不是试着在一个shifted task set之上处理
 		//
 		// The test is a bit convoluted since it needs to trigger a concurrency
 		// issue. First we sync up an initial chain of 2x512 items. Then announce
@@ -806,6 +832,7 @@ func TestSkeletonSyncRetrievals(t *testing.T) {
 					if origin == chain[2*requestHeaders+1].Number.Uint64() {
 						time.Sleep(100 * time.Millisecond)
 					}
+					// 返回到默认的行为，只是延迟
 					return nil // Fallback to default behavior, just delayed
 				}),
 				newSkeletonTestPeerWithHook("peer-2", chain, func(origin uint64) []*types.Header {

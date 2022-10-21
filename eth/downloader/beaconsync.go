@@ -47,6 +47,7 @@ type beaconBackfiller struct {
 }
 
 // newBeaconBackfiller is a helper method to create the backfiller.
+// newBeaconBackfiller是一个helper方法用于创建backfiller
 func newBeaconBackfiller(dl *Downloader, success func()) backfiller {
 	return &beaconBackfiller{
 		downloader: dl,
@@ -83,6 +84,8 @@ func (b *beaconBackfiller) suspend() *types.Header {
 
 	// Sync cycle was just terminated, retrieve and return the last filled header.
 	// Can't use `filled` as that contains a stale value from before cancellation.
+	// Sync cycle刚刚终结，获取并且返回最后填充的header，不能使用`filled`，因为包含一个stale value
+	// 在取消之前
 	return b.downloader.blockchain.CurrentFastBlock().Header()
 }
 

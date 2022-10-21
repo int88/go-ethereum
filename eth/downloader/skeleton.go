@@ -1277,6 +1277,8 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 
 	// If the filled header is below the linked subchain, something's
 	// corrupted internally. Report and error and refuse to do anything.
+	// 如果filled header在linked subchain以下了，则内部出了些问题，报告一个error
+	// 并且拒绝做任何事
 	if number < s.progress.Subchains[0].Tail {
 		return fmt.Errorf("filled header below beacon header tail: %d < %d", number, s.progress.Subchains[0].Tail)
 	}
@@ -1312,6 +1314,8 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 		// The catch is that the sync metadata needs to reflect the actually
 		// flushed state, so temporarily change the subchain progress and
 		// revert after the flush.
+		// 如果batch增长地太大，flush it并且用一个新的batch继续，问题是sync metadata
+		// 需要反映真的flushed state，这样临时的变更subchain progress并且回退，在flush之后
 		if batch.ValueSize() >= ethdb.IdealBatchSize {
 			tmpTail := s.progress.Subchains[0].Tail
 			tmpNext := s.progress.Subchains[0].Next
@@ -1332,6 +1336,7 @@ func (s *skeleton) cleanStales(filled *types.Header) error {
 		rawdb.DeleteSkeletonHeader(batch, n)
 	}
 	if err := batch.Write(); err != nil {
+		// 写入beacon trim data失败
 		log.Crit("Failed to write beacon trim data", "err", err)
 	}
 	return nil
@@ -1374,6 +1379,8 @@ func (s *skeleton) Bounds() (head *types.Header, tail *types.Header, err error) 
 // Header retrieves a specific header tracked by the skeleton syncer. This method
 // is meant to be used by the backfiller, whose life cycle is controlled by the
 // skeleton syncer.
+// Header获取一个特定的headr，由skeleton syncer追踪，这个方法被backfiller使用，它们的生命周期
+// 由skeleton syncer掌控
 //
 // Note, outside the permitted runtimes, this method might return nil results and
 // subsequent calls might return headers from different chains.
