@@ -43,6 +43,7 @@ var (
 )
 
 // Transaction types.
+// Tx的类型
 const (
 	LegacyTxType     = 0x00
 	AccessListTxType = 0x01
@@ -458,6 +459,7 @@ func (tx *Transaction) Time() time.Time {
 }
 
 // Hash returns the transaction hash.
+// Hash返回tx hash
 func (tx *Transaction) Hash() common.Hash {
 	if hash := tx.hash.Load(); hash != nil {
 		return hash.(common.Hash)

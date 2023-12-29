@@ -67,21 +67,25 @@ type accRangeTest struct {
 }
 
 // TestSnapGetAccountRange various forms of GetAccountRange requests.
+// TestSnapGetAccountRange是各种GetAccountRange requests的构成
 func (s *Suite) TestSnapGetAccountRange(t *utesting.T) {
 	var (
 		ffHash = common.MaxHash
 		zero   = common.Hash{}
 
 		// test values derived from chain/ account dump
-		root        = s.chain.Head().Root()
-		headstate   = s.chain.AccountsInHashOrder()
-		firstKey    = common.BytesToHash(headstate[0].AddressHash)
-		secondKey   = common.BytesToHash(headstate[1].AddressHash)
+		// 测试各种来自chain/account dump的值
+		root      = s.chain.Head().Root()
+		headstate = s.chain.AccountsInHashOrder()
+		firstKey  = common.BytesToHash(headstate[0].AddressHash)
+		secondKey = common.BytesToHash(headstate[1].AddressHash)
+		// 找到非空的storage root
 		storageRoot = findNonEmptyStorageRoot(headstate)
 	)
 
 	tests := []accRangeTest{
 		// Tests decreasing the number of bytes
+		// 测试bytes的增长
 		{
 			nBytes:       4000,
 			root:         root,
@@ -90,7 +94,8 @@ func (s *Suite) TestSnapGetAccountRange(t *utesting.T) {
 			expAccounts:  86,
 			expFirst:     firstKey,
 			expLast:      common.HexToHash("0x445cb5c1278fdce2f9cbdb681bdd76c52f8e50e41dbd9e220242a69ba99ac099"),
-			desc:         "In this test, we request the entire state range, but limit the response to 4000 bytes.",
+			// 在这个测试，我们请求整个state range，但是限制response到4000字节
+			desc: "In this test, we request the entire state range, but limit the response to 4000 bytes.",
 		},
 		{
 			nBytes:       3000,
@@ -120,6 +125,7 @@ func (s *Suite) TestSnapGetAccountRange(t *utesting.T) {
 			expAccounts:  1,
 			expFirst:     firstKey,
 			expLast:      firstKey,
+			// server应该返回state的第一个account
 			desc: `In this test, we request the entire state range, but limit the response to 1 byte.
 The server should return the first account of the state.`,
 		},
@@ -131,6 +137,7 @@ The server should return the first account of the state.`,
 			expAccounts:  1,
 			expFirst:     firstKey,
 			expLast:      firstKey,
+			// 我们请求一个responseBytes的limit为0，server应该只返回一个account
 			desc: `Here we request with a responseBytes limit of zero.
 The server should return one account.`,
 		},
@@ -144,6 +151,7 @@ The server should return one account.`,
 			expAccounts:  2,
 			expFirst:     firstKey,
 			expLast:      secondKey,
+			// 在这个测试，我们请求一个range，startingHash在第一个可用的account key之前，并且limitHash在之后，server应该返回state的第一个以及第二个account
 			desc: `In this test, we request a range where startingHash is before the first available
 account key, and limitHash is after. The server should return the first and second
 account of the state (because the second account is the 'next available').`,
@@ -170,6 +178,7 @@ This should return the first account (even though it's out of bounds).`,
 			expAccounts:  1,
 			expFirst:     firstKey,
 			expLast:      firstKey,
+			// 在这个测试中，staringHash和limitHash都是0，server应该返回第一个可用的account
 			desc: `In this test, both startingHash and limitHash are zero.
 The server should return the first available account.`,
 		},
@@ -218,6 +227,7 @@ The server should return the second account of the state as the first item.`,
 			expAccounts:  0,
 			expFirst:     zero,
 			expLast:      zero,
+			// 这个测试请求genesis block的state root，我们期望server不返回数据，因为genesis老于127个blocks
 			desc: `This test requests data at the state root of the genesis block. We expect the
 server to return no data because genesis is older than 127 blocks.`,
 		},
@@ -340,6 +350,7 @@ func (s *Suite) TestSnapGetStorageRanges(t *utesting.T) {
 	)
 
 	// These are the storage slots of the test account, encoded as snap response data.
+	// 这些是test account的storage slots，作为snap response data的编码
 	acctSlots := []*snap.StorageData{
 		{
 			Hash: common.HexToHash("0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3bb5ace"),
@@ -375,6 +386,7 @@ func (s *Suite) TestSnapGetStorageRanges(t *utesting.T) {
 		*/
 
 		{ // [:] -> [slot1, slot2, slot3]
+			// 这个请求的范围是00..ff，server应该返回这个test account的所有storage slots
 			desc: `This request has a range of 00..ff.
 The server should return all storage slots of the test account.`,
 			root:     blockroot,
@@ -386,6 +398,7 @@ The server should return all storage slots of the test account.`,
 		},
 
 		{ // [slot1:] -> [slot1, slot2, slot3]
+			// 这个测试从第一个可用的key开始，server应该返回这个account的所有storage slots
 			desc: `This test requests slots starting at the first available key.
 The server should return all storage slots of the test account.`,
 			root:     blockroot,
@@ -777,6 +790,7 @@ func (s *Suite) snapGetAccountRange(t *utesting.T, tc *accRangeTest) error {
 		return fmt.Errorf("expected %d accounts, got %d", exp, got)
 	}
 	// Check that the encoding order is correct
+	// 确认encoding order是正确的
 	for i := 1; i < len(res.Accounts); i++ {
 		if bytes.Compare(res.Accounts[i-1].Hash[:], res.Accounts[i].Hash[:]) >= 0 {
 			return fmt.Errorf("accounts not monotonically increasing: #%d [%x] vs #%d [%x]", i-1, res.Accounts[i-1].Hash[:], i, res.Accounts[i].Hash[:])
@@ -796,13 +810,16 @@ func (s *Suite) snapGetAccountRange(t *utesting.T, tc *accRangeTest) error {
 	}
 	if len(hashes) > 0 {
 		if exp, got := tc.expFirst, res.Accounts[0].Hash; exp != got {
+			// 期望第一个account的hash匹配
 			return fmt.Errorf("expected first account %#x, got %#x", exp, got)
 		}
 		if exp, got := tc.expLast, res.Accounts[len(res.Accounts)-1].Hash; exp != got {
+			// 期望最后一个account的hash匹配
 			return fmt.Errorf("expected last account %#x, got %#x", exp, got)
 		}
 	}
 	// Reconstruct a partial trie from the response and verify it
+	// 重新从response构建一个partial trie并且校验它
 	keys := make([][]byte, len(hashes))
 	for i, key := range hashes {
 		keys[i] = common.CopyBytes(key[:])
@@ -846,6 +863,7 @@ func (s *Suite) snapGetStorageRanges(t *utesting.T, tc *stRangesTest) error {
 	}
 
 	// Ensure the ranges are monotonically increasing
+	// 确保ranges是单调递增的
 	for i, slots := range res.Slots {
 		for j := 1; j < len(slots); j++ {
 			if bytes.Compare(slots[j-1].Hash[:], slots[j].Hash[:]) >= 0 {
@@ -855,6 +873,7 @@ func (s *Suite) snapGetStorageRanges(t *utesting.T, tc *stRangesTest) error {
 	}
 
 	// Compute expected slot hashes.
+	// 计算期望的slot hashes
 	var expHashes [][]common.Hash
 	for _, acct := range tc.expSlots {
 		var list []common.Hash
@@ -865,6 +884,7 @@ func (s *Suite) snapGetStorageRanges(t *utesting.T, tc *stRangesTest) error {
 	}
 
 	// Check response.
+	// 检查response
 	if !reflect.DeepEqual(res.Slots, tc.expSlots) {
 		t.Log("  expected slot hashes:", expHashes)
 		return fmt.Errorf("wrong storage slots in response: %#v", res.Slots)

@@ -45,6 +45,7 @@ var (
 
 // dial attempts to dial the given node and perform a handshake, returning the
 // created Conn if successful.
+// dial试着dial给定的node并且执行一个handshake，返回创建的Conn，如果成功的话
 func (s *Suite) dial() (*Conn, error) {
 	key, _ := crypto.GenerateKey()
 	return s.dialAs(key)
@@ -52,6 +53,7 @@ func (s *Suite) dial() (*Conn, error) {
 
 // dialAs attempts to dial a given node and perform a handshake using the given
 // private key.
+// dialAs试着连接一个给定的node并且执行握手，使用给定的private key
 func (s *Suite) dialAs(key *ecdsa.PrivateKey) (*Conn, error) {
 	fd, err := net.Dial("tcp", fmt.Sprintf("%v:%d", s.Dest.IP(), s.Dest.TCP()))
 	if err != nil {
@@ -72,7 +74,8 @@ func (s *Suite) dialAs(key *ecdsa.PrivateKey) (*Conn, error) {
 	return &conn, nil
 }
 
-// dialSnap creates a connection with snap/1 capability.
+// dialSnap creates a connection with snap/1 capability.o
+// dialSnap创建一个connection，有snap/1的capability
 func (s *Suite) dialSnap() (*Conn, error) {
 	conn, err := s.dial()
 	if err != nil {
@@ -84,6 +87,7 @@ func (s *Suite) dialSnap() (*Conn, error) {
 }
 
 // Conn represents an individual connection with a peer
+// Conn代表和一个peer的单个连接
 type Conn struct {
 	*rlpx.Conn
 	ourKey                     *ecdsa.PrivateKey
@@ -105,6 +109,7 @@ func (c *Conn) Read() (uint64, []byte, error) {
 }
 
 // ReadMsg attempts to read a devp2p message with a specific code.
+// ReadMsg试着读取一个devp2p message，用一个特定的code
 func (c *Conn) ReadMsg(proto Proto, code uint64, msg any) error {
 	c.SetReadDeadline(time.Now().Add(timeout))
 	for {
@@ -130,6 +135,7 @@ func (c *Conn) Write(proto Proto, code uint64, msg any) error {
 }
 
 // ReadEth reads an Eth sub-protocol wire message.
+// ReadEth读取一个Eth sub-protocol wire message
 func (c *Conn) ReadEth() (any, error) {
 	c.SetReadDeadline(time.Now().Add(timeout))
 	for {
@@ -138,13 +144,16 @@ func (c *Conn) ReadEth() (any, error) {
 			return nil, err
 		}
 		if code == pingMsg {
+			// 对于PingMsg直接返回PongMsg
 			c.Write(baseProto, pongMsg, []byte{})
 			continue
 		}
 		if getProto(code) != ethProto {
 			// Read until eth message.
+			// 直到读到ethProto
 			continue
 		}
+		// eth有一个base proto len
 		code -= baseProtoLen
 
 		var msg any
@@ -174,6 +183,7 @@ func (c *Conn) ReadEth() (any, error) {
 		default:
 			panic(fmt.Sprintf("unhandled eth msg code %d", code))
 		}
+		// 对message进行解码
 		if err := rlp.DecodeBytes(data, msg); err != nil {
 			return nil, fmt.Errorf("unable to decode eth msg: %v", err)
 		}
@@ -225,6 +235,7 @@ func (c *Conn) ReadSnap() (any, error) {
 
 // peer performs both the protocol handshake and the status message
 // exchange with the node in order to peer with it.
+// peer和node执行protocol handshake以及status message交换，为了和它peer
 func (c *Conn) peer(chain *Chain, status *eth.StatusPacket) error {
 	if err := c.handshake(); err != nil {
 		return fmt.Errorf("handshake failed: %v", err)
@@ -236,8 +247,10 @@ func (c *Conn) peer(chain *Chain, status *eth.StatusPacket) error {
 }
 
 // handshake performs a protocol handshake with the node.
+// handshake和node执行一个protocol handshake
 func (c *Conn) handshake() error {
 	// Write hello to client.
+	// 将hello写入client
 	pub0 := crypto.FromECDSAPub(&c.ourKey.PublicKey)[1:]
 	ourHandshake := &protoHandshake{
 		Version: 5,
@@ -248,6 +261,7 @@ func (c *Conn) handshake() error {
 		return fmt.Errorf("write to connection failed: %v", err)
 	}
 	// Read hello from client.
+	// 从client读取hello
 	code, data, err := c.Read()
 	if err != nil {
 		return fmt.Errorf("erroring reading handshake: %v", err)
@@ -259,6 +273,7 @@ func (c *Conn) handshake() error {
 			return fmt.Errorf("error decoding handshake msg: %v", err)
 		}
 		// Set snappy if version is at least 5.
+		// 设置snappy，如果version至少为5
 		if msg.Version >= 5 {
 			c.SetSnappy(true)
 		}
@@ -267,6 +282,7 @@ func (c *Conn) handshake() error {
 			return fmt.Errorf("could not negotiate eth protocol (remote caps: %v, local eth version: %v)", msg.Caps, c.ourHighestProtoVersion)
 		}
 		// If we require snap, verify that it was negotiated.
+		// 如果我们需要snap，确认它被negotiated
 		if c.ourHighestSnapProtoVersion != c.negotiatedSnapProtoVersion {
 			return fmt.Errorf("could not negotiate snap protocol (remote caps: %v, local snap version: %v)", msg.Caps, c.ourHighestSnapProtoVersion)
 		}
@@ -278,6 +294,7 @@ func (c *Conn) handshake() error {
 
 // negotiateEthProtocol sets the Conn's eth protocol version to highest
 // advertised capability from peer.
+// negotiateEthProtocol设置Conn的eth protocol version到peer建议的最高的capability
 func (c *Conn) negotiateEthProtocol(caps []p2p.Cap) {
 	var highestEthVersion uint
 	var highestSnapVersion uint
@@ -298,6 +315,7 @@ func (c *Conn) negotiateEthProtocol(caps []p2p.Cap) {
 }
 
 // statusExchange performs a `Status` message exchange with the given node.
+// statusExchange和给定的node执行一次`Status` message交换
 func (c *Conn) statusExchange(chain *Chain, status *eth.StatusPacket) error {
 loop:
 	for {

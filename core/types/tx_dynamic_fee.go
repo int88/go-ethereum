@@ -25,6 +25,7 @@ import (
 )
 
 // DynamicFeeTx represents an EIP-1559 transaction.
+// DynamicFeeTx代表一个EIP-1559的tx
 type DynamicFeeTx struct {
 	ChainID    *big.Int
 	Nonce      uint64

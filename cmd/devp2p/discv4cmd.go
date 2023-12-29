@@ -233,6 +233,7 @@ func discv4Crawl(ctx *cli.Context) error {
 }
 
 // discv4Test runs the protocol test suite.
+// discv4Test运行协议的test suite
 func discv4Test(ctx *cli.Context) error {
 	// Configure test package globals.
 	if !ctx.IsSet(remoteEnodeFlag.Name) {

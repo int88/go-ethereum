@@ -28,35 +28,41 @@ import (
 
 var (
 	testPatternFlag = &cli.StringFlag{
-		Name:     "run",
+		Name: "run",
+		// 运行test suite(s)的模式
 		Usage:    "Pattern of test suite(s) to run",
 		Category: flags.TestingCategory,
 	}
 	testTAPFlag = &cli.BoolFlag{
-		Name:     "tap",
+		Name: "tap",
+		// 输出测试结果，以TAP形式
 		Usage:    "Output test results in TAP format",
 		Category: flags.TestingCategory,
 	}
 
 	// for eth/snap tests
 	testChainDirFlag = &cli.StringFlag{
-		Name:     "chain",
+		Name: "chain",
+		// chain的目录
 		Usage:    "Test chain directory (required)",
 		Category: flags.TestingCategory,
 	}
 	testNodeFlag = &cli.StringFlag{
-		Name:     "node",
+		Name: "node",
+		// test node的p2p endpoint（需要）
 		Usage:    "Peer-to-Peer endpoint (ENR) of the test node (required)",
 		Category: flags.TestingCategory,
 	}
 	testNodeJWTFlag = &cli.StringFlag{
-		Name:     "jwtsecret",
+		Name: "jwtsecret",
+		// test node的engine API的JWT secret（需要）
 		Usage:    "JWT secret for the engine API of the test node (required)",
 		Category: flags.TestingCategory,
 		Value:    "0x7365637265747365637265747365637265747365637265747365637265747365",
 	}
 	testNodeEngineFlag = &cli.StringFlag{
-		Name:     "engineapi",
+		Name: "engineapi",
+		// test node的API endpoint
 		Usage:    "Engine API endpoint of the test node (required)",
 		Category: flags.TestingCategory,
 	}
@@ -78,6 +84,7 @@ var (
 
 func runTests(ctx *cli.Context, tests []utesting.Test) error {
 	// Filter test cases.
+	// 对测试用例进行过滤
 	if ctx.IsSet(testPatternFlag.Name) {
 		tests = utesting.MatchTests(tests, ctx.String(testPatternFlag.Name))
 	}
@@ -86,6 +93,7 @@ func runTests(ctx *cli.Context, tests []utesting.Test) error {
 		log.SetDefault(log.NewLogger(log.DiscardHandler()))
 	}
 	// Run the tests.
+	// 运行测试
 	var run = utesting.RunTests
 	if ctx.Bool(testTAPFlag.Name) {
 		run = utesting.RunTAP

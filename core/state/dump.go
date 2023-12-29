@@ -48,6 +48,7 @@ type DumpCollector interface {
 }
 
 // DumpAccount represents an account in the state.
+// DumpAccount代表state中的一个account
 type DumpAccount struct {
 	Balance     string                 `json:"balance"`
 	Nonce       uint64                 `json:"nonce"`

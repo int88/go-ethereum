@@ -35,6 +35,7 @@ import (
 )
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block number.
+// ReadCanonicalHash获取赋予给一个canonical block number的hash
 func ReadCanonicalHash(db ethdb.Reader, number uint64) common.Hash {
 	var data []byte
 	db.ReadAncients(func(reader ethdb.AncientReaderOp) error {

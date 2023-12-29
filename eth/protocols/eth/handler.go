@@ -37,6 +37,7 @@ const (
 
 	// maxHeadersServe is the maximum number of block headers to serve. This number
 	// is there to limit the number of disk lookups.
+	// maxHeadersServe是服务的最大的block headers的数目，这个number用于限制disk lookups
 	maxHeadersServe = 1024
 
 	// maxBodiesServe is the maximum number of block bodies to serve. This number

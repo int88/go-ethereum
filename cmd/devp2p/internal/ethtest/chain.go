@@ -45,9 +45,11 @@ import (
 
 // Chain is a lightweight blockchain-like store which can read a hivechain
 // created chain.
+// Chain是一个轻量级的blockchain-like store，可以读取一个hivechain创建的chain
 type Chain struct {
 	genesis core.Genesis
 	blocks  []*types.Block
+	// head block的state
 	state   map[common.Address]state.DumpAccount // state of head block
 	senders map[common.Address]*senderInfo
 	config  *params.ChainConfig
@@ -55,6 +57,7 @@ type Chain struct {
 
 // NewChain takes the given chain.rlp file, and decodes and returns
 // the blocks from the file.
+// NewChain拿给定的chain.rlp文件，并且解码并且返回文件中的blocks
 func NewChain(dir string) (*Chain, error) {
 	gen, err := loadGenesis(path.Join(dir, "genesis.json"))
 	if err != nil {
@@ -177,6 +180,7 @@ func (c *Chain) GetSender(idx int) (common.Address, uint64) {
 }
 
 // IncNonce increases the specified signing account's pending nonce.
+// IncNonce增加指定的signing account的pending nonce
 func (c *Chain) IncNonce(addr common.Address, amt uint64) {
 	if _, ok := c.senders[addr]; !ok {
 		panic("nonce increment for non-signer")
@@ -185,6 +189,7 @@ func (c *Chain) IncNonce(addr common.Address, amt uint64) {
 }
 
 // Balance returns the balance of an account at the head of the chain.
+// Balance返回一个account的balance，在head of the chain
 func (c *Chain) Balance(addr common.Address) *big.Int {
 	bal := new(big.Int)
 	if acc, ok := c.state[addr]; ok {
@@ -195,6 +200,7 @@ func (c *Chain) Balance(addr common.Address) *big.Int {
 
 // SignTx signs a transaction for the specified from account, so long as that
 // account was in the hivechain accounts dump.
+// SignTx对来自from account的给定的tx进行签名，只要account在hivechain的accounts dump
 func (c *Chain) SignTx(from common.Address, tx *types.Transaction) (*types.Transaction, error) {
 	signer := types.LatestSigner(c.config)
 	acc, ok := c.senders[from]
@@ -205,6 +211,7 @@ func (c *Chain) SignTx(from common.Address, tx *types.Transaction) (*types.Trans
 }
 
 // GetHeaders returns the headers base on an ethGetPacketHeadersPacket.
+// GetHeaders返回基于一个ethGetPacketHeadersPacket的headers
 func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, error) {
 	if req.Amount < 1 {
 		return nil, errors.New("no block headers requested")
@@ -214,6 +221,7 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 		blockNumber uint64
 	)
 	// Range over blocks to check if our chain has the requested header.
+	// 从blocks开始遍历，检查我们的chain是否有请求的header
 	for _, block := range c.blocks {
 		if block.Hash() == req.Origin.Hash || block.Number().Uint64() == req.Origin.Number {
 			headers[0] = block.Header()
@@ -223,6 +231,7 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 	if headers[0] == nil {
 		return nil, fmt.Errorf("no headers found for given origin number %v, hash %v", req.Origin.Number, req.Origin.Hash)
 	}
+	// 反向遍历
 	if req.Reverse {
 		for i := 1; i < int(req.Amount); i++ {
 			blockNumber -= (1 - req.Skip)
@@ -230,6 +239,7 @@ func (c *Chain) GetHeaders(req *eth.GetBlockHeadersPacket) ([]*types.Header, err
 		}
 		return headers, nil
 	}
+	// 正向遍历
 	for i := 1; i < int(req.Amount); i++ {
 		blockNumber += (1 + req.Skip)
 		headers[i] = c.blocks[blockNumber].Header()

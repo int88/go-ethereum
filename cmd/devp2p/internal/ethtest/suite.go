@@ -35,6 +35,7 @@ import (
 
 // Suite represents a structure used to test a node's conformance
 // to the eth protocol.
+// Suit代表一个结构用于测试一个node对于eth协议的兼容性
 type Suite struct {
 	Dest   *enode.Node
 	chain  *Chain
@@ -44,6 +45,7 @@ type Suite struct {
 // NewSuite creates and returns a new eth-test suite that can
 // be used to test the given node against the given blockchain
 // data.
+// NewSuite创建并且返回一个新的eth-test suit，可以用于测试给定的node，对于给定的blockchain data
 func NewSuite(dest *enode.Node, chainDir, engineURL, jwt string) (*Suite, error) {
 	chain, err := NewChain(chainDir)
 	if err != nil {
@@ -66,16 +68,20 @@ func (s *Suite) EthTests() []utesting.Test {
 		// status
 		{Name: "TestStatus", Fn: s.TestStatus},
 		// get block headers
+		// 获取block headers
 		{Name: "TestGetBlockHeaders", Fn: s.TestGetBlockHeaders},
 		{Name: "TestSimultaneousRequests", Fn: s.TestSimultaneousRequests},
 		{Name: "TestSameRequestID", Fn: s.TestSameRequestID},
 		{Name: "TestZeroRequestID", Fn: s.TestZeroRequestID},
 		// get block bodies
+		// 获取block bodies
 		{Name: "TestGetBlockBodies", Fn: s.TestGetBlockBodies},
 		// // malicious handshakes + status
+		// 恶意的handshakes和status
 		{Name: "TestMaliciousHandshake", Fn: s.TestMaliciousHandshake},
 		{Name: "TestMaliciousStatus", Fn: s.TestMaliciousStatus},
 		// test transactions
+		// 测试txs
 		{Name: "TestTransaction", Fn: s.TestTransaction},
 		{Name: "TestInvalidTxs", Fn: s.TestInvalidTxs},
 		{Name: "TestLargeTxRequest", Fn: s.TestLargeTxRequest},
@@ -96,6 +102,7 @@ func (s *Suite) SnapTests() []utesting.Test {
 
 // TestStatus attempts to connect to the given node and exchange a status
 // message with it on the eth protocol.
+// TestStatus试着连接给定的node并且交换一个status message，用eth protocol
 func (s *Suite) TestStatus(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -108,12 +115,14 @@ func (s *Suite) TestStatus(t *utesting.T) {
 }
 
 // headersMatch returns whether the received headers match the given request
+// headersMatch返回是否接受到的headers匹配给定的request
 func headersMatch(expected []*types.Header, headers []*types.Header) bool {
 	return reflect.DeepEqual(expected, headers)
 }
 
 // TestGetBlockHeaders tests whether the given node can respond to an eth
 // `GetBlockHeaders` request and that the response is accurate.
+// TestGetBlockHeaders测试是否给定的node可以回复一个eth的`GetBlockHeaders`请求并且response是正确的
 func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -124,6 +133,7 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 		t.Fatalf("peering failed: %v", err)
 	}
 	// Send headers request.
+	// 发送headers request
 	req := &eth.GetBlockHeadersPacket{
 		RequestId: 33,
 		GetBlockHeadersRequest: &eth.GetBlockHeadersRequest{
@@ -145,6 +155,7 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 		t.Fatalf("unexpected request id")
 	}
 	// Check for correct headers.
+	// 检查正确的headers
 	expected, err := s.chain.GetHeaders(req)
 	if err != nil {
 		t.Fatalf("failed to get headers for given request: %v", err)
@@ -157,6 +168,8 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 // TestSimultaneousRequests sends two simultaneous `GetBlockHeader` requests
 // from the same connection with different request IDs and checks to make sure
 // the node responds with the correct headers per request.
+// TestSimultaneousRequests发送两个同时的`GetBlockHeader`请求，来自同一个连接，有着不同的request IDs并且检查node用正确的headers
+// 回复，对于每个request
 func (s *Suite) TestSimultaneousRequests(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -230,6 +243,7 @@ func (s *Suite) TestSimultaneousRequests(t *utesting.T) {
 
 // TestSameRequestID sends two requests with the same request ID to a single
 // node.
+// TestSameRequestID发送两个requests，用同样的request ID，到单个的node
 func (s *Suite) TestSameRequestID(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -286,6 +300,7 @@ func (s *Suite) TestSameRequestID(t *utesting.T) {
 	}
 
 	// Check if headers match.
+	// 检查headers是否匹配
 	if expected, err := s.chain.GetHeaders(request1); err != nil {
 		t.Fatalf("failed to get expected block headers: %v", err)
 	} else if !headersMatch(expected, headers1.BlockHeadersRequest) {
@@ -300,6 +315,7 @@ func (s *Suite) TestSameRequestID(t *utesting.T) {
 
 // TestZeroRequestID checks that a message with a request ID of zero is still handled
 // by the node.
+// TestZeroRequestID检查一个message有着zero的request ID，依然能够被node处理
 func (s *Suite) TestZeroRequestID(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -335,6 +351,7 @@ func (s *Suite) TestZeroRequestID(t *utesting.T) {
 
 // TestGetBlockBodies tests whether the given node can respond to a
 // `GetBlockBodies` request and that the response is accurate.
+// TestGetBlockBodies测试是否给定的node可以回复一个`GetBlockBodies` requst并且reponse是正确的
 func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -356,6 +373,7 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 		t.Fatalf("could not write to connection: %v", err)
 	}
 	// Wait for response.
+	// 等待response
 	resp := new(eth.BlockBodiesPacket)
 	if err := conn.ReadMsg(ethProto, eth.BlockBodiesMsg, &resp); err != nil {
 		t.Fatalf("error reading block bodies msg: %v", err)
@@ -370,6 +388,7 @@ func (s *Suite) TestGetBlockBodies(t *utesting.T) {
 }
 
 // randBuf makes a random buffer size kilobytes large.
+// randBuf构建一个随机的buffer，有size k那么大
 func randBuf(size int) []byte {
 	buf := make([]byte, size*1024)
 	rand.Read(buf)
@@ -377,10 +396,12 @@ func randBuf(size int) []byte {
 }
 
 // TestMaliciousHandshake tries to send malicious data during the handshake.
+// TestMaliciousHandshake试着在握手期间发送malicious data
 func (s *Suite) TestMaliciousHandshake(t *utesting.T) {
 	key, _ := crypto.GenerateKey()
 
 	// Write hello to client.
+	// 写hello到client
 	var (
 		pub0    = crypto.FromECDSAPub(&key.PublicKey)[1:]
 		version = eth.ProtocolVersions[0]
@@ -433,16 +454,19 @@ func (s *Suite) TestMaliciousHandshake(t *utesting.T) {
 			t.Fatalf("could not write to connection: %v", err)
 		}
 		// Check that the peer disconnected
+		// 检查peer是disconnected
 		for i := 0; i < 2; i++ {
 			code, _, err := conn.Read()
 			if err != nil {
 				// Client may have disconnected without sending disconnect msg.
+				// Client可能已经断连了，而没有发送disconnect msg
 				continue
 			}
 			switch code {
 			case discMsg:
 			case handshakeMsg:
 				// Discard one hello as Hello's are sent concurrently
+				// 丢弃一个hello，因为Hello是并行发送的
 				continue
 			default:
 				t.Fatalf("unexpected msg: code %d", code)
@@ -452,6 +476,7 @@ func (s *Suite) TestMaliciousHandshake(t *utesting.T) {
 }
 
 // TestMaliciousStatus sends a status package with a large total difficulty.
+// TestMaliciousStatus发送一个status pkg，有一个大的td
 func (s *Suite) TestMaliciousStatus(t *utesting.T) {
 	conn, err := s.dial()
 	if err != nil {
@@ -462,6 +487,7 @@ func (s *Suite) TestMaliciousStatus(t *utesting.T) {
 		t.Fatalf("handshake failed: %v", err)
 	}
 	// Create status with large total difficulty.
+	// 创建status，有着大的td
 	status := &eth.StatusPacket{
 		ProtocolVersion: uint32(conn.negotiatedProtoVersion),
 		NetworkID:       s.chain.config.ChainID.Uint64(),
@@ -474,6 +500,7 @@ func (s *Suite) TestMaliciousStatus(t *utesting.T) {
 		t.Fatalf("status exchange failed: %v", err)
 	}
 	// Wait for disconnect.
+	// 等待disconnect
 	code, _, err := conn.Read()
 	if err != nil {
 		t.Fatalf("error reading from connection: %v", err)
@@ -488,8 +515,10 @@ func (s *Suite) TestMaliciousStatus(t *utesting.T) {
 
 // TestTransaction sends a valid transaction to the node and checks if the
 // transaction gets propagated.
+// TestTransaction发送一个合法的tx到node并且检查是否tx被传播了
 func (s *Suite) TestTransaction(t *utesting.T) {
 	// Nudge client out of syncing mode to accept pending txs.
+	// Nudge client在syncing mode之外接收pending txs
 	if err := s.engine.sendForkchoiceUpdated(); err != nil {
 		t.Fatalf("failed to send next block: %v", err)
 	}
@@ -507,6 +536,7 @@ func (s *Suite) TestTransaction(t *utesting.T) {
 	if err != nil {
 		t.Fatalf("failed to sign tx: %v", err)
 	}
+	// 发送txs
 	if err := s.sendTxs([]*types.Transaction{tx}); err != nil {
 		t.Fatal(err)
 	}
@@ -515,8 +545,10 @@ func (s *Suite) TestTransaction(t *utesting.T) {
 
 // TestInvalidTxs sends several invalid transactions and tests whether
 // the node will propagate them.
+// TestInvalidTxs发送若干非法的txs并且测试是否node会传播他们
 func (s *Suite) TestInvalidTxs(t *utesting.T) {
 	// Nudge client out of syncing mode to accept pending txs.
+	// 接收pending txs
 	if err := s.engine.sendForkchoiceUpdated(); err != nil {
 		t.Fatalf("failed to send next block: %v", err)
 	}
@@ -541,6 +573,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 
 	inners := []*types.DynamicFeeTx{
 		// Nonce already used
+		// 已经使用的Nonce
 		{
 			ChainID:   s.chain.config.ChainID,
 			Nonce:     nonce - 1,
@@ -549,6 +582,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 			Gas:       100000,
 		},
 		// Value exceeds balance
+		// Value超过了balance
 		{
 			Nonce:     nonce,
 			GasTipCap: common.Big1,
@@ -557,6 +591,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 			Value:     s.chain.Balance(from),
 		},
 		// Gas limit too low
+		// Gas limit太低
 		{
 			Nonce:     nonce,
 			GasTipCap: common.Big1,
@@ -564,6 +599,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 			Gas:       1337,
 		},
 		// Code size too large
+		// Code size太大
 		{
 			Nonce:     nonce,
 			GasTipCap: common.Big1,
@@ -572,6 +608,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 			Gas:       1_000_000,
 		},
 		// Data too large
+		// Data太大
 		{
 			Nonce:     nonce,
 			GasTipCap: common.Big1,
@@ -597,6 +634,7 @@ func (s *Suite) TestInvalidTxs(t *utesting.T) {
 
 // TestLargeTxRequest tests whether a node can fulfill a large GetPooledTransactions
 // request.
+// TestLargeTxRequest测试是否一个node可以填充一个大的GetPooledTransactions请求
 func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 	// Nudge client out of syncing mode to accept pending txs.
 	if err := s.engine.sendForkchoiceUpdated(); err != nil {
@@ -604,6 +642,7 @@ func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 	}
 
 	// Generate many transactions to seed target with.
+	// 生成很多的txs来填充target
 	var (
 		from, nonce = s.chain.GetSender(1)
 		count       = 2000
@@ -636,6 +675,7 @@ func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 
 	// Set up receive connection to ensure node is peered with the receiving
 	// connection before tx request is sent.
+	// 设置receive connection来确保node已经有了receiving connection，在发送tx之前
 	conn, err := s.dial()
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -645,6 +685,7 @@ func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 		t.Fatalf("peering failed: %v", err)
 	}
 	// Create and send pooled tx request.
+	// 创建并且发送pooled tx请求
 	req := &eth.GetPooledTransactionsPacket{
 		RequestId:                    1234,
 		GetPooledTransactionsRequest: hashes,
@@ -653,6 +694,7 @@ func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 		t.Fatalf("could not write to conn: %v", err)
 	}
 	// Check that all received transactions match those that were sent to node.
+	// 检查所有接收到的txs匹配那些发送node的
 	msg := new(eth.PooledTransactionsPacket)
 	if err := conn.ReadMsg(ethProto, eth.PooledTransactionsMsg, &msg); err != nil {
 		t.Fatalf("error reading from connection: %v", err)
@@ -669,6 +711,8 @@ func (s *Suite) TestLargeTxRequest(t *utesting.T) {
 
 // TestNewPooledTxs tests whether a node will do a GetPooledTransactions request
 // upon receiving a NewPooledTransactionHashes announcement.
+// TestNewPooledTxs测试是否一个node会做一个GetPooledTransactions请求，当接收到一个NewPooledTransactionHashes
+// 的announcement
 func (s *Suite) TestNewPooledTxs(t *utesting.T) {
 	// Nudge client out of syncing mode to accept pending txs.
 	if err := s.engine.sendForkchoiceUpdated(); err != nil {
@@ -710,6 +754,7 @@ func (s *Suite) TestNewPooledTxs(t *utesting.T) {
 	}
 
 	// Send announcement.
+	// 发送announcement
 	ann := eth.NewPooledTransactionHashesPacket68{Types: txTypes, Sizes: sizes, Hashes: hashes}
 	err = conn.Write(ethProto, eth.NewPooledTransactionHashesMsg, ann)
 	if err != nil {
@@ -717,6 +762,7 @@ func (s *Suite) TestNewPooledTxs(t *utesting.T) {
 	}
 
 	// Wait for GetPooledTxs request.
+	// 等待GetPooledTxs请求
 	for {
 		msg, err := conn.ReadEth()
 		if err != nil {
@@ -762,6 +808,7 @@ func (s *Suite) makeBlobTxs(count, blobs int, discriminator byte) (txs types.Tra
 	from, nonce := s.chain.GetSender(5)
 	for i := 0; i < count; i++ {
 		// Make blob data, max of 2 blobs per tx.
+		// 构建blob data，每个tx最多2个blobs
 		blobdata := make([]byte, blobs%2)
 		for i := range blobdata {
 			blobdata[i] = discriminator
@@ -791,6 +838,7 @@ func (s *Suite) TestBlobViolations(t *utesting.T) {
 		t.Fatalf("send fcu failed: %v", err)
 	}
 	// Create blob txs for each tests with unqiue tx hashes.
+	// 对于每个测试创建blob txs，有着独特的tx hashes
 	var (
 		t1 = s.makeBlobTxs(2, 3, 0x1)
 		t2 = s.makeBlobTxs(2, 3, 0x2)
@@ -800,6 +848,7 @@ func (s *Suite) TestBlobViolations(t *utesting.T) {
 		resp eth.PooledTransactionsResponse
 	}{
 		// Invalid tx size.
+		// 非法的tx大小
 		{
 			ann: eth.NewPooledTransactionHashesPacket68{
 				Types:  []byte{types.BlobTxType, types.BlobTxType},
@@ -809,6 +858,7 @@ func (s *Suite) TestBlobViolations(t *utesting.T) {
 			resp: eth.PooledTransactionsResponse(t1),
 		},
 		// Wrong tx type.
+		// 错误的tx类型
 		{
 			ann: eth.NewPooledTransactionHashesPacket68{
 				Types:  []byte{types.DynamicFeeTxType, types.BlobTxType},

@@ -29,8 +29,10 @@ import (
 
 // sendTxs sends the given transactions to the node and
 // expects the node to accept and propagate them.
+// sendTxs发送给定的txs到node并且期望node能接收并且传播他们
 func (s *Suite) sendTxs(txs []*types.Transaction) error {
 	// Open sending conn.
+	// 打开发送的conn
 	sendConn, err := s.dial()
 	if err != nil {
 		return err
@@ -41,6 +43,7 @@ func (s *Suite) sendTxs(txs []*types.Transaction) error {
 	}
 
 	// Open receiving conn.
+	// 打开接收的conn
 	recvConn, err := s.dial()
 	if err != nil {
 		return err
@@ -50,6 +53,7 @@ func (s *Suite) sendTxs(txs []*types.Transaction) error {
 		return fmt.Errorf("peering failed: %v", err)
 	}
 
+	// 发送tx message
 	if err = sendConn.Write(ethProto, eth.TransactionsMsg, eth.TransactionsPacket(txs)); err != nil {
 		return fmt.Errorf("failed to write message to connection: %v", err)
 	}
@@ -60,7 +64,9 @@ func (s *Suite) sendTxs(txs []*types.Transaction) error {
 	)
 
 	// Wait for the transaction announcements, make sure all txs ar propagated.
+	// 等待tx announcements，确保txs被传播
 	for time.Now().Before(end) {
+		// 接收eth
 		msg, err := recvConn.ReadEth()
 		if err != nil {
 			return fmt.Errorf("failed to read from connection: %w", err)
@@ -68,6 +74,7 @@ func (s *Suite) sendTxs(txs []*types.Transaction) error {
 		switch msg := msg.(type) {
 		case *eth.TransactionsPacket:
 			for _, tx := range *msg {
+				// 获取tx msg
 				got[tx.Hash()] = true
 			}
 		case *eth.NewPooledTransactionHashesPacket68:
@@ -79,6 +86,7 @@ func (s *Suite) sendTxs(txs []*types.Transaction) error {
 		}
 
 		// Check if all txs received.
+		// 检查所有的txs都收到了
 		allReceived := func() bool {
 			for _, tx := range txs {
 				if !got[tx.Hash()] {
@@ -123,6 +131,7 @@ func (s *Suite) sendInvalidTxs(txs []*types.Transaction) error {
 	}
 
 	// Make map of invalid txs.
+	// 构建invalid txs的map
 	invalids := make(map[common.Hash]struct{})
 	for _, tx := range txs {
 		invalids[tx.Hash()] = struct{}{}
@@ -143,6 +152,7 @@ func (s *Suite) sendInvalidTxs(txs []*types.Transaction) error {
 		case *eth.TransactionsPacket:
 			for _, tx := range txs {
 				if _, ok := invalids[tx.Hash()]; ok {
+					// 如果接收到bad tx就报错
 					return fmt.Errorf("received bad tx: %s", tx.Hash())
 				}
 			}

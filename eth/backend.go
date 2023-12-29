@@ -105,6 +105,7 @@ type Ethereum struct {
 
 // New creates a new Ethereum object (including the
 // initialisation of the common Ethereum object)
+// New创建一个新的Ethereum对象（包括通用的Ethereum对象的初始化）
 func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	// Ensure configuration values are compatible and sane
 	if config.SyncMode == downloader.LightSync {

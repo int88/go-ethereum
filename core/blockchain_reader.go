@@ -88,6 +88,7 @@ func (bc *BlockChain) GetHeaderByNumber(number uint64) *types.Header {
 
 // GetHeadersFrom returns a contiguous segment of headers, in rlp-form, going
 // backwards from the given number.
+// GetHeadersFrom返回一个连续的segment of headers，以rlp形式，从给定的number返回
 func (bc *BlockChain) GetHeadersFrom(number, count uint64) []rlp.RawValue {
 	return bc.hc.GetHeadersFrom(number, count)
 }
@@ -241,6 +242,7 @@ func (bc *BlockChain) GetUnclesInChain(block *types.Block, length int) []*types.
 }
 
 // GetCanonicalHash returns the canonical hash for a given block number
+// GetCanonicalHash返回给定的block number的canonical hash
 func (bc *BlockChain) GetCanonicalHash(number uint64) common.Hash {
 	return bc.hc.GetCanonicalHash(number)
 }

@@ -46,7 +46,8 @@ var (
 		Action: rlpxPing,
 	}
 	rlpxEthTestCommand = &cli.Command{
-		Name:      "eth-test",
+		Name: "eth-test",
+		// 针对一个node运行eth protocol测试
 		Usage:     "Runs eth protocol tests against a node",
 		ArgsUsage: "<node>",
 		Action:    rlpxEthTest,
@@ -111,6 +112,7 @@ func rlpxPing(ctx *cli.Context) error {
 }
 
 // rlpxEthTest runs the eth protocol test suite.
+// rlpxEthTest运行eth protocol的测试集
 func rlpxEthTest(ctx *cli.Context) error {
 	p := cliTestParams(ctx)
 	suite, err := ethtest.NewSuite(p.node, p.chainDir, p.engineAPI, p.jwt)
@@ -127,6 +129,7 @@ func rlpxSnapTest(ctx *cli.Context) error {
 	if err != nil {
 		exit(err)
 	}
+	// 测试Snap Tests
 	return runTests(ctx, suite.SnapTests())
 }
 
@@ -142,6 +145,7 @@ func cliTestParams(ctx *cli.Context) *testParams {
 	if nodeStr == "" {
 		exit(fmt.Errorf("missing -%s", testNodeFlag.Name))
 	}
+	// 解析node
 	node, err := parseNode(nodeStr)
 	if err != nil {
 		exit(err)
@@ -152,12 +156,15 @@ func cliTestParams(ctx *cli.Context) *testParams {
 		jwt:       ctx.String(testNodeJWTFlag.Name),
 		chainDir:  ctx.String(testChainDirFlag.Name),
 	}
+	// 缺失engine API
 	if p.engineAPI == "" {
 		exit(fmt.Errorf("missing -%s", testNodeEngineFlag.Name))
 	}
+	// 确实jwt
 	if p.jwt == "" {
 		exit(fmt.Errorf("missing -%s", testNodeJWTFlag.Name))
 	}
+	// 缺失chain dir
 	if p.chainDir == "" {
 		exit(fmt.Errorf("missing -%s", testChainDirFlag.Name))
 	}

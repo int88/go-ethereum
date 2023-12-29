@@ -116,20 +116,27 @@ func (p *NewBlockHashesPacket) Unpack() ([]common.Hash, []uint64) {
 type TransactionsPacket []*types.Transaction
 
 // GetBlockHeadersRequest represents a block header query.
+// GetBlockHeadersRequest代表一个block header query
 type GetBlockHeadersRequest struct {
-	Origin  HashOrNumber // Block from which to retrieve headers
-	Amount  uint64       // Maximum number of headers to retrieve
-	Skip    uint64       // Blocks to skip between consecutive headers
-	Reverse bool         // Query direction (false = rising towards latest, true = falling towards genesis)
+	// 从哪个block开始获取headers
+	Origin HashOrNumber // Block from which to retrieve headers
+	// 最多获取的headers的数目
+	Amount uint64 // Maximum number of headers to retrieve
+	// 在连续的headers之间跳过的blocks
+	Skip uint64 // Blocks to skip between consecutive headers
+	// 查询的方向，false表示向latest，true表示向genesis
+	Reverse bool // Query direction (false = rising towards latest, true = falling towards genesis)
 }
 
 // GetBlockHeadersPacket represents a block header query with request ID wrapping.
+// GetBlockHeadersPacket代表一个block header query，用封装的request ID
 type GetBlockHeadersPacket struct {
 	RequestId uint64
 	*GetBlockHeadersRequest
 }
 
 // HashOrNumber is a combined field for specifying an origin block.
+// HashOrNumber是一个组合的字段用来指定一个original block
 type HashOrNumber struct {
 	Hash   common.Hash // Block hash from which to retrieve headers (excludes Number)
 	Number uint64      // Block hash from which to retrieve headers (excludes Hash)
@@ -166,9 +173,11 @@ func (hn *HashOrNumber) DecodeRLP(s *rlp.Stream) error {
 }
 
 // BlockHeadersRequest represents a block header response.
+// BlockHeadersRequest代表一个blcok header response
 type BlockHeadersRequest []*types.Header
 
 // BlockHeadersPacket represents a block header response over with request ID wrapping.
+// BlockHeadersPacket代表一个block header response，有request ID的封装
 type BlockHeadersPacket struct {
 	RequestId uint64
 	BlockHeadersRequest
@@ -204,6 +213,7 @@ func (request *NewBlockPacket) sanityCheck() error {
 }
 
 // GetBlockBodiesRequest represents a block body query.
+// GetBlockBodiesRequest代表一个block body query
 type GetBlockBodiesRequest []common.Hash
 
 // GetBlockBodiesPacket represents a block body query with request ID wrapping.
@@ -284,9 +294,11 @@ type ReceiptsRLPPacket struct {
 }
 
 // NewPooledTransactionHashesPacket67 represents a transaction announcement packet on eth/67.
+// NewPooledTransactionHashesPacket67代表在eth/67之上的一个tx accouncement
 type NewPooledTransactionHashesPacket67 []common.Hash
 
 // NewPooledTransactionHashesPacket68 represents a transaction announcement packet on eth/68 and newer.
+// NewPooledTransactionHashesPacket68代表一个tx announcement packet，在eth/68或者更新的版本上
 type NewPooledTransactionHashesPacket68 struct {
 	Types  []byte
 	Sizes  []uint32

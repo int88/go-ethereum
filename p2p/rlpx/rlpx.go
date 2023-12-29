@@ -43,10 +43,12 @@ import (
 
 // Conn is an RLPx network connection. It wraps a low-level network connection. The
 // underlying connection should not be used for other activity when it is wrapped by Conn.
+// Conn是一个RLPx network connection，它封装了底层的network connection，底层的connection不应该被其他活动使用，除了被Conn封装
 //
 // Before sending messages, a handshake must be performed by calling the Handshake method.
 // This type is not generally safe for concurrent use, but reading and writing of messages
 // may happen concurrently after the handshake.
+// 在发送message之前，必须先通过Handshake方法执行握手，这个类型通常不能用于concurrent use，但是并发读取message可能在handshake之后发生
 type Conn struct {
 	dialDest *ecdsa.PublicKey
 	conn     net.Conn
@@ -297,6 +299,7 @@ func (m *hashMAC) compute(sum1, seed []byte) []byte {
 
 // Handshake performs the handshake. This must be called before any data is written
 // or read from the connection.
+// Handshakes执行握手，这必须在任何数据被写入或者从连接读取之前被调用
 func (c *Conn) Handshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
 	var (
 		sec Secrets

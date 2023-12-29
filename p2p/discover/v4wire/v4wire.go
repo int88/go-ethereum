@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package v4wire implements the Discovery v4 Wire Protocol.
+// v4wire包实现了Discovery v4的Wire Protocol
 package v4wire
 
 import (
@@ -71,6 +72,7 @@ type (
 	}
 
 	// Findnode is a query for nodes close to the given target.
+	// Findnode是一个query用于寻找给定target附近的nodes
 	Findnode struct {
 		Target     Pubkey
 		Expiration uint64
@@ -127,6 +129,7 @@ const MaxNeighbors = 12
 // }
 
 // Pubkey represents an encoded 64-byte secp256k1 public key.
+// Pubkey代表一个encoded 64字节的secp256k1 public key
 type Pubkey [64]byte
 
 // ID returns the node ID corresponding to the public key.
@@ -143,6 +146,7 @@ type Node struct {
 }
 
 // Endpoint represents a network endpoint.
+// Endpoint代表一个network endpoint
 type Endpoint struct {
 	IP  net.IP // len 4 for IPv4 or 16 for IPv6
 	UDP uint16 // for discovery protocol

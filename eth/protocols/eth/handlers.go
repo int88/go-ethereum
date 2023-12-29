@@ -30,19 +30,23 @@ import (
 
 func handleGetBlockHeaders(backend Backend, msg Decoder, peer *Peer) error {
 	// Decode the complex header query
+	// 解码一个复杂的header query
 	var query GetBlockHeadersPacket
 	if err := msg.Decode(&query); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
+	// 服务GetBlockHeader的查询
 	response := ServiceGetBlockHeadersQuery(backend.Chain(), query.GetBlockHeadersRequest, peer)
 	return peer.ReplyBlockHeadersRLP(query.RequestId, response)
 }
 
 // ServiceGetBlockHeadersQuery assembles the response to a header query. It is
 // exposed to allow external packages to test protocol behavior.
+// ServiceGetBlockHeadersQuery组建对于一个header query的response，它被暴露允许外部的包来测试protocol的行为
 func ServiceGetBlockHeadersQuery(chain *core.BlockChain, query *GetBlockHeadersRequest, peer *Peer) []rlp.RawValue {
 	if query.Skip == 0 {
 		// The fast path: when the request is for a contiguous segment of headers.
+		// fast path：当请求是对于连续的segment of headers
 		return serviceContiguousBlockHeaderQuery(chain, query)
 	} else {
 		return serviceNonContiguousBlockHeaderQuery(chain, query, peer)
@@ -147,6 +151,8 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 		// Number mode, just return the canon chain segment. The backend
 		// delivers in [N, N-1, N-2..] descending order, so we need to
 		// accommodate for that.
+		// Number模式，只是返回canon chain segment，backend按照降序传递[N, N-1, N-2..]的下降顺序
+		// 因此我们需要迁就它
 		from := query.Origin.Number
 		if !query.Reverse {
 			from = from + count - 1
@@ -170,6 +176,7 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 		headers = append(headers, rlpData)
 	} else {
 		// We don't even have the origin header
+		// 我们甚至没有original header
 		return headers
 	}
 	num := header.Number.Uint64()
@@ -177,8 +184,10 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 		// Theoretically, we are tasked to deliver header by hash H, and onwards.
 		// However, if H is not canon, we will be unable to deliver any descendants of
 		// H.
+		// 理论上来说，我们来传递header，通过hash H，并且向前，但是如果H不是canon，我们不能传递H的任何后代
 		if canonHash := chain.GetCanonicalHash(num); canonHash != hash {
 			// Not canon, we can't deliver descendants
+			// 不是canon，我们不能传递后代
 			return headers
 		}
 		descendants := chain.GetHeadersFrom(num+count-1, count-1)
@@ -190,6 +199,7 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 	}
 	{ // Last mode: deliver ancestors of H
 		for i := uint64(1); header != nil && i < count; i++ {
+			// 通过hash获取header
 			header = chain.GetHeaderByHash(header.ParentHash)
 			if header == nil {
 				break

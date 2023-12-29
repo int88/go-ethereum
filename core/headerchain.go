@@ -46,13 +46,17 @@ const (
 // HeaderChain implements the basic block header chain logic that is shared by
 // core.BlockChain and light.LightChain. It is not usable in itself, only as
 // a part of either structure.
+// HeaderChain实现了基本的block header chain的逻辑，被core.BlockChain和light.LightChain共享，它不自己使用，只作为这两个结构的一部分
 //
 // HeaderChain is responsible for maintaining the header chain including the
 // header query and updating.
+// HeaderChain负责维护header chain，包括header查询和更新
 //
 // The components maintained by headerchain includes: (1) total difficulty
 // (2) header (3) block hash -> number mapping (4) canonical number -> hash mapping
 // and (5) head header flag.
+// headerchain维护的组件包括：(1) td，(2) header，(3) block hash到number的映射，(4) canonical number的hash的映射
+// (5) head的header flag
 //
 // It is not thread safe either, the encapsulating chain structures should do
 // the necessary mutex locking/unlocking.
@@ -483,9 +487,11 @@ func (hc *HeaderChain) GetHeaderByNumber(number uint64) *types.Header {
 // backwards from the given number.
 // If the 'number' is higher than the highest local header, this method will
 // return a best-effort response, containing the headers that we do have.
+// 如果'number'高于最高的local header，这个方法会返回一个best-effort response，包含我们有的headers
 func (hc *HeaderChain) GetHeadersFrom(number, count uint64) []rlp.RawValue {
 	// If the request is for future headers, we still return the portion of
 	// headers that we are able to serve
+	// 如果请求的是future headers，我们仍然返回我们能服务部分的headers
 	if current := hc.CurrentHeader().Number.Uint64(); current < number {
 		if count > number-current {
 			count -= number - current
@@ -496,11 +502,13 @@ func (hc *HeaderChain) GetHeadersFrom(number, count uint64) []rlp.RawValue {
 	}
 	var headers []rlp.RawValue
 	// If we have some of the headers in cache already, use that before going to db.
+	// 如果我们在cache中已经有一些headers，使用它，在进入db之前
 	hash := rawdb.ReadCanonicalHash(hc.chainDb, number)
 	if hash == (common.Hash{}) {
 		return nil
 	}
 	for count > 0 {
+		// 从header cache中读取
 		header, ok := hc.headerCache.Get(hash)
 		if !ok {
 			break
@@ -512,6 +520,7 @@ func (hc *HeaderChain) GetHeadersFrom(number, count uint64) []rlp.RawValue {
 		number--
 	}
 	// Read remaining from db
+	// 剩余的从db中读取
 	if count > 0 {
 		headers = append(headers, rawdb.ReadHeaderRange(hc.chainDb, number, count)...)
 	}

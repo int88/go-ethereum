@@ -67,6 +67,7 @@ func newTestEnv(remote string, listen1, listen2 string) *testenv {
 		}
 		node = enode.NewV4(node.Pubkey(), ip, tcpPort, udpPort)
 	}
+	// 构建UDP地址
 	addr := &net.UDPAddr{IP: node.IP(), Port: node.UDP()}
 	return &testenv{l1, l2, key, node, addr}
 }
@@ -77,6 +78,7 @@ func (te *testenv) close() {
 }
 
 func (te *testenv) send(c net.PacketConn, req v4wire.Packet) []byte {
+	// 用v4wire进行Encode
 	packet, hash, err := v4wire.Encode(te.key, req)
 	if err != nil {
 		panic(fmt.Errorf("can't encode %v packet: %v", req.Name(), err))

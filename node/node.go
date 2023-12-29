@@ -159,6 +159,7 @@ func New(conf *Config) (*Node, error) {
 
 // Start starts all registered lifecycles, RPC services and p2p networking.
 // Node can only be started once.
+// Start启动所有注册的lifecycles，RPC services以及p2p networking，Node只能启动一次
 func (n *Node) Start() error {
 	n.startStopLock.Lock()
 	defer n.startStopLock.Unlock()

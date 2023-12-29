@@ -61,6 +61,7 @@ func MatchTests(tests []Test, expr string) []Test {
 }
 
 // RunTests executes all given tests in order and returns their results.
+// RunTests按顺序执行所有给定的测试并且返回他们的结果
 // If the report writer is non-nil, a test report is written to it in real time.
 func RunTests(tests []Test, report io.Writer) []Result {
 	if report == nil {

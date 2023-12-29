@@ -30,6 +30,7 @@ import (
 )
 
 // EngineClient is a wrapper around engine-related data.
+// EngineClient是一个wrapper，对于engine相关的数据
 type EngineClient struct {
 	url     string
 	jwt     [32]byte
@@ -53,12 +54,14 @@ func (ec *EngineClient) token() string {
 }
 
 // sendForkchoiceUpdated sends an fcu for the head of the generated chain.
+// sendForkchoiceUpdated发送一个fcu，对于生成的chain的head
 func (ec *EngineClient) sendForkchoiceUpdated() error {
 	var (
 		req, _ = http.NewRequest(http.MethodPost, ec.url, io.NopCloser(bytes.NewReader(ec.headfcu)))
 		header = make(http.Header)
 	)
 	// Set header
+	// 设置header
 	header.Set("accept", "application/json")
 	header.Set("content-type", "application/json")
 	header.Set("Authorization", fmt.Sprintf("Bearer %v", ec.token()))

@@ -70,12 +70,17 @@ type Packet interface {
 }
 
 // GetAccountRangePacket represents an account query.
+// GetAccountRangePacket代表一个account query
 type GetAccountRangePacket struct {
-	ID     uint64      // Request ID to match up responses with
-	Root   common.Hash // Root hash of the account trie to serve
+	ID uint64 // Request ID to match up responses with
+	// 请求的account trie的root hash
+	Root common.Hash // Root hash of the account trie to serve
+	// 第一个获取的account的hash
 	Origin common.Hash // Hash of the first account to retrieve
-	Limit  common.Hash // Hash of the last account to retrieve
-	Bytes  uint64      // Soft limit at which to stop returning data
+	// 最后一个要获取的account
+	Limit common.Hash // Hash of the last account to retrieve
+	// soft limit用于停止返回data
+	Bytes uint64 // Soft limit at which to stop returning data
 }
 
 // AccountRangePacket represents an account query response.
@@ -94,10 +99,13 @@ type AccountData struct {
 // Unpack retrieves the accounts from the range packet and converts from slim
 // wire representation to consensus format. The returned data is RLP encoded
 // since it's expected to be serialized to disk without further interpretation.
+// Unpack从range packet获取accounts并且从slim wire的表示方式转变为consensus format，返回的data是RLP encoded
+// 因为它期望直接序列化到磁盘，而没有进一步发
 //
 // Note, this method does a round of RLP decoding and reencoding, so only use it
 // once and cache the results if need be. Ideally discard the packet afterwards
 // to not double the memory use.
+// 注意：这个方法做一轮的RLP decoding和reencoding，因此只使用一次并且缓存结果，如果需要的话
 func (p *AccountRangePacket) Unpack() ([]common.Hash, [][]byte, error) {
 	var (
 		hashes   = make([]common.Hash, len(p.Accounts))
@@ -114,13 +122,18 @@ func (p *AccountRangePacket) Unpack() ([]common.Hash, [][]byte, error) {
 }
 
 // GetStorageRangesPacket represents an storage slot query.
+// GetStorageRangesPacket代表一个storage slot query
 type GetStorageRangesPacket struct {
-	ID       uint64        // Request ID to match up responses with
-	Root     common.Hash   // Root hash of the account trie to serve
+	ID uint64 // Request ID to match up responses with
+	// 用于服务的account trie的root hash
+	Root common.Hash // Root hash of the account trie to serve
+	// storage tries的account hashes
 	Accounts []common.Hash // Account hashes of the storage tries to serve
-	Origin   []byte        // Hash of the first storage slot to retrieve (large contract mode)
-	Limit    []byte        // Hash of the last storage slot to retrieve (large contract mode)
-	Bytes    uint64        // Soft limit at which to stop returning data
+	// 获取的第一个storage slot的hash
+	Origin []byte // Hash of the first storage slot to retrieve (large contract mode)
+	// 获取的最后一个storage slot的hash
+	Limit []byte // Hash of the last storage slot to retrieve (large contract mode)
+	Bytes uint64 // Soft limit at which to stop returning data
 }
 
 // StorageRangesPacket represents a storage slot query response.

@@ -37,11 +37,14 @@ const (
 
 var (
 	// Remote node under test
+	// 测试的Remote node
 	Remote string
 	// Listen1 is the IP where the first tester is listening, port will be assigned
+	// Listen1是第一个tester会监听的IP，会被赋予port
 	Listen1 string = "127.0.0.1"
 	// Listen2 is the IP where the second tester is listening, port will be assigned
 	// Before running the test, you may have to `sudo ifconfig lo0 add 127.0.0.2` (on MacOS at least)
+	// Listen2是第二个tester会监听的IP，会被赋予port，在运行测试之前，需要配置`sudo ifconfig lo0 add 127.0.0.2`
 	Listen2 string = "127.0.0.2"
 )
 
@@ -70,6 +73,7 @@ func futureExpiration() uint64 {
 }
 
 // BasicPing just sends a PING packet and expects a response.
+// BasicPing只是发送一个PING包并且期望一个response
 func BasicPing(t *utesting.T) {
 	te := newTestEnv(Remote, Listen1, Listen2)
 	defer te.close()
@@ -87,7 +91,9 @@ func BasicPing(t *utesting.T) {
 
 // checkPingPong verifies that the remote side sends both a PONG with the
 // correct hash, and a PING.
+// checkPingPong校验remote side同时发送一个PONG，有着正确的hash和一个PING
 // The two packets do not have to be in any particular order.
+// 这两个包不一定要有特定的顺序
 func (te *testenv) checkPingPong(pingHash []byte) error {
 	var (
 		pings int
@@ -117,6 +123,7 @@ func (te *testenv) checkPingPong(pingHash []byte) error {
 }
 
 // checkPong verifies that reply is a valid PONG matching the given ping hash,
+// checkPong校验reply是一个合法的PONG，匹配给定的ping hash以及一个PING
 // and a PING. The two packets do not have to be in any particular order.
 func (te *testenv) checkPong(reply v4wire.Packet, pingHash []byte) error {
 	if reply == nil {
@@ -139,6 +146,7 @@ func (te *testenv) checkPong(reply v4wire.Packet, pingHash []byte) error {
 }
 
 // PingWrongTo sends a PING packet with wrong 'to' field and expects a PONG response.
+// PingWrongTo发送一个PING packet，有着错误的'to'字段并且期望一个PONG response
 func PingWrongTo(t *utesting.T) {
 	te := newTestEnv(Remote, Listen1, Listen2)
 	defer te.close()
@@ -314,6 +322,7 @@ func FindnodeWithoutEndpointProof(t *utesting.T) {
 
 // BasicFindnode sends a FINDNODE request after performing the endpoint
 // proof. The remote node should respond.
+// BasicFindnode发送一个FINDNODE请求，在执行endpoint proof之后，remote node应该响应
 func BasicFindnode(t *utesting.T) {
 	te := newTestEnv(Remote, Listen1, Listen2)
 	defer te.close()

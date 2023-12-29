@@ -451,6 +451,8 @@ func hasRightElement(node node, key []byte) bool {
 // can prove the given trie leaves range is matched with the specific root.
 // Besides, the range should be consecutive (no gap inside) and monotonic
 // increasing.
+// VerifyRangeProof检查给定的leaf nodes以及edge proof可以证明给定的trie leaves range匹配特定的root
+// 另外，range应该是连续的（里面没有gap）并且单调增长
 //
 // Note the given proof actually contains two edge proofs. Both of them can
 // be non-existent proofs. For example the first proof is for a non-existent

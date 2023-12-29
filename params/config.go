@@ -283,10 +283,12 @@ var NetworkNames = map[string]string{
 }
 
 // ChainConfig is the core config which determines the blockchain settings.
+// ChainConfig是核心配置，决定了blockchain的设置
 //
 // ChainConfig is stored in the database on a per block basis. This means
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
+// ChainConfig存储在db中，以每个block basis，这意味着，任何network，通过它的genesis block标识，可以有它自己的配置选择
 type ChainConfig struct {
 	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
 
@@ -328,6 +330,7 @@ type ChainConfig struct {
 	TerminalTotalDifficultyPassed bool `json:"terminalTotalDifficultyPassed,omitempty"`
 
 	// Various consensus engines
+	// 各种consensus引擎的配置
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
 }
