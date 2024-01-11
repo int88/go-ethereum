@@ -58,10 +58,12 @@ func uintID(i uint16) enode.ID {
 }
 
 // newNode creates a node record with the given address.
+// newNode用给定的地址创建一个node record
 func newNode(id enode.ID, addr string) *enode.Node {
 	var r enr.Record
 	if addr != "" {
 		// Set the port if present.
+		// 设置port，如果存在的话
 		if strings.Contains(addr, ":") {
 			hs, ps, err := net.SplitHostPort(addr)
 			if err != nil {
@@ -76,6 +78,7 @@ func newNode(id enode.ID, addr string) *enode.Node {
 			addr = hs
 		}
 		// Set the IP.
+		// 设置IP
 		ip := net.ParseIP(addr)
 		if ip == nil {
 			panic(fmt.Errorf("invalid IP %q", addr))
@@ -154,6 +157,7 @@ func TestPeerProtoEncodeMsg(t *testing.T) {
 			if err := SendItems(rw, 2); err == nil {
 				t.Error("expected error for out-of-range msg code, got nil")
 			}
+			// 发送items
 			if err := SendItems(rw, 1, "foo", "bar"); err != nil {
 				t.Errorf("write error: %v", err)
 			}
@@ -181,6 +185,7 @@ func TestPeerPing(t *testing.T) {
 
 // This test checks that a disconnect message sent by a peer is returned
 // as the error from Peer.run.
+// 这个测试检查peer发送的一个disconnect message作为Peer.run的error返回
 func TestPeerDisconnect(t *testing.T) {
 	closer, rw, _, disc := testPeer(nil)
 	defer closer()
@@ -274,54 +279,64 @@ func TestMatchProtocols(t *testing.T) {
 	}{
 		{
 			// No remote capabilities
+			// 没有
 			Local: []Protocol{{Name: "a"}},
 		},
 		{
 			// No local protocols
+			// 没有local protocols
 			Remote: []Cap{{Name: "a"}},
 		},
 		{
 			// No mutual protocols
+			// 没有相互的协议
 			Remote: []Cap{{Name: "a"}},
 			Local:  []Protocol{{Name: "b"}},
 		},
 		{
 			// Some matches, some differences
+			// 有的匹配，有的不同
 			Remote: []Cap{{Name: "local"}, {Name: "match1"}, {Name: "match2"}},
 			Local:  []Protocol{{Name: "match1"}, {Name: "match2"}, {Name: "remote"}},
 			Match:  map[string]protoRW{"match1": {Protocol: Protocol{Name: "match1"}}, "match2": {Protocol: Protocol{Name: "match2"}}},
 		},
 		{
 			// Various alphabetical ordering
+			// 各种字节顺序
 			Remote: []Cap{{Name: "aa"}, {Name: "ab"}, {Name: "bb"}, {Name: "ba"}},
 			Local:  []Protocol{{Name: "ba"}, {Name: "bb"}, {Name: "ab"}, {Name: "aa"}},
 			Match:  map[string]protoRW{"aa": {Protocol: Protocol{Name: "aa"}}, "ab": {Protocol: Protocol{Name: "ab"}}, "ba": {Protocol: Protocol{Name: "ba"}}, "bb": {Protocol: Protocol{Name: "bb"}}},
 		},
 		{
 			// No mutual versions
+			// 没有互相匹配
 			Remote: []Cap{{Version: 1}},
 			Local:  []Protocol{{Version: 2}},
 		},
 		{
 			// Multiple versions, single common
+			// 多个版本，单个匹配
 			Remote: []Cap{{Version: 1}, {Version: 2}},
 			Local:  []Protocol{{Version: 2}, {Version: 3}},
 			Match:  map[string]protoRW{"": {Protocol: Protocol{Version: 2}}},
 		},
 		{
 			// Multiple versions, multiple common
+			// 多个版本，多个匹配
 			Remote: []Cap{{Version: 1}, {Version: 2}, {Version: 3}, {Version: 4}},
 			Local:  []Protocol{{Version: 2}, {Version: 3}},
 			Match:  map[string]protoRW{"": {Protocol: Protocol{Version: 3}}},
 		},
 		{
 			// Various version orderings
+			// 各种version的顺序
 			Remote: []Cap{{Version: 4}, {Version: 1}, {Version: 3}, {Version: 2}},
 			Local:  []Protocol{{Version: 2}, {Version: 3}, {Version: 1}},
 			Match:  map[string]protoRW{"": {Protocol: Protocol{Version: 3}}},
 		},
 		{
 			// Versions overriding sub-protocol lengths
+			// Version的顺序，子协议的长度
 			Remote: []Cap{{Version: 1}, {Version: 2}, {Version: 3}, {Name: "a"}},
 			Local:  []Protocol{{Version: 1, Length: 1}, {Version: 2, Length: 2}, {Version: 3, Length: 3}, {Name: "a"}},
 			Match:  map[string]protoRW{"": {Protocol: Protocol{Version: 3}}, "a": {Protocol: Protocol{Name: "a"}, offset: 3}},
@@ -335,6 +350,7 @@ func TestMatchProtocols(t *testing.T) {
 			continue
 		}
 		// Make sure all negotiated protocols are needed and correct
+		// 确保所有协商的协议都需要并且是正确的
 		for name, proto := range result {
 			match, ok := tt.Match[name]
 			if !ok {
@@ -352,6 +368,7 @@ func TestMatchProtocols(t *testing.T) {
 			}
 		}
 		// Make sure no protocols missed negotiation
+		// 确保没有协议丢失协商
 		for name := range tt.Match {
 			if _, ok := result[name]; !ok {
 				t.Errorf("test %d, proto '%s': not negotiated, should have", i, name)

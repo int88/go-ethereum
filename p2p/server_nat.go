@@ -39,17 +39,22 @@ type portMapping struct {
 	port     int
 
 	// for use by the portMappingLoop goroutine:
+	// 被portMappingLoop的goroutine使用
 	extPort  int // the mapped port returned by the NAT interface
 	nextTime mclock.AbsTime
 }
 
 // setupPortMapping starts the port mapping loop if necessary.
+// setupPortMapping开始port mapping loop，如果必要的话
 // Note: this needs to be called after the LocalNode instance has been set on the server.
+// 注意：这需要被调用，在LocalNode实例已经在server上设置之后
 func (srv *Server) setupPortMapping() {
 	// portMappingRegister will receive up to two values: one for the TCP port if
 	// listening is enabled, and one more for enabling UDP port mapping if discovery is
 	// enabled. We make it buffered to avoid blocking setup while a mapping request is in
 	// progress.
+	// portMappingRegister会接收两个值：一个用于TCP port，如果使能了listening，一个用于UDP port mapping，如果使能了discovery
+	// 我们将它缓存，来避免阻塞setup，当一个mapping请求正在进行
 	srv.portMappingRegister = make(chan *portMapping, 2)
 
 	switch srv.NAT.(type) {

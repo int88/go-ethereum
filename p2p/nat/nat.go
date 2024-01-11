@@ -31,6 +31,7 @@ import (
 
 // Interface An implementation of nat.Interface can map local ports to ports
 // accessible from the Internet.
+// 一个nat.Interface的实现，可以映射本地的ports到互联网能访问的ports
 type Interface interface {
 	// These methods manage a mapping between a port on the local
 	// machine to a port that can be connected to from the internet.

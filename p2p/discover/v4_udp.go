@@ -64,6 +64,7 @@ const (
 )
 
 // UDPv4 implements the v4 wire protocol.
+// UDPv4实现了v4的wire protocol
 type UDPv4 struct {
 	conn        UDPConn
 	log         log.Logger
@@ -404,6 +405,7 @@ func (t *UDPv4) handleReply(from enode.ID, fromIP net.IP, req v4wire.Packet) boo
 
 // loop runs in its own goroutine. it keeps track of
 // the refresh timer and the pending reply queue.
+// loop在它自己的goroutine运行，追踪refresh timer以及pending reply queue
 func (t *UDPv4) loop() {
 	defer t.wg.Done()
 
@@ -511,6 +513,7 @@ func (t *UDPv4) write(toaddr *net.UDPAddr, toid enode.ID, what string, packet []
 }
 
 // readLoop runs in its own goroutine. it handles incoming UDP packets.
+// readLoop运行它自己的goroutine，处理到来的UDP packets
 func (t *UDPv4) readLoop(unhandled chan<- ReadPacket) {
 	defer t.wg.Done()
 	if unhandled != nil {
@@ -519,6 +522,7 @@ func (t *UDPv4) readLoop(unhandled chan<- ReadPacket) {
 
 	buf := make([]byte, maxPacketSize)
 	for {
+		// 从UDP中读取
 		nbytes, from, err := t.conn.ReadFromUDP(buf)
 		if netutil.IsTemporaryError(err) {
 			// Ignore temporary read errors.
@@ -628,6 +632,7 @@ func (t *UDPv4) wrapPacket(p v4wire.Packet) *packetHandlerV4 {
 }
 
 // packetHandlerV4 wraps a packet with handler functions.
+// packetHandlerV4用handler functions封装一个packet
 type packetHandlerV4 struct {
 	v4wire.Packet
 	senderKey *ecdsa.PublicKey // used for ping

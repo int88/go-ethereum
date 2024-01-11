@@ -30,12 +30,16 @@ import (
 )
 
 // Msg defines the structure of a p2p message.
+// Msg定义了一个p2p message的结构
 //
 // Note that a Msg can only be sent once since the Payload reader is
 // consumed during sending. It is not possible to create a Msg and
 // send it any number of times. If you want to reuse an encoded
 // structure, encode the payload into a byte array and create a
 // separate Msg with a bytes.Reader as Payload for each send.
+// 注意一个Msg只能被发送一次，因为Payload reader在发送过程中被消费，不可能创建一个Msg并且发送他任意多次
+// 如果你想要重用一个encoded结构，将payload编码进一个byte array并且创建另外一个Msg
+// 用一个bytes.Reader，作为Payload，在每次发送时
 type Msg struct {
 	Code       uint64
 	Size       uint32 // Size of the raw payload
@@ -80,15 +84,19 @@ type MsgReader interface {
 type MsgWriter interface {
 	// WriteMsg sends a message. It will block until the message's
 	// Payload has been consumed by the other end.
+	// WriteMsg发送一个message，他会阻塞，直到message的paylaod已经被另一端消费
 	//
 	// Note that messages can be sent only once because their
 	// payload reader is drained.
+	// 注意message只能被发送一次，因为他们的payload reader被排干了
 	WriteMsg(Msg) error
 }
 
 // MsgReadWriter provides reading and writing of encoded messages.
+// MsgReadWriter提供对于encoded messages的读写
 // Implementations should ensure that ReadMsg and WriteMsg can be
 // called simultaneously from multiple goroutines.
+// 实现应该确保ReadMsg和WriteMsg可以从多个goroutines同时被调用
 type MsgReadWriter interface {
 	MsgReader
 	MsgWriter
@@ -96,6 +104,7 @@ type MsgReadWriter interface {
 
 // Send writes an RLP-encoded message with the given code.
 // data should encode as an RLP list.
+// Send写一个RLP-encoded message，用给定的code，data应该作为一个RLP list编码
 func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 	size, r, err := rlp.EncodeToReader(data)
 	if err != nil {
@@ -105,6 +114,7 @@ func Send(w MsgWriter, msgcode uint64, data interface{}) error {
 }
 
 // SendItems writes an RLP with the given code and data elements.
+// SendItems写入一个RLP，用给定的code和data元素
 // For a call such as:
 //
 //	SendItems(w, code, e1, e2, e3)
@@ -223,7 +233,9 @@ func (p *MsgPipeRW) Close() error {
 
 // ExpectMsg reads a message from r and verifies that its
 // code and encoded RLP content match the provided values.
+// ExpectMsg从r读取一个message并且校验它的code以及编码的RLP内容匹配提供的values
 // If content is nil, the payload is discarded and not verified.
+// 如果content为nil，payload被丢弃并且不校验
 func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 	msg, err := r.ReadMsg()
 	if err != nil {
@@ -254,6 +266,7 @@ func ExpectMsg(r MsgReader, code uint64, content interface{}) error {
 
 // msgEventer wraps a MsgReadWriter and sends events whenever a message is sent
 // or received
+// msgEventer封装一个MsgReadWriter并且发送event，当一个message被发送或者接受
 type msgEventer struct {
 	MsgReadWriter
 
@@ -266,6 +279,7 @@ type msgEventer struct {
 
 // newMsgEventer returns a msgEventer which sends message events to the given
 // feed
+// newMsgEventer返回一个msgEventer，发送message events到给定的feed
 func newMsgEventer(rw MsgReadWriter, feed *event.Feed, peerID enode.ID, proto, remote, local string) *msgEventer {
 	return &msgEventer{
 		MsgReadWriter: rw,

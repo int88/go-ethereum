@@ -44,6 +44,7 @@ const (
 // LocalNode produces the signed node record of a local node, i.e. a node run in the
 // current process. Setting ENR entries via the Set method updates the record. A new version
 // of the record is signed on demand when the Node method is called.
+// LocalNode产生一个local node的signed node record，例如，一个node运行在当前的进程
 type LocalNode struct {
 	cur atomic.Value // holds a non-nil node pointer while the record is up-to-date
 
@@ -67,6 +68,7 @@ type lnEndpoint struct {
 }
 
 // NewLocalNode creates a local node.
+// NewLocalNode创建一个local node
 func NewLocalNode(db *DB, key *ecdsa.PrivateKey) *LocalNode {
 	ln := &LocalNode{
 		id:      PubkeyToIDV4(&key.PublicKey),
@@ -92,6 +94,7 @@ func (ln *LocalNode) Database() *DB {
 }
 
 // Node returns the current version of the local node record.
+// Node返回当前版本的local node record信息
 func (ln *LocalNode) Node() *Node {
 	// If we have a valid record, return that
 	n := ln.cur.Load().(*Node)
@@ -194,6 +197,7 @@ func (ln *LocalNode) SetStaticIP(ip net.IP) {
 
 // SetFallbackIP sets the last-resort IP address. This address is used
 // if no endpoint prediction can be made and no static IP is set.
+// SetFallbackIP设置last-resort IP地址，这个地址会被使用，当不能做出endpoint预测以及没有静态IP被设置
 func (ln *LocalNode) SetFallbackIP(ip net.IP) {
 	ln.mu.Lock()
 	defer ln.mu.Unlock()

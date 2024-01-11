@@ -50,6 +50,7 @@ const (
 
 // NodeDialer is used to connect to nodes in the network, typically by using
 // an underlying net.Dialer but also using net.Pipe in tests.
+// NodeDialer用于连接network中的nodes，一般是使用底层的net.Dialer，但是也在测试中使用net.Pipe
 type NodeDialer interface {
 	Dial(context.Context, *enode.Node) (net.Conn, error)
 }
@@ -83,13 +84,19 @@ var (
 
 // dialer creates outbound connections and submits them into Server.
 // Two types of peer connections can be created:
+// dialer创建outbound connections并且提交他们到Server，两种类型的peer connections可以被创建：
 //
 //   - static dials are pre-configured connections. The dialer attempts
 //     keep these nodes connected at all times.
 //
+//   - 静态的dials是提前配置的connections，dialer试着总是保持这些nodes连接
+//
 //   - dynamic dials are created from node discovery results. The dialer
 //     continuously reads candidate nodes from its input iterator and attempts
 //     to create peer connections to nodes arriving through the iterator.
+//
+//   - dynamic dials从node discovery的结果被创建，dialer持续从input iterator读取candidate nodes并且试着
+//     创建peer connections到Node，通过iterator到达
 type dialScheduler struct {
 	dialConfig
 	setupFunc   dialSetupFunc
@@ -105,18 +112,24 @@ type dialScheduler struct {
 
 	// Everything below here belongs to loop and
 	// should only be accessed by code on the loop goroutine.
-	dialing   map[enode.ID]*dialTask // active tasks
-	peers     map[enode.ID]struct{}  // all connected peers
-	dialPeers int                    // current number of dialed peers
+	// 下面的所有都属于loop并且应该只被loop goroutine中的代码访问
+	dialing map[enode.ID]*dialTask // active tasks
+	// 所有连接的peers
+	peers map[enode.ID]struct{} // all connected peers
+	// 当前dialed peers
+	dialPeers int // current number of dialed peers
 
 	// The static map tracks all static dial tasks. The subset of usable static dial tasks
 	// (i.e. those passing checkDial) is kept in staticPool. The scheduler prefers
 	// launching random static tasks from the pool over launching dynamic dials from the
 	// iterator.
+	// static map追踪所有静态的dial tasks，可用的static dial tasks的自己被保持在staticPool
+	// scheduler更喜欢从pool中启动random static tasks，而不是从iterator启动dynamic dials
 	static     map[enode.ID]*dialTask
 	staticPool []*dialTask
 
 	// The dial history keeps recently dialed nodes. Members of history are not dialed.
+	// dial history保持最近的dialed nodes
 	history      expHeap
 	historyTimer *mclock.Alarm
 
@@ -128,8 +141,11 @@ type dialScheduler struct {
 type dialSetupFunc func(net.Conn, connFlag, *enode.Node) error
 
 type dialConfig struct {
-	self           enode.ID         // our own ID
-	maxDialPeers   int              // maximum number of dialed peers
+	// 我们自己的ID
+	self enode.ID // our own ID
+	// dialed peers的最大数目
+	maxDialPeers int // maximum number of dialed peers
+	// active dials的最大数目
 	maxActiveDials int              // maximum number of active dials
 	netRestrict    *netutil.Netlist // IP netrestrict list, disabled if nil
 	resolver       nodeResolver
@@ -189,6 +205,7 @@ func (d *dialScheduler) stop() {
 }
 
 // addStatic adds a static dial candidate.
+// addStatic添加静态的dial candidate
 func (d *dialScheduler) addStatic(n *enode.Node) {
 	select {
 	case d.addStaticCh <- n:
@@ -197,6 +214,7 @@ func (d *dialScheduler) addStatic(n *enode.Node) {
 }
 
 // removeStatic removes a static dial candidate.
+// removeStatic移除一个静态的dial candidate
 func (d *dialScheduler) removeStatic(n *enode.Node) {
 	select {
 	case d.remStaticCh <- n:
@@ -205,6 +223,7 @@ func (d *dialScheduler) removeStatic(n *enode.Node) {
 }
 
 // peerAdded updates the peer set.
+// peerAdded更新peer set
 func (d *dialScheduler) peerAdded(c *conn) {
 	select {
 	case d.addPeerCh <- c:
@@ -221,6 +240,7 @@ func (d *dialScheduler) peerRemoved(c *conn) {
 }
 
 // loop is the main loop of the dialer.
+// loop是dialer的main loop
 func (d *dialScheduler) loop(it enode.Iterator) {
 	var (
 		nodesCh chan *enode.Node
@@ -229,6 +249,7 @@ func (d *dialScheduler) loop(it enode.Iterator) {
 loop:
 	for {
 		// Launch new dials if slots are available.
+		// 启动新的dials，如果slots可用
 		slots := d.freeDialSlots()
 		slots -= d.startStaticDials(slots)
 		if slots > 0 {
@@ -242,8 +263,10 @@ loop:
 		select {
 		case node := <-nodesCh:
 			if err := d.checkDial(node); err != nil {
+				// 丢弃dial candidate
 				d.log.Trace("Discarding dial candidate", "id", node.ID(), "ip", node.IP(), "reason", err)
 			} else {
+				// 启动dial
 				d.startDial(newDialTask(node, dynDialedConn))
 			}
 
@@ -260,6 +283,7 @@ loop:
 			id := c.node.ID()
 			d.peers[id] = struct{}{}
 			// Remove from static pool because the node is now connected.
+			// 从static pool移除，因为node现在已经连接
 			task := d.static[id]
 			if task != nil && task.staticPoolIndex >= 0 {
 				d.removeFromStaticPool(task.staticPoolIndex)
@@ -315,11 +339,13 @@ loop:
 
 // readNodes runs in its own goroutine and delivers nodes from
 // the input iterator to the nodesIn channel.
+// readNodes在它自己的goroutine运行并且从输入的iterator读取nodes，输出nodesIn channel
 func (d *dialScheduler) readNodes(it enode.Iterator) {
 	defer d.wg.Done()
 
 	for it.Next() {
 		select {
+		// 传入nodes
 		case d.nodesIn <- it.Node():
 		case <-d.ctx.Done():
 		}
@@ -351,6 +377,7 @@ func (d *dialScheduler) rearmHistoryTimer() {
 }
 
 // expireHistory removes expired items from d.history.
+// expireHistory从d.history移除过期的items
 func (d *dialScheduler) expireHistory() {
 	d.history.expire(d.clock.Now(), func(hkey string) {
 		var id enode.ID
@@ -371,6 +398,7 @@ func (d *dialScheduler) freeDialSlots() int {
 }
 
 // checkDial returns an error if node n should not be dialed.
+// checkDial返回一个error，如果node n不应该被dialed
 func (d *dialScheduler) checkDial(n *enode.Node) error {
 	if n.ID() == d.self {
 		return errSelf
@@ -408,6 +436,7 @@ func (d *dialScheduler) startStaticDials(n int) (started int) {
 }
 
 // updateStaticPool attempts to move the given static dial back into staticPool.
+// updateStaticPool试着移动给定的static dial回staticPool
 func (d *dialScheduler) updateStaticPool(id enode.ID) {
 	task, ok := d.static[id]
 	if ok && task.staticPoolIndex < 0 && d.checkDial(task.dest) == nil {
@@ -448,6 +477,7 @@ func (d *dialScheduler) startDial(task *dialTask) {
 }
 
 // A dialTask generated for each node that is dialed.
+// 一个dialTask为每个被dialed node生成
 type dialTask struct {
 	staticPoolIndex int
 	flags           connFlag

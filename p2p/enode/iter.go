@@ -126,13 +126,18 @@ func (f *filterIter) Next() bool {
 // FairMix aggregates multiple node iterators. The mixer itself is an iterator which ends
 // only when Close is called. Source iterators added via AddSource are removed from the
 // mix when they end.
+// FairMix聚合多个node iterators，mixer自己是一个iterator，只有在Close被调用时结束，Source iterator通过AddSource被添加
+// 当结束时，被移除
 //
 // The distribution of nodes returned by Next is approximately fair, i.e. FairMix
 // attempts to draw from all sources equally often. However, if a certain source is slow
 // and doesn't return a node within the configured timeout, a node from any other source
 // will be returned.
+// Next返回的nodes的分布大概是均衡的，FairMix试着均衡地从所有sources读取，但是如果一个特定的source特别慢，没有在一个特定的超时
+// 时间返回，另一个source的node会返回
 //
 // It's safe to call AddSource and Close concurrently with Next.
+// 在Next的时候并发调用AddSrouce和Close是安全的
 type FairMix struct {
 	wg      sync.WaitGroup
 	fromAny chan *Node
@@ -167,6 +172,7 @@ func NewFairMix(timeout time.Duration) *FairMix {
 }
 
 // AddSource adds a source of nodes.
+// AddSource添加一个source of nodes
 func (m *FairMix) AddSource(it Iterator) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -280,6 +286,7 @@ func (m *FairMix) deleteSource(s *mixSource) {
 }
 
 // runSource reads a single source in a loop.
+// runSource从一个loop中读取单个source
 func (m *FairMix) runSource(closed chan struct{}, s *mixSource) {
 	defer m.wg.Done()
 	defer close(s.next)

@@ -253,6 +253,7 @@ func SaveECDSA(file string, key *ecdsa.PrivateKey) error {
 }
 
 // GenerateKey generates a new private key.
+// GenerateKey生成一个新的private key
 func GenerateKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(S256(), rand.Reader)
 }

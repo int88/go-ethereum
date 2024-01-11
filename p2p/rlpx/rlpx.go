@@ -56,11 +56,13 @@ type Conn struct {
 
 	// These are the buffers for snappy compression.
 	// Compression is enabled if they are non-nil.
+	// 这些是用于snappy compression的buffers，如果他们为non-nil，则Compression使能
 	snappyReadBuffer  []byte
 	snappyWriteBuffer []byte
 }
 
 // sessionState contains the session keys.
+// sessionState代表session keys
 type sessionState struct {
 	enc cipher.Stream
 	dec cipher.Stream
@@ -93,6 +95,7 @@ func newHashMAC(cipher cipher.Block, h hash.Hash) hashMAC {
 
 // NewConn wraps the given network connection. If dialDest is non-nil, the connection
 // behaves as the initiator during the handshake.
+// NewConn封装给定的network connection，如果dialDest为non-nil，connection在握手中的行为和initiator一样
 func NewConn(conn net.Conn, dialDest *ecdsa.PublicKey) *Conn {
 	return &Conn{
 		dialDest: dialDest,
@@ -322,6 +325,7 @@ func (c *Conn) Handshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error) {
 
 // InitWithSecrets injects connection secrets as if a handshake had
 // been performed. This cannot be called after the handshake.
+// InitWithSecrets这与connection secrets，好像握手已经被执行了，这不能再握手之后被调用
 func (c *Conn) InitWithSecrets(sec Secrets) {
 	if c.session != nil {
 		panic("can't handshake twice")
@@ -371,6 +375,7 @@ var (
 )
 
 // Secrets represents the connection secrets which are negotiated during the handshake.
+// Secrets代表connection secrets，在握手期间协商
 type Secrets struct {
 	AES, MAC              []byte
 	EgressMAC, IngressMAC hash.Hash

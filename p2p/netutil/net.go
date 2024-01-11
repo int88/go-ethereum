@@ -136,6 +136,7 @@ func (l *Netlist) Contains(ip net.IP) bool {
 }
 
 // IsLAN reports whether an IP is a local network address.
+// IsLAN报告是否一个IP地址是本地的network address
 func IsLAN(ip net.IP) bool {
 	if ip.IsLoopback() {
 		return true

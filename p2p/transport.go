@@ -45,12 +45,14 @@ const (
 
 // rlpxTransport is the transport used by actual (non-test) connections.
 // It wraps an RLPx connection with locks and read/write deadlines.
+// rlpxTransport是真正的连接使用的transport，他封装一个RLPx连接，用locks以及读写deadline
 type rlpxTransport struct {
 	rmu, wmu sync.Mutex
 	wbuf     bytes.Buffer
 	conn     *rlpx.Conn
 }
 
+// 构建一个新的RLPX
 func newRLPX(conn net.Conn, dialDest *ecdsa.PublicKey) transport {
 	return &rlpxTransport{conn: rlpx.NewConn(conn, dialDest)}
 }
@@ -136,6 +138,8 @@ func (t *rlpxTransport) doProtoHandshake(our *protoHandshake) (their *protoHands
 	// returning the handshake read error. If the remote side
 	// disconnects us early with a valid reason, we should return it
 	// as the error so it can be tracked elsewhere.
+	// 写入我们的handshake是并行发生的，我们更倾向返回握手的读取错误，如果remote side用一个合理的理由断开连接
+	// 我们应该作为错误返回，如果它可以在其他区地方追踪
 	werr := make(chan error, 1)
 	go func() { werr <- Send(t, handshakeMsg, our) }()
 	if their, err = readProtocolHandshake(t); err != nil {

@@ -130,6 +130,7 @@ type callTimeout struct {
 }
 
 // ListenV5 listens on the given connection.
+// ListenV5在给定的连接上监听
 func ListenV5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 	t, err := newUDPv5(conn, ln, cfg)
 	if err != nil {
@@ -143,6 +144,7 @@ func ListenV5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 }
 
 // newUDPv5 creates a UDPv5 transport, but doesn't start any goroutines.
+// newUDPv5创建一个UDPv5 transport，但是不启动任何的goroutines
 func newUDPv5(conn UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv5, error) {
 	closeCtx, cancelCloseCtx := context.WithCancel(context.Background())
 	cfg = cfg.withDefaults()
@@ -510,12 +512,14 @@ func (t *UDPv5) callDone(c *callV5) {
 }
 
 // dispatch runs in its own goroutine, handles incoming packets and deals with calls.
+// dispatch在它自己的goroutine运行，处理到来的packets并且处理调用
 //
 // For any destination node there is at most one 'active call', stored in the t.activeCall*
 // maps. A call is made active when it is sent. The active call can be answered by a
 // matching response, in which case c.ch receives the response; or by timing out, in which case
 // c.err receives the error. When the function that created the call signals the active
 // call is done through callDone, the next call from the call queue is started.
+// 对于任何的destination node，至多有一个'active call'，存储在t.activeCall* map
 //
 // Calls may also be answered by a WHOAREYOU packet referencing the call packet's authTag.
 // When that happens the call is simply re-sent to complete the handshake. We allow one
@@ -658,6 +662,7 @@ func (t *UDPv5) send(toID enode.ID, toAddr *net.UDPAddr, packet v5wire.Packet, c
 }
 
 // readLoop runs in its own goroutine and reads packets from the network.
+// readLoop在它自己的goroutine运行并且从network读取packets
 func (t *UDPv5) readLoop() {
 	defer t.wg.Done()
 

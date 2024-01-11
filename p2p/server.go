@@ -15,6 +15,7 @@
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 // Package p2p implements the Ethereum p2p network protocols.
+// p2p包实现了ethereum的p2p network协议
 package p2p
 
 import (
@@ -50,6 +51,7 @@ const (
 	discmixTimeout = 5 * time.Second
 
 	// Connectivity defaults.
+	// 默认的连接设置
 	defaultMaxPendingPeers = 50
 	defaultDialRatio       = 3
 
@@ -71,17 +73,21 @@ var (
 )
 
 // Config holds Server options.
+// Config维护Server的options
 type Config struct {
 	// This field must be set to a valid secp256k1 private key.
 	PrivateKey *ecdsa.PrivateKey `toml:"-"`
 
 	// MaxPeers is the maximum number of peers that can be
 	// connected. It must be greater than zero.
+	// MaxPeers是可以连接的最大数目的peers
 	MaxPeers int
 
 	// MaxPendingPeers is the maximum number of peers that can be pending in the
 	// handshake phase, counted separately for inbound and outbound connections.
 	// Zero defaults to preset values.
+	// MaxPendingPeers是最大的可以在握手阶段pending的peers数目，对于inbound和outbound connections分别统计
+	// 0则为默认配置
 	MaxPendingPeers int `toml:",omitempty"`
 
 	// DialRatio controls the ratio of inbound to dialed connections.
@@ -91,6 +97,7 @@ type Config struct {
 
 	// NoDiscovery can be used to disable the peer discovery mechanism.
 	// Disabling is useful for protocol debugging (manual topology).
+	// NoDiscovery可以被用于禁止peer discovery机制，对于协议的debug很有用
 	NoDiscovery bool
 
 	// DiscoveryV4 specifies whether V4 discovery should be started.
@@ -105,33 +112,40 @@ type Config struct {
 
 	// BootstrapNodes are used to establish connectivity
 	// with the rest of the network.
+	// BootstrapNodes用于和network的剩余部分建立连接
 	BootstrapNodes []*enode.Node
 
 	// BootstrapNodesV5 are used to establish connectivity
 	// with the rest of the network using the V5 discovery
 	// protocol.
+	// BootstrapNodesV5用于和network的剩余部分建立连接，使用V5的discovery protocol
 	BootstrapNodesV5 []*enode.Node `toml:",omitempty"`
 
 	// Static nodes are used as pre-configured connections which are always
 	// maintained and re-connected on disconnects.
+	// Static nodes作为提前配置的connections，总是被维护并且在断连的时候重连
 	StaticNodes []*enode.Node
 
 	// Trusted nodes are used as pre-configured connections which are always
 	// allowed to connect, even above the peer limit.
+	// Trusted作为提前配置的连接，总是允许去连接，即使超过了peer limit
 	TrustedNodes []*enode.Node
 
 	// Connectivity can be restricted to certain IP networks.
 	// If this option is set to a non-nil value, only hosts which match one of the
 	// IP networks contained in the list are considered.
+	// Connectivity可以被限制到特定的IP networks，如果这个option设置为non-nil，只有匹配这个IP networks的才会被考虑
 	NetRestrict *netutil.Netlist `toml:",omitempty"`
 
 	// NodeDatabase is the path to the database containing the previously seen
 	// live nodes in the network.
+	// NodeDatabase是数据库的路径，包含了之前在network中看到的live nodes
 	NodeDatabase string `toml:",omitempty"`
 
 	// Protocols should contain the protocols supported
 	// by the server. Matching protocols are launched for
 	// each peer.
+	// Protocols应该包含这个server支持的protocols，对于每个peer匹配的protocols都启动
 	Protocols []Protocol `toml:"-" json:"-"`
 
 	// If ListenAddr is set to a non-nil address, the server
@@ -144,22 +158,27 @@ type Config struct {
 
 	// If DiscAddr is set to a non-nil value, the server will use ListenAddr
 	// for TCP and DiscAddr for the UDP discovery protocol.
+	// 如果DiscAddr设置为non-nil，server会使用ListenAddr作为TCP，用DiscAddr作为UDP的发现协议
 	DiscAddr string
 
 	// If set to a non-nil value, the given NAT port mapper
 	// is used to make the listening port available to the
 	// Internet.
+	// 如果设置为non-nil，给定的NAT port mapper会被使用，让listening port在Internet可访问
 	NAT nat.Interface `toml:",omitempty"`
 
 	// If Dialer is set to a non-nil value, the given Dialer
 	// is used to dial outbound peer connections.
+	// 如果Dialer设置为non-nil，给定的Dialer会用于dial outbound peer connections
 	Dialer NodeDialer `toml:"-"`
 
 	// If NoDial is true, the server will not dial any peers.
+	// 如果NoDial为true，server不会dial任何的peers
 	NoDial bool `toml:",omitempty"`
 
 	// If EnableMsgEvents is set then the server will emit PeerEvents
 	// whenever a message is sent to or received from a peer
+	// 如果EnableMsgEvents被设置，那么server会发射PeerEvents，无论何时一个message被发送，或者从一个peer接收
 	EnableMsgEvents bool
 
 	// Logger is a custom logger to use with the p2p.Server.
@@ -169,12 +188,15 @@ type Config struct {
 }
 
 // Server manages all peer connections.
+// Server管理所有的peer connections
 type Server struct {
 	// Config fields may not be modified while the server is running.
+	// Config字段当server运行的时候不能被修改
 	Config
 
 	// Hooks for testing. These are useful because we can inhibit
 	// the whole protocol stack.
+	// Hooks用于测试，这些很有用，因为我们可以抑制整个协议栈
 	newTransport func(net.Conn, *ecdsa.PublicKey) transport
 	newPeerHook  func(*Peer)
 	listenFunc   func(network, addr string) (net.Listener, error)
@@ -196,9 +218,11 @@ type Server struct {
 	dialsched *dialScheduler
 
 	// This is read by the NAT port mapping loop.
+	// 这被NAT port mapping loop读取
 	portMappingRegister chan *portMapping
 
 	// Channels into the run loop.
+	// run loop中的channels
 	quit                    chan struct{}
 	addtrusted              chan *enode.Node
 	removetrusted           chan *enode.Node
@@ -209,6 +233,7 @@ type Server struct {
 	checkpointAddPeer       chan *conn
 
 	// State of run loop and listenLoop.
+	// run loop以及listenLoop的状态
 	inboundHistory expHeap
 }
 
@@ -231,27 +256,34 @@ const (
 
 // conn wraps a network connection with information gathered
 // during the two handshakes.
+// conn封装一个network connection，用在两次握手期间获取到的信息
 type conn struct {
 	fd net.Conn
 	transport
 	node  *enode.Node
 	flags connFlag
 	cont  chan error // The run loop uses cont to signal errors to SetupConn.
-	caps  []Cap      // valid after the protocol handshake
-	name  string     // valid after the protocol handshake
+	// 在protocol handshake之后合法
+	caps []Cap  // valid after the protocol handshake
+	name string // valid after the protocol handshake
 }
 
 type transport interface {
 	// The two handshakes.
+	// 两种握手
 	doEncHandshake(prv *ecdsa.PrivateKey) (*ecdsa.PublicKey, error)
 	doProtoHandshake(our *protoHandshake) (*protoHandshake, error)
 	// The MsgReadWriter can only be used after the encryption
 	// handshake has completed. The code uses conn.id to track this
 	// by setting it to a non-nil value after the encryption handshake.
+	// MsgReadWriter可以在entryption握手完成之后使用，代码使用conn.id追踪，通过设置他为non-nil
+	// 在握手之后
 	MsgReadWriter
 	// transports must provide Close because we use MsgPipe in some of
 	// the tests. Closing the actual network connection doesn't do
 	// anything in those tests because MsgPipe doesn't use it.
+	// transports必须提供Close，因为我们使用MsgPipe，在一些测试中，关闭真正的连接
+	// 不会在这些测试中做任何事，因为MsgPipe不使用它
 	close(err error)
 }
 
@@ -332,30 +364,39 @@ func (srv *Server) PeerCount() int {
 // AddPeer adds the given node to the static node set. When there is room in the peer set,
 // the server will connect to the node. If the connection fails for any reason, the server
 // will attempt to reconnect the peer.
+// AddPeer将给定的node加入到static node set，当peer set中还有空间的时候，server会连接这个node，如果connection失败
+// 由于任何原因，server会试着重新连接peer
 func (srv *Server) AddPeer(node *enode.Node) {
 	srv.dialsched.addStatic(node)
 }
 
 // RemovePeer removes a node from the static node set. It also disconnects from the given
 // node if it is currently connected as a peer.
+// RemovePeer将一个node移出static node set，它同时对给定的node断连，如果它当前作为一个peer连接
 //
 // This method blocks until all protocols have exited and the peer is removed. Do not use
 // RemovePeer in protocol implementations, call Disconnect on the Peer instead.
+// 这个方法阻塞直到所有的协议都已经退出并且peer被移除，不要使用协议实现的RemovePeer，而是使用Peer的Disconnect
 func (srv *Server) RemovePeer(node *enode.Node) {
 	var (
 		ch  chan *PeerEvent
 		sub event.Subscription
 	)
 	// Disconnect the peer on the main loop.
+	// 在main loop断开peer
 	srv.doPeerOp(func(peers map[enode.ID]*Peer) {
+		// 从dialsched移除static
 		srv.dialsched.removeStatic(node)
 		if peer := peers[node.ID()]; peer != nil {
 			ch = make(chan *PeerEvent, 1)
+			// 获取订阅
 			sub = srv.peerFeed.Subscribe(ch)
+			// 断开连接
 			peer.Disconnect(DiscRequested)
 		}
 	})
 	// Wait for the peer connection to end.
+	// 等待peer connection结束
 	if ch != nil {
 		defer sub.Unsubscribe()
 		for ev := range ch {
@@ -368,6 +409,7 @@ func (srv *Server) RemovePeer(node *enode.Node) {
 
 // AddTrustedPeer adds the given node to a reserved trusted list which allows the
 // node to always connect, even if the slot are full.
+// AddTrustedPeer将给定的node加入到保留的trusted list，这允许node总是连接，即使slot满了
 func (srv *Server) AddTrustedPeer(node *enode.Node) {
 	select {
 	case srv.addtrusted <- node:
@@ -384,11 +426,13 @@ func (srv *Server) RemoveTrustedPeer(node *enode.Node) {
 }
 
 // SubscribeEvents subscribes the given channel to peer events
+// SubscribeEvents订阅给定的channel，对于peer events
 func (srv *Server) SubscribeEvents(ch chan *PeerEvent) event.Subscription {
 	return srv.peerFeed.Subscribe(ch)
 }
 
 // Self returns the local node's endpoint information.
+// Self返回local node自己的endpoint信息
 func (srv *Server) Self() *enode.Node {
 	srv.lock.Lock()
 	ln := srv.localnode
@@ -401,7 +445,9 @@ func (srv *Server) Self() *enode.Node {
 }
 
 // Stop terminates the server and all active peer connections.
+// Stop终止server以及所有活跃的peer connections
 // It blocks until all active connections have been closed.
+// 它阻塞直到所有活跃的connecitons都已经被关闭
 func (srv *Server) Stop() {
 	srv.lock.Lock()
 	if !srv.running {
@@ -411,6 +457,7 @@ func (srv *Server) Stop() {
 	srv.running = false
 	if srv.listener != nil {
 		// this unblocks listener Accept
+		// 这会unblocks listener Accept
 		srv.listener.Close()
 	}
 	close(srv.quit)
@@ -445,7 +492,9 @@ func (s *sharedUDPConn) Close() error {
 }
 
 // Start starts running the server.
+// Start开始运行server
 // Servers can not be re-used after stopping.
+// Servers在停止之后不能重用
 func (srv *Server) Start() (err error) {
 	srv.lock.Lock()
 	defer srv.lock.Unlock()
@@ -461,11 +510,13 @@ func (srv *Server) Start() (err error) {
 		srv.clock = mclock.System{}
 	}
 	if srv.NoDial && srv.ListenAddr == "" {
+		// P2P server会没有用，既不dialing，又不listening
 		srv.log.Warn("P2P server will be useless, neither dialing nor listening")
 	}
 
 	// static fields
 	if srv.PrivateKey == nil {
+		// 必须设置private key
 		return errors.New("Server.PrivateKey must be set to a non-nil key")
 	}
 	if srv.newTransport == nil {
@@ -483,19 +534,24 @@ func (srv *Server) Start() (err error) {
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
 
+	// 设置local node
 	if err := srv.setupLocalNode(); err != nil {
 		return err
 	}
+	// 设置prot mapping
 	srv.setupPortMapping()
 
 	if srv.ListenAddr != "" {
+		// 设置listening
 		if err := srv.setupListening(); err != nil {
 			return err
 		}
 	}
+	// 设置discovery
 	if err := srv.setupDiscovery(); err != nil {
 		return err
 	}
+	// 设置dial scheduler
 	srv.setupDialScheduler()
 
 	srv.loopWG.Add(1)
@@ -505,6 +561,7 @@ func (srv *Server) Start() (err error) {
 
 func (srv *Server) setupLocalNode() error {
 	// Create the devp2p handshake.
+	// 创建devp2p的握手
 	pubkey := crypto.FromECDSAPub(&srv.PrivateKey.PublicKey)
 	srv.ourHandshake = &protoHandshake{Version: baseProtocolVersion, Name: srv.Name, ID: pubkey[1:]}
 	for _, p := range srv.Protocols {
@@ -513,11 +570,13 @@ func (srv *Server) setupLocalNode() error {
 	slices.SortFunc(srv.ourHandshake.Caps, Cap.Cmp)
 
 	// Create the local node.
+	// 创建local node
 	db, err := enode.OpenDB(srv.NodeDatabase)
 	if err != nil {
 		return err
 	}
 	srv.nodedb = db
+	// 构建local node
 	srv.localnode = enode.NewLocalNode(db, srv.PrivateKey)
 	srv.localnode.SetFallbackIP(net.IP{127, 0, 0, 1})
 	// TODO: check conflicts
@@ -533,6 +592,7 @@ func (srv *Server) setupDiscovery() error {
 	srv.discmix = enode.NewFairMix(discmixTimeout)
 
 	// Don't listen on UDP endpoint if DHT is disabled.
+	// 不要监听UDP endpoint，如果DHT被禁止
 	if srv.NoDiscovery {
 		return nil
 	}
@@ -547,12 +607,14 @@ func (srv *Server) setupDiscovery() error {
 	)
 	// If both versions of discovery are running, setup a shared
 	// connection, so v5 can read unhandled messages from v4.
+	// 如果两个版本的discovery都在运行，设置一个shared connection，这与v5可以从v4读取unhandled messages
 	if srv.DiscoveryV4 && srv.DiscoveryV5 {
 		unhandled = make(chan discover.ReadPacket, 100)
 		sconn = &sharedUDPConn{conn, unhandled}
 	}
 
 	// Start discovery services.
+	// 启动discovery services
 	if srv.DiscoveryV4 {
 		cfg := discover.Config{
 			PrivateKey:  srv.PrivateKey,
@@ -561,6 +623,7 @@ func (srv *Server) setupDiscovery() error {
 			Unhandled:   unhandled,
 			Log:         srv.log,
 		}
+		// 监听discv4
 		ntab, err := discover.ListenV4(conn, srv.localnode, cfg)
 		if err != nil {
 			return err
@@ -569,6 +632,7 @@ func (srv *Server) setupDiscovery() error {
 		srv.discmix.AddSource(ntab.RandomNodes())
 	}
 	if srv.DiscoveryV5 {
+		// 启动discovery v5 service
 		cfg := discover.Config{
 			PrivateKey:  srv.PrivateKey,
 			NetRestrict: srv.NetRestrict,
@@ -582,6 +646,7 @@ func (srv *Server) setupDiscovery() error {
 	}
 
 	// Add protocol-specific discovery sources.
+	// 添加协议特定的discovery sources
 	added := make(map[string]bool)
 	for _, proto := range srv.Protocols {
 		if proto.DialCandidates != nil && !added[proto.Name] {
@@ -635,6 +700,7 @@ func (srv *Server) maxDialedConns() (limit int) {
 
 func (srv *Server) setupListening() error {
 	// Launch the listener.
+	// 启动listener
 	listener, err := srv.listenFunc("tcp", srv.ListenAddr)
 	if err != nil {
 		return err
@@ -643,6 +709,7 @@ func (srv *Server) setupListening() error {
 	srv.ListenAddr = listener.Addr().String()
 
 	// Update the local node record and map the TCP listening port if NAT is configured.
+	// 更新本地的node record并且映射TCP的监听端口，如果配置了NAT
 	tcp, isTCP := listener.Addr().(*net.TCPAddr)
 	if isTCP {
 		srv.localnode.Set(enr.TCP(tcp.Port))
@@ -691,6 +758,7 @@ func (srv *Server) setupUDPListening() (*net.UDPConn, error) {
 }
 
 // doPeerOp runs fn on the main loop.
+// doPeerOp在main loop运行
 func (srv *Server) doPeerOp(fn peerOpFunc) {
 	select {
 	case srv.peerOp <- fn:
@@ -700,7 +768,9 @@ func (srv *Server) doPeerOp(fn peerOpFunc) {
 }
 
 // run is the main loop of the server.
+// run是server运行的main loop
 func (srv *Server) run() {
+	// 开始P2P networking
 	srv.log.Info("Started P2P networking", "self", srv.localnode.Node().URLv4())
 	defer srv.loopWG.Done()
 	defer srv.nodedb.Close()
@@ -713,7 +783,9 @@ func (srv *Server) run() {
 		trusted      = make(map[enode.ID]bool, len(srv.TrustedNodes))
 	)
 	// Put trusted nodes into a map to speed up checks.
+	// 将trusted nodes加入map来加速检查
 	// Trusted peers are loaded on startup or added via AddTrustedPeer RPC.
+	// Trusted peers在启动的时候加载或者通过AddTrustedPeer RPC
 	for _, n := range srv.TrustedNodes {
 		trusted[n.ID()] = true
 	}
@@ -728,6 +800,7 @@ running:
 		case n := <-srv.addtrusted:
 			// This channel is used by AddTrustedPeer to add a node
 			// to the trusted node set.
+			// 这个channel被AddTrustedPeer使用来添加一个node到trusted node set
 			srv.log.Trace("Adding trusted node", "node", n)
 			trusted[n.ID()] = true
 			if p, ok := peers[n.ID()]; ok {
@@ -737,6 +810,7 @@ running:
 		case n := <-srv.removetrusted:
 			// This channel is used by RemoveTrustedPeer to remove a node
 			// from the trusted node set.
+			// 这个channel被RemoveTrustedPeer使用来移除一个node，从trusted node set
 			srv.log.Trace("Removing trusted node", "node", n)
 			delete(trusted, n.ID())
 			if p, ok := peers[n.ID()]; ok {
@@ -745,12 +819,14 @@ running:
 
 		case op := <-srv.peerOp:
 			// This channel is used by Peers and PeerCount.
+			// 这个channel被Peers以及PeerCount使用
 			op(peers)
 			srv.peerOpDone <- struct{}{}
 
 		case c := <-srv.checkpointPostHandshake:
 			// A connection has passed the encryption handshake so
 			// the remote identity is known (but hasn't been verified yet).
+			// 一个connection已经传递entryption handshake，这与remote identity已经知道（但是还没有校验）
 			if trusted[c.node.ID()] {
 				// Ensure that the trusted flag is set before checking against MaxPeers.
 				c.flags |= trustedConn
@@ -761,9 +837,11 @@ running:
 		case c := <-srv.checkpointAddPeer:
 			// At this point the connection is past the protocol handshake.
 			// Its capabilities are known and the remote identity is verified.
+			// 这个时候connction已经过了protocol handshake，它的capabilities已经知道，并且remote identity已经被校验
 			err := srv.addPeerChecks(peers, inboundCount, c)
 			if err == nil {
 				// The handshakes are done and it passed all checks.
+				// handshakes已经完成并且它通过了所有校验
 				p := srv.launchPeer(c)
 				peers[c.node.ID()] = p
 				srv.log.Debug("Adding p2p peer", "peercount", len(peers), "id", p.ID(), "conn", c.flags, "addr", p.RemoteAddr(), "name", p.Name())
@@ -780,8 +858,10 @@ running:
 
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
+			// 一个peer已经disconnected
 			d := common.PrettyDuration(mclock.Now() - pd.created)
 			delete(peers, pd.ID())
+			// 移除p2p peer
 			srv.log.Debug("Removing p2p peer", "peercount", len(peers), "id", pd.ID(), "duration", d, "req", pd.requested, "err", pd.err)
 			srv.dialsched.peerRemoved(pd.rw)
 			if pd.Inbound() {
@@ -794,6 +874,7 @@ running:
 	srv.log.Trace("P2P networking is spinning down")
 
 	// Terminate discovery. If there is a running lookup it will terminate soon.
+	// 终止discovery，如果有一个正在运行的lookup，它会立刻终止
 	if srv.ntab != nil {
 		srv.ntab.Close()
 	}
@@ -801,12 +882,14 @@ running:
 		srv.DiscV5.Close()
 	}
 	// Disconnect all peers.
+	// 断开所有的peers
 	for _, p := range peers {
 		p.Disconnect(DiscQuitting)
 	}
 	// Wait for peers to shut down. Pending connections and tasks are
 	// not handled here and will terminate soon-ish because srv.quit
 	// is closed.
+	// 等待所有peers被关闭，Pending connections以及tasks没有在这里被处理并且会终止，因为srv.quit被关闭
 	for len(peers) > 0 {
 		p := <-srv.delpeer
 		p.log.Trace("<-delpeer (spindown)")
@@ -817,6 +900,7 @@ running:
 func (srv *Server) postHandshakeChecks(peers map[enode.ID]*Peer, inboundCount int, c *conn) error {
 	switch {
 	case !c.is(trustedConn) && len(peers) >= srv.MaxPeers:
+		// 大于max peers
 		return DiscTooManyPeers
 	case !c.is(trustedConn) && c.is(inboundConn) && inboundCount >= srv.maxInboundConns():
 		return DiscTooManyPeers
@@ -831,20 +915,24 @@ func (srv *Server) postHandshakeChecks(peers map[enode.ID]*Peer, inboundCount in
 
 func (srv *Server) addPeerChecks(peers map[enode.ID]*Peer, inboundCount int, c *conn) error {
 	// Drop connections with no matching protocols.
+	// 丢弃连接，如果没有匹配的protocols
 	if len(srv.Protocols) > 0 && countMatchingProtocols(srv.Protocols, c.caps) == 0 {
 		return DiscUselessPeer
 	}
 	// Repeat the post-handshake checks because the
 	// peer set might have changed since those checks were performed.
+	// 重复post-handshake checks，因为peer set可能在这些检查发生之后有变化
 	return srv.postHandshakeChecks(peers, inboundCount, c)
 }
 
 // listenLoop runs in its own goroutine and accepts
 // inbound connections.
+// listenLoop运行它自己的goroutine并且接受inbound connections
 func (srv *Server) listenLoop() {
 	srv.log.Debug("TCP listener up", "addr", srv.listener.Addr())
 
 	// The slots channel limits accepts of new connections.
+	// slots channel限制新连接的接收
 	tokens := defaultMaxPendingPeers
 	if srv.MaxPendingPeers > 0 {
 		tokens = srv.MaxPendingPeers
@@ -856,6 +944,7 @@ func (srv *Server) listenLoop() {
 
 	// Wait for slots to be returned on exit. This ensures all connection goroutines
 	// are down before listenLoop returns.
+	// 等待slots在退出的时候返回，这确保所有的connection goroutines在listenLoop退出的时候down
 	defer srv.loopWG.Done()
 	defer func() {
 		for i := 0; i < cap(slots); i++ {
@@ -865,6 +954,7 @@ func (srv *Server) listenLoop() {
 
 	for {
 		// Wait for a free slot before accepting.
+		// 等待一个free slot，在接受之前
 		<-slots
 
 		var (
@@ -890,7 +980,9 @@ func (srv *Server) listenLoop() {
 		}
 
 		remoteIP := netutil.AddrIP(fd.RemoteAddr())
+		// 检查inbound connection
 		if err := srv.checkInboundConn(remoteIP); err != nil {
+			// 拒绝inbound connection
 			srv.log.Debug("Rejected inbound connection", "addr", fd.RemoteAddr(), "err", err)
 			fd.Close()
 			slots <- struct{}{}
@@ -902,6 +994,7 @@ func (srv *Server) listenLoop() {
 			srv.log.Trace("Accepted connection", "addr", fd.RemoteAddr())
 		}
 		go func() {
+			// 设置connection
 			srv.SetupConn(fd, inboundConn, nil)
 			slots <- struct{}{}
 		}()
@@ -913,15 +1006,18 @@ func (srv *Server) checkInboundConn(remoteIP net.IP) error {
 		return nil
 	}
 	// Reject connections that do not match NetRestrict.
+	// 拒绝connections，如果不匹配NetRestrict
 	if srv.NetRestrict != nil && !srv.NetRestrict.Contains(remoteIP) {
 		return fmt.Errorf("not in netrestrict list")
 	}
 	// Reject Internet peers that try too often.
+	// 拒绝重试太频繁的Internet peers
 	now := srv.clock.Now()
 	srv.inboundHistory.expire(now, nil)
 	if !netutil.IsLAN(remoteIP) && srv.inboundHistory.contains(remoteIP.String()) {
 		return fmt.Errorf("too many attempts")
 	}
+	// 添加到inbound history
 	srv.inboundHistory.add(remoteIP.String(), now.Add(inboundThrottleTime))
 	return nil
 }
@@ -929,6 +1025,7 @@ func (srv *Server) checkInboundConn(remoteIP net.IP) error {
 // SetupConn runs the handshakes and attempts to add the connection
 // as a peer. It returns when the connection has been added as a peer
 // or the handshakes have failed.
+// SetupConn运行握手并且试着将连接作为一个peer添加，它返回什么时候连接作为peer被添加或者握手失败
 func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *enode.Node) error {
 	c := &conn{fd: fd, flags: flags, cont: make(chan error)}
 	if dialDest == nil {
@@ -949,6 +1046,7 @@ func (srv *Server) SetupConn(fd net.Conn, flags connFlag, dialDest *enode.Node) 
 
 func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) error {
 	// Prevent leftover pending conns from entering the handshake.
+	// 防止进入握手之后，剩下pending conns
 	srv.lock.Lock()
 	running := srv.running
 	srv.lock.Unlock()
@@ -957,9 +1055,11 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	// If dialing, figure out the remote public key.
+	// 如果dialing，搞清楚remote public key
 	if dialDest != nil {
 		dialPubkey := new(ecdsa.PublicKey)
 		if err := dialDest.Load((*enode.Secp256k1)(dialPubkey)); err != nil {
+			// dial destination没有一个secp256k1 public key
 			err = fmt.Errorf("%w: dial destination doesn't have a secp256k1 public key", errEncHandshakeError)
 			srv.log.Trace("Setting up connection failed", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
 			return err
@@ -967,6 +1067,7 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	// Run the RLPx handshake.
+	// 运行RLPx握手
 	remotePubkey, err := c.doEncHandshake(srv.PrivateKey)
 	if err != nil {
 		srv.log.Trace("Failed RLPx handshake", "addr", c.fd.RemoteAddr(), "conn", c.flags, "err", err)
@@ -985,12 +1086,14 @@ func (srv *Server) setupConn(c *conn, flags connFlag, dialDest *enode.Node) erro
 	}
 
 	// Run the capability negotiation handshake.
+	// 运行capability协商握手
 	phs, err := c.doProtoHandshake(srv.ourHandshake)
 	if err != nil {
 		clog.Trace("Failed p2p handshake", "err", err)
 		return fmt.Errorf("%w: %v", errProtoHandshakeError, err)
 	}
 	if id := c.node.ID(); !bytes.Equal(crypto.Keccak256(phs.ID), id[:]) {
+		// 错误的devp2p握手标识
 		clog.Trace("Wrong devp2p handshake identity", "phsid", hex.EncodeToString(phs.ID))
 		return DiscUnexpectedIdentity
 	}
@@ -1011,13 +1114,16 @@ func nodeFromConn(pubkey *ecdsa.PublicKey, conn net.Conn) *enode.Node {
 		ip = tcp.IP
 		port = tcp.Port
 	}
+	// 构建enode
 	return enode.NewV4(pubkey, ip, port, port)
 }
 
 // checkpoint sends the conn to run, which performs the
 // post-handshake checks for the stage (posthandshake, addpeer).
+// checkpoint发送conn去运行，为这个stage执行post-handshake检查（posthandshake，addpeer）
 func (srv *Server) checkpoint(c *conn, stage chan<- *conn) error {
 	select {
+	// 将connection发给stage
 	case stage <- c:
 	case <-srv.quit:
 		return errServerStopped
@@ -1026,10 +1132,12 @@ func (srv *Server) checkpoint(c *conn, stage chan<- *conn) error {
 }
 
 func (srv *Server) launchPeer(c *conn) *Peer {
+	// 构建一个新的peer
 	p := newPeer(srv.log, c, srv.Protocols)
 	if srv.EnableMsgEvents {
 		// If message events are enabled, pass the peerFeed
 		// to the peer.
+		// 如果message events被使能，传递peerFeed到peer
 		p.events = &srv.peerFeed
 	}
 	go srv.runPeer(p)
@@ -1037,10 +1145,13 @@ func (srv *Server) launchPeer(c *conn) *Peer {
 }
 
 // runPeer runs in its own goroutine for each peer.
+// runPeer运行在自己的goroutine，对于每个peer
 func (srv *Server) runPeer(p *Peer) {
 	if srv.newPeerHook != nil {
+		// 运行peer hook
 		srv.newPeerHook(p)
 	}
+	// 发送peer event
 	srv.peerFeed.Send(&PeerEvent{
 		Type:          PeerEventTypeAdd,
 		Peer:          p.ID(),
@@ -1049,11 +1160,14 @@ func (srv *Server) runPeer(p *Peer) {
 	})
 
 	// Run the per-peer main loop.
+	// 运行每个peer的main loop
 	remoteRequested, err := p.run()
 
 	// Announce disconnect on the main loop to update the peer set.
+	// 在main loop声明disconnect，更新peer set
 	// The main loop waits for existing peers to be sent on srv.delpeer
 	// before returning, so this send should not select on srv.quit.
+	// main loop等待已经存在的peers发送到srv.delpeer，在返回之前，这与这个send不应该在srv.quit被选择
 	srv.delpeer <- peerDrop{p, err, remoteRequested}
 
 	// Broadcast peer drop to external subscribers. This needs to be

@@ -69,8 +69,11 @@ var zeroIP = make(net.IP, 16)
 
 // DB is the node database, storing previously seen nodes and any collected metadata about
 // them for QoS purposes.
+// DB是node db，存储之前看到过的nodes以及任何关于他们的元数据，用于QoS
 type DB struct {
-	lvl    *leveldb.DB   // Interface to the database itself
+	// db自己的接口
+	lvl *leveldb.DB // Interface to the database itself
+	// 确保我们只运行最多一次expirer
 	runner sync.Once     // Ensures we can start at most one expirer
 	quit   chan struct{} // Channel to signal the expiring thread to stop
 }
@@ -430,6 +433,8 @@ func (db *DB) UpdateFindFailsV5(id ID, ip net.IP, fails int) error {
 // localSeq retrieves the local record sequence counter, defaulting to the current
 // timestamp if no previous exists. This ensures that wiping all data associated
 // with a node (apart from its key) will not generate already used sequence nums.
+// localSeq获取本地的record seq counter，默认是当前的时间戳，如果之前的不存在的话，这确保擦除所有和之歌node相关的数据
+// 除了它的key，不会产生任何已经使用的seq numbers
 func (db *DB) localSeq(id ID) uint64 {
 	if seq := db.fetchUint64(localItemKey(id, dbLocalSeq)); seq > 0 {
 		return seq

@@ -64,6 +64,8 @@ const (
 // Table is the 'node table', a Kademlia-like index of neighbor nodes. The table keeps
 // itself up-to-date by verifying the liveness of neighbors and requesting their node
 // records when announcements of a new record version are received.
+// Table是'node table'，一个类似于Kademlia index的neighbor nodes，这个table保持更新，通过确认
+// neighbors的liveness并且请求它们的node records，当接收到一个新的node record version的声明
 type Table struct {
 	mutex   sync.Mutex        // protects buckets, bucket content, nursery, rand
 	buckets [nBuckets]*bucket // index of known nodes by distance
@@ -240,6 +242,7 @@ func (tab *Table) refresh() <-chan struct{} {
 }
 
 // loop schedules runs of doRefresh, doRevalidate and copyLiveNodes.
+// loop调度doRefresh，doRevalidate和copyLiveNodes的运行
 func (tab *Table) loop() {
 	var (
 		revalidate     = time.NewTimer(tab.nextRevalidateTime())
@@ -254,6 +257,7 @@ func (tab *Table) loop() {
 	defer copyNodes.Stop()
 
 	// Start initial refresh.
+	// 启动初始的refresh
 	go tab.doRefresh(refreshDone)
 
 loop:

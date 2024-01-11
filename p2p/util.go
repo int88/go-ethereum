@@ -23,9 +23,11 @@ import (
 )
 
 // expHeap tracks strings and their expiry time.
+// expHeap追踪strings以及他们的过期时间
 type expHeap []expItem
 
 // expItem is an entry in addrHistory.
+// expItem是在addrHistory中的一个entry
 type expItem struct {
 	item string
 	exp  mclock.AbsTime
@@ -52,6 +54,7 @@ func (h expHeap) contains(item string) bool {
 }
 
 // expire removes items with expiry time before 'now'.
+// expire移除过期时间在'now'之前的items
 func (h *expHeap) expire(now mclock.AbsTime, onExp func(string)) {
 	for h.Len() > 0 && h.nextExpiry() < now {
 		item := heap.Pop(h)

@@ -92,18 +92,21 @@ func startTestServer(t *testing.T, remoteKey *ecdsa.PublicKey, pf func(*Peer)) *
 
 func TestServerListen(t *testing.T) {
 	// start the test server
+	// 启动test server
 	connected := make(chan *Peer)
 	remid := &newkey().PublicKey
 	srv := startTestServer(t, remid, func(p *Peer) {
 		if p.ID() != enode.PubkeyToIDV4(remid) {
 			t.Error("peer func called with wrong node id")
 		}
+		// 发送peer
 		connected <- p
 	})
 	defer close(connected)
 	defer srv.Stop()
 
 	// dial the test server
+	// 对test server进行dial
 	conn, err := net.DialTimeout("tcp", srv.ListenAddr, 5*time.Second)
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
@@ -112,6 +115,7 @@ func TestServerListen(t *testing.T) {
 
 	select {
 	case peer := <-connected:
+		// peer的local address和conn中的remote addr相等
 		if peer.LocalAddr().String() != conn.RemoteAddr().String() {
 			t.Errorf("peer started with wrong conn: got %v, want %v",
 				peer.LocalAddr(), conn.RemoteAddr())
@@ -127,6 +131,7 @@ func TestServerListen(t *testing.T) {
 
 func TestServerDial(t *testing.T) {
 	// run a one-shot TCP server to handle the connection.
+	// 运行一个one-shot TCP server来处理连接
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("could not setup listener: %v", err)
@@ -142,6 +147,7 @@ func TestServerDial(t *testing.T) {
 	}()
 
 	// start the server
+	// 启动server
 	connected := make(chan *Peer)
 	remid := &newkey().PublicKey
 	srv := startTestServer(t, remid, func(p *Peer) { connected <- p })
@@ -149,7 +155,9 @@ func TestServerDial(t *testing.T) {
 	defer srv.Stop()
 
 	// tell the server to connect
+	// 告诉server进行connect
 	tcpAddr := listener.Addr().(*net.TCPAddr)
+	// 构建v4的enode
 	node := enode.NewV4(remid, tcpAddr.IP, tcpAddr.Port, 0)
 	srv.AddPeer(node)
 
@@ -176,6 +184,8 @@ func TestServerDial(t *testing.T) {
 
 			// Test AddTrustedPeer/RemoveTrustedPeer and changing Trusted flags
 			// Particularly for race conditions on changing the flag state.
+			// 测试AddTrustedPeer/RemoveTrustedPeer并且改变Trusted flags，特别对于race condition
+			// 在改变flag state的时候
 			if peer := srv.Peers()[0]; peer.Info().Network.Trusted {
 				t.Errorf("peer is trusted prematurely: %v", peer)
 			}
@@ -192,6 +202,7 @@ func TestServerDial(t *testing.T) {
 				done <- true
 			}()
 			// Trigger potential race conditions
+			// 触发潜在的race condition
 			peer = srv.Peers()[0]
 			_ = peer.Inbound()
 			_ = peer.Info()
@@ -206,6 +217,7 @@ func TestServerDial(t *testing.T) {
 }
 
 // This test checks that RemovePeer disconnects the peer if it is connected.
+// 这个测试检查RemovePeer断开peer，如果它是连着的
 func TestServerRemovePeerDisconnect(t *testing.T) {
 	srv1 := &Server{Config: Config{
 		PrivateKey:  newkey(),
@@ -245,6 +257,7 @@ func TestServerRemovePeerDisconnect(t *testing.T) {
 
 // This test checks that connections are disconnected just after the encryption handshake
 // when the server is at capacity. Trusted connections should still be accepted.
+// 这个测试检查connections被断开连接，在entryption handshake之后，当server在它的capacity，信任的connections依然被接受
 func TestServerAtCap(t *testing.T) {
 	trustedNode := newkey()
 	trustedID := enode.PubkeyToIDV4(&trustedNode.PublicKey)
@@ -265,25 +278,31 @@ func TestServerAtCap(t *testing.T) {
 
 	newconn := func(id enode.ID) *conn {
 		fd, _ := net.Pipe()
+		// 构建新的transport
 		tx := newTestTransport(&trustedNode.PublicKey, fd, nil)
 		node := enode.SignNull(new(enr.Record), id)
+		// 构建conn
 		return &conn{fd: fd, transport: tx, flags: inboundConn, node: node, cont: make(chan error)}
 	}
 
 	// Inject a few connections to fill up the peer set.
+	// 注入一些连接来填充peer set
 	for i := 0; i < 10; i++ {
+		// 构建新的connection
 		c := newconn(randomID())
 		if err := srv.checkpoint(c, srv.checkpointAddPeer); err != nil {
 			t.Fatalf("could not add conn %d: %v", i, err)
 		}
 	}
 	// Try inserting a non-trusted connection.
+	// 试着插入一个non-trusted connection
 	anotherID := randomID()
 	c := newconn(anotherID)
 	if err := srv.checkpoint(c, srv.checkpointPostHandshake); err != DiscTooManyPeers {
 		t.Error("wrong error for insert:", err)
 	}
 	// Try inserting a trusted connection.
+	// 尝试插入一个trusted connection
 	c = newconn(trustedID)
 	if err := srv.checkpoint(c, srv.checkpointPostHandshake); err != nil {
 		t.Error("unexpected error for trusted conn @posthandshake:", err)
@@ -293,6 +312,7 @@ func TestServerAtCap(t *testing.T) {
 	}
 
 	// Remove from trusted set and try again
+	// 从trusted set中移除并且再次尝试
 	srv.RemoveTrustedPeer(newNode(trustedID, ""))
 	c = newconn(trustedID)
 	if err := srv.checkpoint(c, srv.checkpointPostHandshake); err != DiscTooManyPeers {
@@ -300,6 +320,7 @@ func TestServerAtCap(t *testing.T) {
 	}
 
 	// Add anotherID to trusted set and try again
+	// 添加另一个ID到trusted set并且再次尝试
 	srv.AddTrustedPeer(newNode(anotherID, ""))
 	c = newconn(anotherID)
 	if err := srv.checkpoint(c, srv.checkpointPostHandshake); err != nil {
@@ -326,7 +347,8 @@ func TestServerPeerLimits(t *testing.T) {
 
 	srv := &Server{
 		Config: Config{
-			PrivateKey:  srvkey,
+			PrivateKey: srvkey,
+			// 将MaxPeers设置为0
 			MaxPeers:    0,
 			NoDial:      true,
 			NoDiscovery: true,
@@ -341,11 +363,13 @@ func TestServerPeerLimits(t *testing.T) {
 	defer srv.Stop()
 
 	// Check that server is full (MaxPeers=0)
+	// 检查server为full
 	flags := dynDialedConn
 	dialDest := clientnode
 	conn, _ := net.Pipe()
 	srv.SetupConn(conn, flags, dialDest)
 	if tp.closeErr != DiscTooManyPeers {
+		// 如果错误不是TooManyPeers
 		t.Errorf("unexpected close error: %q", tp.closeErr)
 	}
 	conn.Close()
@@ -353,9 +377,11 @@ func TestServerPeerLimits(t *testing.T) {
 	srv.AddTrustedPeer(clientnode)
 
 	// Check that server allows a trusted peer despite being full.
+	// 检查server允许一个trusted peer，尽管为full
 	conn, _ = net.Pipe()
 	srv.SetupConn(conn, flags, dialDest)
 	if tp.closeErr == DiscTooManyPeers {
+		// trusted node没有bypass MaxPeers
 		t.Errorf("failed to bypass MaxPeers with trusted node: %q", tp.closeErr)
 	}
 
@@ -367,6 +393,7 @@ func TestServerPeerLimits(t *testing.T) {
 	srv.RemoveTrustedPeer(clientnode)
 
 	// Check that server is full again.
+	// 检查server是否再次full
 	conn, _ = net.Pipe()
 	srv.SetupConn(conn, flags, dialDest)
 	if tp.closeErr != DiscTooManyPeers {
@@ -514,6 +541,7 @@ func randomID() (id enode.ID) {
 }
 
 // This test checks that inbound connections are throttled by IP.
+// 这个测试检查inbound connections是否被限制，通过IP
 func TestServerInboundThrottle(t *testing.T) {
 	const timeout = 5 * time.Second
 	newTransportCalled := make(chan struct{})
@@ -542,6 +570,7 @@ func TestServerInboundThrottle(t *testing.T) {
 	defer srv.Stop()
 
 	// Dial the test server.
+	// 对test server进行Dial
 	conn, err := net.DialTimeout("tcp", srv.ListenAddr, timeout)
 	if err != nil {
 		t.Fatalf("could not dial: %v", err)
@@ -555,6 +584,7 @@ func TestServerInboundThrottle(t *testing.T) {
 	conn.Close()
 
 	// Dial again. This time the server should close the connection immediately.
+	// 再次Dial，这次server应该立即关闭连接
 	connClosed := make(chan struct{}, 1)
 	conn, err = net.DialTimeout("tcp", srv.ListenAddr, timeout)
 	if err != nil {
@@ -612,16 +642,19 @@ func (c *fakeAddrConn) RemoteAddr() net.Addr {
 
 func syncAddPeer(srv *Server, node *enode.Node) bool {
 	var (
-		ch      = make(chan *PeerEvent)
+		ch = make(chan *PeerEvent)
+		// 对事件进行订阅
 		sub     = srv.SubscribeEvents(ch)
 		timeout = time.After(2 * time.Second)
 	)
 	defer sub.Unsubscribe()
+	// 添加peer
 	srv.AddPeer(node)
 	for {
 		select {
 		case ev := <-ch:
 			if ev.Type == PeerEventTypeAdd && ev.Peer == node.ID() {
+				// 确保peer被添加
 				return true
 			}
 		case <-timeout:

@@ -37,22 +37,28 @@ type UDPConn interface {
 }
 
 // Config holds settings for the discovery listener.
+// Config维护discovery listener的设置
 type Config struct {
 	// These settings are required and configure the UDP listener:
+	// 这些设置是配置UDP listener需要的
 	PrivateKey *ecdsa.PrivateKey
 
 	// All remaining settings are optional.
+	// 所有剩余的配置都是可选的
 
 	// Packet handling configuration:
-	NetRestrict *netutil.Netlist  // list of allowed IP networks
-	Unhandled   chan<- ReadPacket // unhandled packets are sent on this channel
+	// Packet处理的配置
+	NetRestrict *netutil.Netlist  // list of allowed IP networks，允许的IP networks的列表
+	Unhandled   chan<- ReadPacket // unhandled packets are sent on this channel，unhandled packets被送到这个channel
 
 	// Node table configuration:
-	Bootnodes       []*enode.Node // list of bootstrap nodes
-	PingInterval    time.Duration // speed of node liveness check
-	RefreshInterval time.Duration // used in bucket refresh
+	// Node table的配置
+	Bootnodes       []*enode.Node // list of bootstrap nodes，一系列的bootstrap nodes
+	PingInterval    time.Duration // speed of node liveness check，node liveness check的速度
+	RefreshInterval time.Duration // used in bucket refresh，在bucket refresh的时候使用
 
 	// The options below are useful in very specific cases, like in unit tests.
+	// 下面的options在特定的场景很有用，例如unit tests
 	V5ProtocolID *[6]byte
 	Log          log.Logger         // if set, log messages go here
 	ValidSchemes enr.IdentityScheme // allowed identity schemes
@@ -88,6 +94,7 @@ func ListenUDP(c UDPConn, ln *enode.LocalNode, cfg Config) (*UDPv4, error) {
 
 // ReadPacket is a packet that couldn't be handled. Those packets are sent to the unhandled
 // channel if configured.
+// ReadPacket是一个不能被处理的packet，这些packet会被发送到unhandled channel，如果配置的话
 type ReadPacket struct {
 	Data []byte
 	Addr *net.UDPAddr

@@ -57,6 +57,7 @@ const (
 )
 
 // protoHandshake is the RLP structure of the protocol handshake.
+// protoHandshake是协议握手的RLP结构
 type protoHandshake struct {
 	Version    uint64
 	Name       string
@@ -69,28 +70,34 @@ type protoHandshake struct {
 }
 
 // PeerEventType is the type of peer events emitted by a p2p.Server
+// PeerEventType是一个p2p.Server发射的peer events的类型
 type PeerEventType string
 
 const (
 	// PeerEventTypeAdd is the type of event emitted when a peer is added
 	// to a p2p.Server
+	// PeerEventTypeAdd当一个peer被加入到p2p.Server时发射的事件类型
 	PeerEventTypeAdd PeerEventType = "add"
 
 	// PeerEventTypeDrop is the type of event emitted when a peer is
 	// dropped from a p2p.Server
+	// PeerEventTypeDrop是被发射的event类型，当一个Peer被drop，当来自一个p2p.Server
 	PeerEventTypeDrop PeerEventType = "drop"
 
 	// PeerEventTypeMsgSend is the type of event emitted when a
 	// message is successfully sent to a peer
+	// 当一个message被成功发送到一个peer时发射的事件
 	PeerEventTypeMsgSend PeerEventType = "msgsend"
 
 	// PeerEventTypeMsgRecv is the type of event emitted when a
 	// message is received from a peer
+	// 当从peer成功接收到一个message的时候发生
 	PeerEventTypeMsgRecv PeerEventType = "msgrecv"
 )
 
 // PeerEvent is an event emitted when peers are either added or dropped from
 // a p2p.Server or when a message is sent or received on a peer connection
+// PeerEvent是peers加入或者从p2p.Server丢弃之后发射的事件，或者从一个peer connection发送或者接收一个message
 type PeerEvent struct {
 	Type          PeerEventType `json:"type"`
 	Peer          enode.ID      `json:"peer"`
@@ -103,6 +110,7 @@ type PeerEvent struct {
 }
 
 // Peer represents a connected remote node.
+// Peer代表一个连接的remote node
 type Peer struct {
 	rw      *conn
 	running map[string]*protoRW
@@ -116,15 +124,19 @@ type Peer struct {
 	disc     chan DiscReason
 
 	// events receives message send / receive events if set
+	// events接收message 发送/接收 事件，如果设置的话
 	events   *event.Feed
 	testPipe *MsgPipeRW // for testing
 }
 
 // NewPeer returns a peer for testing purposes.
+// NewPeer返回一个peer用于测试
 func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	// Generate a fake set of local protocols to match as running caps. Almost
 	// no fields needs to be meaningful here as we're only using it to cross-
 	// check with the "remote" caps array.
+	// 生成一个fake的local protocols用于匹配running caps，几乎没有字段需要有意义，因为我们只使用它
+	// 来crosscheck，和"remote" cap array
 	protos := make([]Protocol, len(caps))
 	for i, cap := range caps {
 		protos[i].Name = cap.Name
@@ -134,6 +146,7 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 	node := enode.SignNull(new(enr.Record), id)
 	conn := &conn{fd: pipe, transport: nil, node: node, caps: caps, name: name}
 	peer := newPeer(log.Root(), conn, protos)
+	// 确保Disconnect不会block
 	close(peer.closed) // ensures Disconnect doesn't block
 	return peer
 }
@@ -202,7 +215,9 @@ func (p *Peer) LocalAddr() net.Addr {
 }
 
 // Disconnect terminates the peer connection with the given reason.
+// Disconnect终止peer connection，用给定的原因
 // It returns immediately and does not wait until the connection is closed.
+// 它立刻返回并且不等待，直到connection关闭
 func (p *Peer) Disconnect(reason DiscReason) {
 	if p.testPipe != nil {
 		p.testPipe.Close()
@@ -227,6 +242,7 @@ func (p *Peer) Inbound() bool {
 
 func newPeer(log log.Logger, conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
+	// 构建peer
 	p := &Peer{
 		rw:       conn,
 		running:  protomap,
@@ -252,20 +268,25 @@ func (p *Peer) run() (remoteRequested bool, err error) {
 		reason     DiscReason // sent to the peer
 	)
 	p.wg.Add(2)
+	// read的loop
 	go p.readLoop(readErr)
+	// ping的loop
 	go p.pingLoop()
 
 	// Start all protocol handlers.
+	// 启动所有的protocol handlers
 	writeStart <- struct{}{}
 	p.startProtocols(writeStart, writeErr)
 
 	// Wait for an error or disconnect.
+	// 等待一个error或者disconnect
 loop:
 	for {
 		select {
 		case err = <-writeErr:
 			// A write finished. Allow the next write to start if
 			// there was no error.
+			// 一个write结束，允许下一个write开始，如果没有error
 			if err != nil {
 				reason = DiscNetworkError
 				break loop
@@ -297,12 +318,14 @@ loop:
 func (p *Peer) pingLoop() {
 	defer p.wg.Done()
 
+	// 设置ping的timer
 	ping := time.NewTimer(pingInterval)
 	defer ping.Stop()
 
 	for {
 		select {
 		case <-ping.C:
+			// 发送ping
 			if err := SendItems(p.rw, pingMsg); err != nil {
 				p.protoErr <- err
 				return
@@ -310,6 +333,7 @@ func (p *Peer) pingLoop() {
 			ping.Reset(pingInterval)
 
 		case <-p.pingRecv:
+			// 发送pong
 			SendItems(p.rw, pongMsg)
 
 		case <-p.closed:
@@ -321,12 +345,14 @@ func (p *Peer) pingLoop() {
 func (p *Peer) readLoop(errc chan<- error) {
 	defer p.wg.Done()
 	for {
+		// 读取msg
 		msg, err := p.rw.ReadMsg()
 		if err != nil {
 			errc <- err
 			return
 		}
 		msg.ReceivedAt = time.Now()
+		// 处理msg
 		if err = p.handle(msg); err != nil {
 			errc <- err
 			return
@@ -345,14 +371,17 @@ func (p *Peer) handle(msg Msg) error {
 	case msg.Code == discMsg:
 		// This is the last message. We don't need to discard or
 		// check errors because, the connection will be closed after it.
+		// 这是最后的message，我们不需要丢弃或者检查错误，因为connection会在之后关闭
 		var m struct{ R DiscReason }
 		rlp.Decode(msg.Payload, &m)
 		return m.R
 	case msg.Code < baseProtocolLength:
 		// ignore other base protocol messages
+		// 忽略其他基础的Protocol messages
 		return msg.Discard()
 	default:
 		// it's a subprotocol message
+		// 这是一个自协议的message
 		proto, err := p.getProto(msg.Code)
 		if err != nil {
 			return fmt.Errorf("msg code out of range: %v", msg.Code)
@@ -385,6 +414,7 @@ func countMatchingProtocols(protocols []Protocol, caps []Cap) int {
 }
 
 // matchProtocols creates structures for matching named subprotocols.
+// matchProtocols创建结构体，用于匹配的named subprotocols
 func matchProtocols(protocols []Protocol, caps []Cap, rw MsgReadWriter) map[string]*protoRW {
 	slices.SortFunc(caps, Cap.Cmp)
 	offset := baseProtocolLength
@@ -422,6 +452,7 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		}
 		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version))
 		go func() {
+			// 运行proto
 			defer p.wg.Done()
 			err := proto.Run(p, rw)
 			if err == nil {
@@ -437,6 +468,7 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 
 // getProto finds the protocol responsible for handling
 // the given message code.
+// getProto找到协议，负责处理给定message
 func (p *Peer) getProto(code uint64) (*protoRW, error) {
 	for _, proto := range p.running {
 		if code >= proto.offset && code < proto.offset+proto.Length {
@@ -448,6 +480,7 @@ func (p *Peer) getProto(code uint64) (*protoRW, error) {
 
 type protoRW struct {
 	Protocol
+	// 接受read messages
 	in     chan Msg        // receives read messages
 	closed <-chan struct{} // receives when peer is shutting down
 	wstart <-chan struct{} // receives when write may start
