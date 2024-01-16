@@ -41,29 +41,37 @@ import (
 )
 
 // Node is a container on which services can be registered.
+// Node是一个container，在上面services可以被注册
 type Node struct {
-	eventmux      *event.TypeMux
-	config        *Config
-	accman        *accounts.Manager
-	log           log.Logger
-	keyDir        string        // key store directory
-	keyDirTemp    bool          // If true, key directory will be removed by Stop
-	dirLock       *flock.Flock  // prevents concurrent use of instance directory
-	stop          chan struct{} // Channel to wait for termination notifications
-	server        *p2p.Server   // Currently running P2P networking layer
-	startStopLock sync.Mutex    // Start/Stop are protected by an additional lock
-	state         int           // Tracks state of node lifecycle
+	eventmux   *event.TypeMux
+	config     *Config
+	accman     *accounts.Manager
+	log        log.Logger
+	keyDir     string        // key store directory
+	keyDirTemp bool          // If true, key directory will be removed by Stop
+	dirLock    *flock.Flock  // prevents concurrent use of instance directory
+	stop       chan struct{} // Channel to wait for termination notifications
+	// 当前运行P2P networking layer
+	server        *p2p.Server // Currently running P2P networking layer
+	startStopLock sync.Mutex  // Start/Stop are protected by an additional lock
+	// 追踪node lifecycle的状态
+	state int // Tracks state of node lifecycle
 
-	lock          sync.Mutex
-	lifecycles    []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle
-	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
-	http          *httpServer //
-	ws            *httpServer //
-	httpAuth      *httpServer //
-	wsAuth        *httpServer //
-	ipc           *ipcServer  // Stores information about the ipc http server
+	lock sync.Mutex
+	// 所有注册的backends，services以及辅助的services，有一个lifecycle
+	lifecycles []Lifecycle // All registered backends, services, and auxiliary services that have a lifecycle
+	// 一系列的APIs，当前node提供
+	rpcAPIs  []rpc.API   // List of APIs currently provided by the node
+	http     *httpServer //
+	ws       *httpServer //
+	httpAuth *httpServer //
+	wsAuth   *httpServer //
+	// 存储ipc http server的信息
+	ipc *ipcServer // Stores information about the ipc http server
+	// 内存中的RPC request handler，来处理API requests
 	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
 
+	// 所有打开的db
 	databases map[*closeTrackingDB]struct{} // All open databases
 }
 
@@ -74,9 +82,11 @@ const (
 )
 
 // New creates a new P2P node, ready for protocol registration.
+// New创建一个新的P2P node，准备好协议注册
 func New(conf *Config) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
 	// working directory don't affect the node.
+	// 拷贝config并且解析datadir，这样后面对当前的working directory的改变不会影响node
 	confCopy := *conf
 	conf = &confCopy
 	if conf.DataDir != "" {
@@ -92,6 +102,7 @@ func New(conf *Config) (*Node, error) {
 
 	// Ensure that the instance name doesn't cause weird conflicts with
 	// other files in the data directory.
+	// 确保instance name不会造成weird conflicts，和data目录里的其他文件
 	if strings.ContainsAny(conf.Name, `/\`) {
 		return nil, errors.New(`Config.Name must not contain '/' or '\'`)
 	}
@@ -131,11 +142,13 @@ func New(conf *Config) (*Node, error) {
 	node.accman = accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed})
 
 	// Initialize the p2p server. This creates the node key and discovery databases.
+	// 初始化p2p server，这会创建node key以及discovery数据库
 	node.server.Config.PrivateKey = node.config.NodeKey()
 	node.server.Config.Name = node.config.NodeName()
 	node.server.Config.Logger = node.log
 	node.config.checkLegacyFiles()
 	if node.server.Config.NodeDatabase == "" {
+		// 构建node db
 		node.server.Config.NodeDatabase = node.config.NodeDB()
 	}
 
@@ -148,6 +161,7 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Configure RPC servers.
+	// 配置RPC servers
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.httpAuth = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
@@ -571,17 +585,20 @@ func (n *Node) RegisterLifecycle(lifecycle Lifecycle) {
 }
 
 // RegisterProtocols adds backend's protocols to the node's p2p server.
+// RegisterProtocols添加backend的protocols到node的p2p server
 func (n *Node) RegisterProtocols(protocols []p2p.Protocol) {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	if n.state != initializingState {
+		// 在运行/stopped node不能注册protocols
 		panic("can't register protocols on running/stopped node")
 	}
 	n.server.Protocols = append(n.server.Protocols, protocols...)
 }
 
 // RegisterAPIs registers the APIs a service provides on the node.
+// RegisterAPIs注册APIs，一个service在node上提供
 func (n *Node) RegisterAPIs(apis []rpc.API) {
 	n.lock.Lock()
 	defer n.lock.Unlock()

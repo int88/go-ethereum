@@ -26,6 +26,7 @@ import (
 
 // Subscription represents a stream of events. The carrier of the events is typically a
 // channel, but isn't part of the interface.
+// Subscription代表一个events的stream，events的carrier通常是一个channel，但是不是interface的一部分
 //
 // Subscriptions can fail while established. Failures are reported through an error
 // channel. It receives a value if there is an issue with the subscription (e.g. the

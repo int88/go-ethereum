@@ -36,6 +36,7 @@ import (
 
 // SimAdapter is a NodeAdapter which creates in-memory simulation nodes and
 // connects them using net.Pipe
+// SimAdapter是一个NodeAdapter，创建内存中的simulation nodes并且使用net.Pipe连接
 type SimAdapter struct {
 	pipe       func() (net.Conn, net.Conn, error)
 	mtx        sync.RWMutex
@@ -47,6 +48,8 @@ type SimAdapter struct {
 // simulation nodes running any of the given services (the services to run on a
 // particular node are passed to the NewNode function in the NodeConfig)
 // the adapter uses a net.Pipe for in-memory simulated network connections
+// NewSimAdapter创建一个SimAdapter，可以运行内存中的simulation nodes，运行任何给定的services（services
+// 运行特定的nodes，传入到NewNode函数，在NodeConfig），adapters使用一个net.Pipe，对于内存中的simulated network连接
 func NewSimAdapter(services LifecycleConstructors) *SimAdapter {
 	return &SimAdapter{
 		pipe:       pipes.NetPipe,
@@ -61,26 +64,31 @@ func (s *SimAdapter) Name() string {
 }
 
 // NewNode returns a new SimNode using the given config
+// NewNode返回一个新的SimNode，使用给定的config
 func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
 	id := config.ID
 	// verify that the node has a private key in the config
+	// 校验node有一个private key，在config中
 	if config.PrivateKey == nil {
 		return nil, fmt.Errorf("node is missing private key: %s", id)
 	}
 
 	// check a node with the ID doesn't already exist
+	// 检查一个node的ID是否已经存在
 	if _, exists := s.nodes[id]; exists {
 		return nil, fmt.Errorf("node already exists: %s", id)
 	}
 
 	// check the services are valid
+	// 检查services是否合法
 	if len(config.Lifecycles) == 0 {
 		return nil, errors.New("node must have at least one service")
 	}
 	for _, service := range config.Lifecycles {
+		// 未知的node service
 		if _, exists := s.lifecycles[service]; !exists {
 			return nil, fmt.Errorf("unknown node service %q", service)
 		}
@@ -91,6 +99,7 @@ func (s *SimAdapter) NewNode(config *NodeConfig) (Node, error) {
 		return nil, err
 	}
 
+	// 构建新的node
 	n, err := node.New(&node.Config{
 		P2P: p2p.Config{
 			PrivateKey:      config.PrivateKey,
@@ -161,6 +170,7 @@ func (s *SimAdapter) GetNode(id enode.ID) (*SimNode, bool) {
 // SimNode is an in-memory simulation node which connects to other nodes using
 // net.Pipe (see SimAdapter.Dial), running devp2p protocols directly over that
 // pipe
+// SimNode是一个内存中的simulation node，使用net.Pipe连接其他nodes，直接在pipe上运行devp2p协议
 type SimNode struct {
 	lock         sync.RWMutex
 	ID           enode.ID

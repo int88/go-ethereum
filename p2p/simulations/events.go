@@ -27,18 +27,22 @@ type EventType string
 const (
 	// EventTypeNode is the type of event emitted when a node is either
 	// created, started or stopped
+	// EventTypeNode是event的类型，当一个node被创建，启动或者停止的时候
 	EventTypeNode EventType = "node"
 
 	// EventTypeConn is the type of event emitted when a connection is
 	// is either established or dropped between two nodes
+	// EventTypeConn是发射的事件类型，当一个连接被建立或者dropped，在两个nodes之间
 	EventTypeConn EventType = "conn"
 
 	// EventTypeMsg is the type of event emitted when a p2p message it
 	// sent between two nodes
+	// EventTypeMsg是发射的event，当一个p2p message在两个Node之间传输
 	EventTypeMsg EventType = "msg"
 )
 
 // Event is an event emitted by a simulation network
+// Event是一个simulation network发射的event
 type Event struct {
 	// Type is the type of the event
 	Type EventType `json:"type"`
@@ -48,6 +52,7 @@ type Event struct {
 
 	// Control indicates whether the event is the result of a controlled
 	// action in the network
+	// Control表明event是否是network中的一个controlled action的结果
 	Control bool `json:"control"`
 
 	// Node is set if the type is EventTypeNode
@@ -65,9 +70,11 @@ type Event struct {
 
 // NewEvent creates a new event for the given object which should be either a
 // Node, Conn or Msg.
+// NewEvent创建一个新的event，对于给定的对象，应该为一个Node，Conn或者Msg
 //
 // The object is copied so that the event represents the state of the object
 // when NewEvent is called.
+// object被拷贝，因此event代表object的状态，当NewEvent被调用的时候
 func NewEvent(v interface{}) *Event {
 	event := &Event{Time: time.Now()}
 	switch v := v.(type) {
@@ -89,6 +96,7 @@ func NewEvent(v interface{}) *Event {
 }
 
 // ControlEvent creates a new control event
+// ControlEvent创建一个新的control event
 func ControlEvent(v interface{}) *Event {
 	event := NewEvent(v)
 	event.Control = true

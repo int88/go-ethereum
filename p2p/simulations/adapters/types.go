@@ -39,22 +39,29 @@ import (
 
 // Node represents a node in a simulation network which is created by a
 // NodeAdapter, for example:
+// Node代表一个node，在一个simulation network，通过NodeAdapter创建，例如：
 //
 //   - SimNode, an in-memory node in the same process
+//   - SimNode，一个内存中的node，在同一个进程中
 //   - ExecNode, a child process node
+//   - ExecNode，一个child process节点
 //   - DockerNode, a node running in a Docker container
+//   - DockerNode，在Docker container中运行的node
 type Node interface {
 	// Addr returns the node's address (e.g. an Enode URL)
 	Addr() []byte
 
 	// Client returns the RPC client which is created once the node is
 	// up and running
+	// Client返回RPC client，在node up以及running的时候被创建
 	Client() (*rpc.Client, error)
 
 	// ServeRPC serves RPC requests over the given connection
+	// ServeRPC通过给定的连接服务RPC请求
 	ServeRPC(*websocket.Conn) error
 
 	// Start starts the node with the given snapshots
+	// Start启动node，用给定的snapshots
 	Start(snapshots map[string][]byte) error
 
 	// Stop stops the node
@@ -64,20 +71,25 @@ type Node interface {
 	NodeInfo() *p2p.NodeInfo
 
 	// Snapshots creates snapshots of the running services
+	// Snapshots创建运行的services的snapshots
 	Snapshots() (map[string][]byte, error)
 }
 
 // NodeAdapter is used to create Nodes in a simulation network
+// NodeAdapter用于在一个simulation network中创建Nodes
 type NodeAdapter interface {
 	// Name returns the name of the adapter for logging purposes
+	// Name返回adapter的名字，用于日志
 	Name() string
 
 	// NewNode creates a new node with the given configuration
+	// NewNode用给定的配置创建一个新的node
 	NewNode(config *NodeConfig) (Node, error)
 }
 
 // NodeConfig is the configuration used to start a node in a simulation
 // network
+// NodeConfig是配置用于启动一个node，在simulation network
 type NodeConfig struct {
 	// ID is the node's ID which is used to identify the node in the
 	// simulation network
@@ -100,11 +112,16 @@ type NodeConfig struct {
 	// starting the node (for SimNodes it should be the names of service lifecycles
 	// contained in SimAdapter.lifecycles, for other nodes it should be
 	// service lifecycles registered by calling the RegisterLifecycle function)
+	// Lifecycles是service lifecycles的名字，当启动node的时候应该运行（对于SimNodes，它应该是
+	// 包含在SimAdapter.lifecycles的service lifecycles的名字，对于其他nodes，它应该是通过
+	// 调用RegisterLifecycle函数注册的service lifecycles）
 	Lifecycles []string
 
 	// Properties are the names of the properties this node should hold
 	// within running services (e.g. "bootnode", "lightnode" or any custom values)
 	// These values need to be checked and acted upon by node Services
+	// Properties是这个node的running services中应该包含的properties的名字（例如，"bootnode", "lightnode"或者任何自定义的名字）
+	// 这些值应该被检查并且由node Services执行
 	Properties []string
 
 	// ExternalSigner specifies an external URI for a clef-type signer
@@ -250,6 +267,7 @@ func assignTCPPort() (uint16, error) {
 }
 
 // ServiceContext is a collection of options and methods which can be utilised
+// ServiceContext是一系列的options以及方法，可以被使用，当开始services的时候
 // when starting services
 type ServiceContext struct {
 	RPCDialer
@@ -266,11 +284,14 @@ type RPCDialer interface {
 }
 
 // LifecycleConstructor allows a Lifecycle to be constructed during node start-up.
+// LifecycleConstructor允许一个Lifecycle被构建，在node的start-up
 // While the service-specific package usually takes care of Lifecycle creation and registration,
 // for testing purposes, it is useful to be able to construct a Lifecycle on spot.
+// 当service特定的包通常关心Lifecycle的创建以及注册，用于测试目的，这是有用的，能够构建一个Lifecycle
 type LifecycleConstructor func(ctx *ServiceContext, stack *node.Node) (node.Lifecycle, error)
 
 // LifecycleConstructors stores LifecycleConstructor functions to call during node start-up.
+// LifecycleConstructors存储LifecycleConstructor 函数来调用，在node启动期间
 type LifecycleConstructors map[string]LifecycleConstructor
 
 // lifecycleConstructorFuncs is a map of registered services which are used to boot devp2p
@@ -279,9 +300,11 @@ var lifecycleConstructorFuncs = make(LifecycleConstructors)
 
 // RegisterLifecycles registers the given Services which can then be used to
 // start devp2p nodes using either the Exec or Docker adapters.
+// RegisterLifecycles注册给定Services，可以在启动devp2p nodes的时候启动，使用Exec或者Docker adapters
 //
 // It should be called in an init function so that it has the opportunity to
 // execute the services before main() is called.
+// 它应该在init函数中调用，这它有机会执行services，在main()被调用之前
 func RegisterLifecycles(lifecycles LifecycleConstructors) {
 	for name, f := range lifecycles {
 		if _, exists := lifecycleConstructorFuncs[name]; exists {
@@ -293,13 +316,17 @@ func RegisterLifecycles(lifecycles LifecycleConstructors) {
 	// now we have registered the services, run reexec.Init() which will
 	// potentially start one of the services if the current binary has
 	// been exec'd with argv[0] set to "p2p-node"
+	// 现在我们已经注册了services，运行reexec.Init()，会潜在运行其中一个service，如果
+	// 当前的binary已经exec'd。将argv[0]设置为"p2p-node"
 	if reexec.Init() {
 		os.Exit(0)
 	}
 }
 
 // adds the host part to the configuration's ENR, signs it
+// 添加host part到配置的ENR，签名
 // creates and  the corresponding enode object to the configuration
+// 创建对应的enode对象，在配置中
 func (n *NodeConfig) initEnode(ip net.IP, tcpport int, udpport int) error {
 	enrIp := enr.IP(ip)
 	n.Record.Set(&enrIp)

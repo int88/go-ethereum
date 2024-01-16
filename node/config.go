@@ -240,6 +240,7 @@ func (c *Config) IPCEndpoint() string {
 }
 
 // NodeDB returns the path to the discovery node database.
+// NodeDB返回到discovery node db的路径
 func (c *Config) NodeDB() string {
 	if c.DataDir == "" {
 		return "" // ephemeral

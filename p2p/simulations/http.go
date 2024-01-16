@@ -45,6 +45,7 @@ var DefaultClient = NewClient("http://localhost:8888")
 
 // Client is a client for the simulation HTTP API which supports creating
 // and managing simulation networks
+// Client是一个client，用于模拟的HTTP API，支持创建并且管理simulation networks
 type Client struct {
 	URL string
 
@@ -52,6 +53,7 @@ type Client struct {
 }
 
 // NewClient returns a new simulation API client
+// NewClient返回一个新的simulation API client
 func NewClient(url string) *Client {
 	return &Client{
 		URL:    url,
@@ -100,6 +102,8 @@ type SubscribeOpts struct {
 // SubscribeNetwork subscribes to network events which are sent from the server
 // as a server-sent-events stream, optionally receiving events for existing
 // nodes and connections and filtering message events
+// SubscribeNetwork订阅network事件，从server发送而来，作为一个server-sent-events stream，可选地
+// 接收事件，对于已经存在的nodes，连接，并且过滤message events
 func (c *Client) SubscribeNetwork(events chan *Event, opts SubscribeOpts) (event.Subscription, error) {
 	url := fmt.Sprintf("%s/events?current=%t&filter=%s", c.URL, opts.Current, opts.Filter)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
@@ -120,11 +124,14 @@ func (c *Client) SubscribeNetwork(events chan *Event, opts SubscribeOpts) (event
 	// define a producer function to pass to event.Subscription
 	// which reads server-sent events from res.Body and sends
 	// them to the events channel
+	// 定义一个producer函数，传入event.Subscription，从res.Body读取server-sent事件并且
+	// 发送它们到events channel
 	producer := func(stop <-chan struct{}) error {
 		defer res.Body.Close()
 
 		// read lines from res.Body in a goroutine so that we are
 		// always reading from the stop channel
+		// 从res.Body读取lines，在一个goroutine，这样我们总是从stop channel中读取
 		lines := make(chan string)
 		errC := make(chan error, 1)
 		go func() {
@@ -141,6 +148,7 @@ func (c *Client) SubscribeNetwork(events chan *Event, opts SubscribeOpts) (event
 
 		// detect any lines which start with "data:", decode the data
 		// into an event and send it to the events channel
+		// 检测任何以"data:"开头的lines，将数据解码到一个event并发送它们到events channel
 		for {
 			select {
 			case line := <-lines:
@@ -175,6 +183,7 @@ func (c *Client) GetNodes() ([]*p2p.NodeInfo, error) {
 }
 
 // CreateNode creates a node in the network using the given configuration
+// CreateNode在network中创建一个node，使用给定的配置
 func (c *Client) CreateNode(config *adapters.NodeConfig) (*p2p.NodeInfo, error) {
 	node := &p2p.NodeInfo{}
 	return node, c.Post("/nodes", config, node)
@@ -264,14 +273,18 @@ func (c *Client) Send(method, path string, in, out interface{}) error {
 }
 
 // Server is an HTTP server providing an API to manage a simulation network
+// Server是一个HTTP server，提供一个API来管理一个simulation network
 type Server struct {
-	router     *httprouter.Router
-	network    *Network
+	router  *httprouter.Router
+	network *Network
+	// 当被设置时，停止当前的mocker
 	mockerStop chan struct{} // when set, stops the current mocker
-	mockerMtx  sync.Mutex    // synchronises access to the mockerStop field
+	// synchronises访问mockerStop字段
+	mockerMtx sync.Mutex // synchronises access to the mockerStop field
 }
 
 // NewServer returns a new simulation API server
+// NewServer返回一个新的simulation API server
 func NewServer(network *Network) *Server {
 	s := &Server{
 		router:  httprouter.New(),
@@ -307,6 +320,7 @@ func (s *Server) GetNetwork(w http.ResponseWriter, req *http.Request) {
 }
 
 // StartNetwork starts all nodes in the network
+// StartNetwork启动network中所有的nodes
 func (s *Server) StartNetwork(w http.ResponseWriter, req *http.Request) {
 	if err := s.network.StartAll(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

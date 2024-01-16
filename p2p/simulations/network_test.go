@@ -284,17 +284,22 @@ OuterTwo:
 // TestNetworkSimulation creates a multi-node simulation network with each node
 // connected in a ring topology, checks that all nodes successfully handshake
 // with each other and that a snapshot fully represents the desired topology
+// TestNetworkSimulation创建一个多节点的simulation network，每个node连接到一个ring topology
+// 检查所有nodes都成功和其他人握手，一个snapshot完全代表期望的topology
 func TestNetworkSimulation(t *testing.T) {
 	// create simulation network with 20 testService nodes
+	// 创建simulation network，有20个testService nodes
 	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,
 	})
+	// 构建新的network
 	network := NewNetwork(adapter, &NetworkConfig{
 		DefaultService: "test",
 	})
 	defer network.Shutdown()
 	nodeCount := 20
 	ids := make([]enode.ID, nodeCount)
+	// 启动20个nodes
 	for i := 0; i < nodeCount; i++ {
 		conf := adapters.RandomNodeConfig()
 		node, err := network.NewNodeWithConfig(conf)
@@ -310,6 +315,8 @@ func TestNetworkSimulation(t *testing.T) {
 	// perform a check which connects the nodes in a ring (so each node is
 	// connected to exactly two peers) and then checks that all nodes
 	// performed two handshakes by checking their peerCount
+	// 执行一个检查，将nodes连接到一个环（这样每个node刚好连接两个peers），之后检查所有的nodes执行两次握手
+	// 通过检查它们的peerCount
 	action := func(_ context.Context) error {
 		for i, id := range ids {
 			peerID := ids[(i+1)%len(ids)]
@@ -321,6 +328,7 @@ func TestNetworkSimulation(t *testing.T) {
 	}
 	check := func(ctx context.Context, id enode.ID) (bool, error) {
 		// check we haven't run out of time
+		// 检查我们没有运行超时
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
@@ -328,12 +336,14 @@ func TestNetworkSimulation(t *testing.T) {
 		}
 
 		// get the node
+		// 获取node
 		node := network.GetNode(id)
 		if node == nil {
 			return false, fmt.Errorf("unknown node: %s", id)
 		}
 
 		// check it has exactly two peers
+		// 检查它刚好有两个peers
 		client, err := node.Client()
 		if err != nil {
 			return false, err
@@ -357,6 +367,7 @@ func TestNetworkSimulation(t *testing.T) {
 	defer cancel()
 
 	// trigger a check every 100ms
+	// 每100ms触发一个检查
 	trigger := make(chan enode.ID)
 	go triggerChecks(ctx, ids, trigger, 100*time.Millisecond)
 
@@ -373,10 +384,12 @@ func TestNetworkSimulation(t *testing.T) {
 	}
 
 	// take a network snapshot and check it contains the correct topology
+	// 做一个network snapshot并且检查它包含正确的topology
 	snap, err := network.Snapshot()
 	if err != nil {
 		t.Fatal(err)
 	}
+	// nodes数和连接数都等于nodeCount
 	if len(snap.Nodes) != nodeCount {
 		t.Fatalf("expected snapshot to contain %d nodes, got %d", nodeCount, len(snap.Nodes))
 	}
@@ -432,8 +445,11 @@ func createTestNodesWithProperty(property string, count int, network *Network) (
 }
 
 // TestGetNodeIDs creates a set of nodes and attempts to retrieve their IDs,.
+// TestGetNodeIDs创建一系列的nodes并且试着获取它们的IDs
 // It then tests again whilst excluding a node ID from being returned.
+// 它之后再次测试，同时excluding一个node ID被返回
 // If a node ID is not returned, or more node IDs than expected are returned, the test fails.
+// 如果一个node ID没有返回，或者超过期望的IDs被返回，测试失败
 func TestGetNodeIDs(t *testing.T) {
 	adapter := adapters.NewSimAdapter(adapters.LifecycleConstructors{
 		"test": newTestService,

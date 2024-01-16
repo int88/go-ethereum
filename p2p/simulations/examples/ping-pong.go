@@ -37,6 +37,7 @@ var adapterType = flag.String("adapter", "sim", `node adapter to use (one of "si
 
 // main() starts a simulation network which contains nodes running a simple
 // ping-pong protocol
+// main()开始一个simulation network，包含nodes运行一个简单的ping-pong protocol
 func main() {
 	flag.Parse()
 
@@ -44,8 +45,10 @@ func main() {
 	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelTrace, false)))
 
 	// register a single ping-pong service
+	// 注册单个的ping-pong service
 	services := map[string]adapters.LifecycleConstructor{
 		"ping-pong": func(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
+			// 新的PingPong Service
 			pps := newPingPongService(ctx.Config.ID)
 			stack.RegisterProtocols(pps.Protocols())
 			return pps, nil
@@ -76,6 +79,7 @@ func main() {
 	}
 
 	// start the HTTP API
+	// 启动HTTP API
 	log.Info("starting simulation server on 0.0.0.0:8888...")
 	network := simulations.NewNetwork(adapter, &simulations.NetworkConfig{
 		DefaultService: "ping-pong",
@@ -88,6 +92,8 @@ func main() {
 // pingPongService runs a ping-pong protocol between nodes where each node
 // sends a ping to all its connected peers every 10s and receives a pong in
 // return
+// pingPongService运行一个ping-pong protocol，在nodes之间，每个node发送一个ping到它所有的
+// connected peers每10s并且接收一个pong作为返回
 type pingPongService struct {
 	id       enode.ID
 	log      log.Logger
@@ -103,6 +109,7 @@ func newPingPongService(id enode.ID) *pingPongService {
 
 func (p *pingPongService) Protocols() []p2p.Protocol {
 	return []p2p.Protocol{{
+		// 返回Protocol
 		Name:     "ping-pong",
 		Version:  1,
 		Length:   2,
@@ -136,6 +143,7 @@ const (
 
 // Run implements the ping-pong protocol which sends ping messages to the peer
 // at 10s intervals, and responds to pings with pong messages.
+// Run实现了ping-pong protocol，每10s发送ping messages到peer，并且用pong messages回复pings
 func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	log := p.log.New("peer.id", peer.ID())
 
@@ -143,6 +151,7 @@ func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			log.Info("sending ping")
+			// 每10s发送一个Ping
 			if err := p2p.Send(rw, pingMsgCode, "PING"); err != nil {
 				errC <- err
 				return
@@ -156,15 +165,18 @@ func (p *pingPongService) Run(peer *p2p.Peer, rw p2p.MsgReadWriter) error {
 				errC <- err
 				return
 			}
+			// 读取payload
 			payload, err := io.ReadAll(msg.Payload)
 			if err != nil {
 				errC <- err
 				return
 			}
+			// 收到了message
 			log.Info("received message", "msg.code", msg.Code, "msg.payload", string(payload))
 			p.received.Add(1)
 			if msg.Code == pingMsgCode {
 				log.Info("sending pong")
+				// 回复PONG MESSAGE
 				go p2p.Send(rw, pongMsgCode, "PONG")
 			}
 		}

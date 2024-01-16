@@ -50,10 +50,12 @@ func TestMain(m *testing.M) {
 
 // testService implements the node.Service interface and provides protocols
 // and APIs which are useful for testing nodes in a simulation network
+// testService实现了node.Service接口
 type testService struct {
 	id enode.ID
 
 	// peerCount is incremented once a peer handshake has been performed
+	// peerCount增长，一旦一个peer握手成功
 	peerCount int64
 
 	peers    map[enode.ID]*testPeer
@@ -61,6 +63,7 @@ type testService struct {
 
 	// state stores []byte which is used to test creating and loading
 	// snapshots
+	// state存储[]byte，用于测试创建以及加载snapshots
 	state atomic.Value
 }
 
@@ -306,12 +309,15 @@ func testHTTPServer(t *testing.T) (*Network, *httptest.Server) {
 
 // TestHTTPNetwork tests interacting with a simulation network using the HTTP
 // API
+// TestHTTPNetwork测试使用HTTP API和一个simulation network进行交互
 func TestHTTPNetwork(t *testing.T) {
 	// start the server
+	// 启动server
 	network, s := testHTTPServer(t)
 	defer s.Close()
 
 	// subscribe to events so we can check them later
+	// 订阅events，这样我们可以后面检查它们
 	client := NewClient(s.URL)
 	events := make(chan *Event, 100)
 	var opts SubscribeOpts
@@ -322,6 +328,7 @@ func TestHTTPNetwork(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	// check we can retrieve details about the network
+	// 检查我们可以获取network的细节
 	gotNetwork, err := client.GetNetwork()
 	if err != nil {
 		t.Fatalf("error getting network: %s", err)
@@ -331,22 +338,28 @@ func TestHTTPNetwork(t *testing.T) {
 	}
 
 	// start a simulation network
+	// 启动一个simulation network
 	nodeIDs := startTestNetwork(t, client)
 
 	// check we got all the events
+	// 检查我们获取所有的事件
 	x := &expectEvents{t, events, sub}
 	x.expect(
+		// 获取到node event
 		x.nodeEvent(nodeIDs[0], false),
 		x.nodeEvent(nodeIDs[1], false),
 		x.nodeEvent(nodeIDs[0], true),
 		x.nodeEvent(nodeIDs[1], true),
+		// 获取到connect event
 		x.connEvent(nodeIDs[0], nodeIDs[1], false),
 		x.connEvent(nodeIDs[0], nodeIDs[1], true),
 	)
 
 	// reconnect the stream and check we get the current nodes and conns
+	// 重新连接stream并且检查我们获取当前的nodes和connns
 	events = make(chan *Event, 100)
 	opts.Current = true
+	// 重新连接
 	sub, err = client.SubscribeNetwork(events, opts)
 	if err != nil {
 		t.Fatalf("error subscribing to network events: %s", err)
@@ -362,6 +375,7 @@ func TestHTTPNetwork(t *testing.T) {
 
 func startTestNetwork(t *testing.T, client *Client) []string {
 	// create two nodes
+	// 创建两个nodes
 	nodeCount := 2
 	nodeIDs := make([]string, nodeCount)
 	for i := 0; i < nodeCount; i++ {
@@ -374,6 +388,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// check both nodes exist
+	// 检查两个nodes都存在
 	nodes, err := client.GetNodes()
 	if err != nil {
 		t.Fatalf("error getting nodes: %s", err)
@@ -395,6 +410,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// start both nodes
+	// 同时启动nodes
 	for _, nodeID := range nodeIDs {
 		if err := client.StartNode(nodeID); err != nil {
 			t.Fatalf("error starting node %q: %s", nodeID, err)
@@ -402,6 +418,7 @@ func startTestNetwork(t *testing.T, client *Client) []string {
 	}
 
 	// connect the nodes
+	// 连接nodes
 	for i := 0; i < nodeCount-1; i++ {
 		peerId := i + 1
 		if i == nodeCount-1 {
@@ -530,6 +547,7 @@ func (t *expectEvents) expect(events ...*Event) {
 }
 
 // TestHTTPNodeRPC tests calling RPC methods on nodes via the HTTP API
+// TestHTTPNodeRPC测试在nodes上通过HTTP API调用RPC方法
 func TestHTTPNodeRPC(t *testing.T) {
 	// start the server
 	_, s := testHTTPServer(t)
@@ -548,6 +566,7 @@ func TestHTTPNodeRPC(t *testing.T) {
 	}
 
 	// create two RPC clients
+	// 创建两个RPC clients
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	rpcClient1, err := client.RPCClient(ctx, node.ID)
@@ -560,6 +579,7 @@ func TestHTTPNodeRPC(t *testing.T) {
 	}
 
 	// subscribe to events using client 1
+	// 使用client 1订阅events
 	events := make(chan int64, 1)
 	sub, err := rpcClient1.Subscribe(ctx, "test", events, "events")
 	if err != nil {
@@ -568,6 +588,7 @@ func TestHTTPNodeRPC(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	// call some RPC methods using client 2
+	// 使用client 2调用一些RPC方法
 	if err := rpcClient2.CallContext(ctx, nil, "test_add", 10); err != nil {
 		t.Fatalf("error calling RPC method: %s", err)
 	}
@@ -580,6 +601,7 @@ func TestHTTPNodeRPC(t *testing.T) {
 	}
 
 	// check we got an event from client 1
+	// 检查我们从client获取一个event
 	select {
 	case event := <-events:
 		if event != 10 {
@@ -591,6 +613,7 @@ func TestHTTPNodeRPC(t *testing.T) {
 }
 
 // TestHTTPSnapshot tests creating and loading network snapshots
+// TestHTTPSnapshot测试创建并且加载network snapshots
 func TestHTTPSnapshot(t *testing.T) {
 	// start the server
 	network, s := testHTTPServer(t)
@@ -603,6 +626,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	go func() {
 		defer eventSub.Unsubscribe()
 		for event := range eventsDoneChan {
+			// 连接事件并且不是Control
 			if event.Type == EventTypeConn && !event.Control {
 				count--
 				if count == 0 {
@@ -614,6 +638,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}()
 
 	// create a two-node network
+	// 创建一个两个node的network
 	client := NewClient(s.URL)
 	nodeCount := 2
 	nodes := make([]*p2p.NodeInfo, nodeCount)
@@ -633,6 +658,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}
 
 	// store some state in the test services
+	// 存储一些state到test services
 	states := make([]string, nodeCount)
 	for i, node := range nodes {
 		rpc, err := client.RPCClient(context.Background(), node.ID)
@@ -641,6 +667,7 @@ func TestHTTPSnapshot(t *testing.T) {
 		}
 		defer rpc.Close()
 		state := fmt.Sprintf("%x", rand.Int())
+		// 设置state?
 		if err := rpc.Call(nil, "test_setState", []byte(state)); err != nil {
 			t.Fatalf("error setting service state: %s", err)
 		}
@@ -648,11 +675,13 @@ func TestHTTPSnapshot(t *testing.T) {
 	}
 	<-eventsDone
 	// create a snapshot
+	// 创建一个snapshot
 	snap, err := client.CreateSnapshot()
 	if err != nil {
 		t.Fatalf("error creating snapshot: %s", err)
 	}
 	for i, state := range states {
+		// 判断snapshots中获取的state是否匹配
 		gotState := snap.Nodes[i].Snapshots["test"]
 		if string(gotState) != state {
 			t.Fatalf("expected snapshot state %q, got %q", state, gotState)
@@ -660,6 +689,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}
 
 	// create another network
+	// 创建另一个network
 	network2, s := testHTTPServer(t)
 	defer s.Close()
 	client = NewClient(s.URL)
@@ -679,6 +709,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}()
 
 	// subscribe to events so we can check them later
+	// 订阅events，这样我们后面可以进行检查
 	events := make(chan *Event, 100)
 	var opts SubscribeOpts
 	sub, err := client.SubscribeNetwork(events, opts)
@@ -688,12 +719,14 @@ func TestHTTPSnapshot(t *testing.T) {
 	defer sub.Unsubscribe()
 
 	// load the snapshot
+	// 加载snapshot
 	if err := client.LoadSnapshot(snap); err != nil {
 		t.Fatalf("error loading snapshot: %s", err)
 	}
 	<-eventsDone
 
 	// check the nodes and connection exists
+	// 检查nodes以及connection存在
 	net, err := client.GetNetwork()
 	if err != nil {
 		t.Fatalf("error getting network: %s", err)
@@ -722,6 +755,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}
 
 	// check the node states were restored
+	// 检查node states被恢复
 	for i, node := range nodes {
 		rpc, err := client.RPCClient(context.Background(), node.ID)
 		if err != nil {
@@ -738,6 +772,7 @@ func TestHTTPSnapshot(t *testing.T) {
 	}
 
 	// check we got all the events
+	// 检查我们获取到所有事件
 	x := &expectEvents{t, events, sub}
 	x.expect(
 		x.nodeEvent(nodes[0].ID, false),

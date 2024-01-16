@@ -52,6 +52,7 @@ var (
 )
 
 // DefaultConfig contains reasonable default settings.
+// DefaultConfig包含合理的默认配置
 var DefaultConfig = Config{
 	DataDir:              DefaultDataDir(),
 	HTTPPort:             DefaultHTTPPort,

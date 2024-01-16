@@ -27,6 +27,7 @@ import (
 
 // NoopService is the service that does not do anything
 // but implements node.Service interface.
+// NoopService是什么都不做的service，只是实现了node.Service这个接口
 type NoopService struct {
 	c map[enode.ID]chan struct{}
 }

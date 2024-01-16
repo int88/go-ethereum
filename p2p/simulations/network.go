@@ -36,6 +36,7 @@ import (
 var DialBanTimeout = 200 * time.Millisecond
 
 // NetworkConfig defines configuration options for starting a Network
+// NetworkConfig定义了启动一个Network的配置选项
 type NetworkConfig struct {
 	ID             string `json:"id"`
 	DefaultService string `json:"default_service,omitempty"`
@@ -43,12 +44,15 @@ type NetworkConfig struct {
 
 // Network models a p2p simulation network which consists of a collection of
 // simulated nodes and the connections which exist between them.
+// Network是一个p2p模拟网络，由一系列的模拟节点组成，在它们之间存在连接
 //
 // The Network has a single NodeAdapter which is responsible for actually
 // starting nodes and connecting them together.
+// Network有单个的NodeAdapter，负责真正启动nodes并且将他们连在一起
 //
 // The Network emits events when nodes are started and stopped, when they are
 // connected and disconnected, and also when messages are sent between nodes.
+// Network发出事件，当nodes启动以及停止，当他们连接或者断连，以及messages在nodes之间传递
 type Network struct {
 	NetworkConfig
 
@@ -56,6 +60,7 @@ type Network struct {
 	nodeMap map[enode.ID]int
 
 	// Maps a node property string to node indexes of all nodes that hold this property
+	// 映射一个node property到node indexes，所有的nodes有这个特性
 	propertyMap map[string][]int
 
 	Conns   []*Conn `json:"conns"`
@@ -68,6 +73,7 @@ type Network struct {
 }
 
 // NewNetwork returns a Network which uses the given NodeAdapter and NetworkConfig
+// NewNetwork返回一个新的Network，使用给定的NodeAdapter以及NetworkConfig
 func NewNetwork(nodeAdapter adapters.NodeAdapter, conf *NetworkConfig) *Network {
 	return &Network{
 		NetworkConfig: *conf,
@@ -80,12 +86,15 @@ func NewNetwork(nodeAdapter adapters.NodeAdapter, conf *NetworkConfig) *Network 
 }
 
 // Events returns the output event feed of the Network.
+// Events返回Network的event feed的output
 func (net *Network) Events() *event.Feed {
 	return &net.events
 }
 
 // NewNodeWithConfig adds a new node to the network with the given config,
+// NewNodeWithConfig用给定配置在network中加一个新的node
 // returning an error if a node with the same ID or name already exists
+// 返回一个error，如果一个node，有着同样的ID或者name的已经存在
 func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -101,6 +110,7 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// check the node doesn't already exist
+	// 检查ndoe没有已经存在
 	if node := net.getNode(conf.ID); node != nil {
 		return nil, fmt.Errorf("node with ID %q already exists", conf.ID)
 	}
@@ -109,15 +119,18 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	}
 
 	// if no services are configured, use the default service
+	// 如果没有配置services，使用默认的service
 	if len(conf.Lifecycles) == 0 {
 		conf.Lifecycles = []string{net.DefaultService}
 	}
 
 	// use the NodeAdapter to create the node
+	// 使用NodeAdapter创建node
 	adapterNode, err := net.nodeAdapter.NewNode(conf)
 	if err != nil {
 		return nil, err
 	}
+	// 新建node
 	node := newNode(adapterNode, conf, false)
 	log.Trace("Node created", "id", conf.ID)
 
@@ -126,11 +139,13 @@ func (net *Network) NewNodeWithConfig(conf *adapters.NodeConfig) (*Node, error) 
 	net.Nodes = append(net.Nodes, node)
 
 	// Register any node properties with the network-level propertyMap
+	// 注册任何的node properties，有network级别的propertyMap
 	for _, property := range conf.Properties {
 		net.propertyMap[property] = append(net.propertyMap[property], nodeIndex)
 	}
 
 	// emit a "control" event
+	// 发射一个"control"事件
 	net.events.Send(ControlEvent(node))
 
 	return node, nil
@@ -142,6 +157,7 @@ func (net *Network) Config() *NetworkConfig {
 }
 
 // StartAll starts all nodes in the network
+// StartAll启动network中的所有nodes
 func (net *Network) StartAll() error {
 	for _, node := range net.Nodes {
 		if node.Up() {
@@ -168,12 +184,14 @@ func (net *Network) StopAll() error {
 }
 
 // Start starts the node with the given ID
+// Start用给定的ID开启node
 func (net *Network) Start(id enode.ID) error {
 	return net.startWithSnapshots(id, nil)
 }
 
 // startWithSnapshots starts the node with the given ID using the give
 // snapshots
+// startWithSnapshots用给定的ID启动node，使用给定snapshots
 func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -186,6 +204,7 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 		return fmt.Errorf("node %v already up", id)
 	}
 	log.Trace("Starting node", "id", id, "adapter", net.nodeAdapter.Name())
+	// 启动node
 	if err := node.Start(snapshots); err != nil {
 		log.Warn("Node startup failed", "id", id, "err", err)
 		return err
@@ -196,21 +215,25 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 	net.events.Send(ev)
 
 	// subscribe to peer events
+	// 订阅peer events
 	client, err := node.Client()
 	if err != nil {
 		return fmt.Errorf("error getting rpc client  for node %v: %s", id, err)
 	}
 	events := make(chan *p2p.PeerEvent)
+	// 对peerEvents进行订阅
 	sub, err := client.Subscribe(context.Background(), "admin", events, "peerEvents")
 	if err != nil {
 		return fmt.Errorf("error getting peer events for node %v: %s", id, err)
 	}
+	// 监听peer events
 	go net.watchPeerEvents(id, events, sub)
 	return nil
 }
 
 // watchPeerEvents reads peer events from the given channel and emits
 // corresponding network events
+// watchPeerEvents从给定的channel读取peer events并且发射对应的network events
 func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub event.Subscription) {
 	defer func() {
 		sub.Unsubscribe()
@@ -258,6 +281,7 @@ func (net *Network) watchPeerEvents(id enode.ID, events chan *p2p.PeerEvent, sub
 }
 
 // Stop stops the node with the given ID
+// Stop停止给定ID的node
 func (net *Network) Stop(id enode.ID) error {
 	// IMPORTANT: node.Stop() must NOT be called under net.lock as
 	// node.Reachable() closure has a reference to the network and
@@ -301,6 +325,7 @@ func (net *Network) Stop(id enode.ID) error {
 
 // Connect connects two nodes together by calling the "admin_addPeer" RPC
 // method on the "one" node so that it connects to the "other" node
+// 通过调用"admin_addPeer" RPC方法将两个nodes连接在一起，这样一个node就连接到了另一个node
 func (net *Network) Connect(oneID, otherID enode.ID) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -340,6 +365,7 @@ func (net *Network) Disconnect(oneID, otherID enode.ID) error {
 }
 
 // DidConnect tracks the fact that the "one" node connected to the "other" node
+// DidConnect追踪事实，即一个node连接到另一个node
 func (net *Network) DidConnect(one, other enode.ID) error {
 	net.lock.Lock()
 	defer net.lock.Unlock()
@@ -433,7 +459,9 @@ func (net *Network) getNodeByName(name string) *Node {
 }
 
 // GetNodeIDs returns the IDs of all existing nodes
+// GetNodeIDs获取所有已经存在的nodes的IDs
 // Nodes can optionally be excluded by specifying their enode.ID.
+// Nodes可以可选择地被排除，通过指定它们的enode.ID
 func (net *Network) GetNodeIDs(excludeIDs ...enode.ID) []enode.ID {
 	net.lock.RLock()
 	defer net.lock.RUnlock()
@@ -713,13 +741,16 @@ func (net *Network) Reset() {
 
 // Node is a wrapper around adapters.Node which is used to track the status
 // of a node in the network
+// Node是adapters.Node的一个wrapper，用于追踪network中一个node的状态
 type Node struct {
 	adapters.Node `json:"-"`
 
 	// Config if the config used to created the node
+	// Config，如果配置用于创建node
 	Config *adapters.NodeConfig `json:"config"`
 
 	// up tracks whether or not the node is running
+	// up追踪node是否运行
 	up   bool
 	upMu *sync.RWMutex
 }
@@ -734,6 +765,7 @@ func (n *Node) copy() *Node {
 }
 
 // Up returns whether the node is currently up (online)
+// Up返回node是否处于up
 func (n *Node) Up() bool {
 	n.upMu.RLock()
 	defer n.upMu.RUnlock()
@@ -799,14 +831,17 @@ func (n *Node) UnmarshalJSON(raw []byte) error {
 }
 
 // Conn represents a connection between two nodes in the network
+// Conn代表network中两个nodes间的连接
 type Conn struct {
 	// One is the node which initiated the connection
+	// One是初始化连接的那个node
 	One enode.ID `json:"one"`
 
 	// Other is the node which the connection was made to
 	Other enode.ID `json:"other"`
 
 	// Up tracks whether or not the connection is active
+	// Up追踪是否connection是活跃的
 	Up bool `json:"up"`
 	// Registers when the connection was grabbed to dial
 	initiated time.Time
@@ -832,6 +867,7 @@ func (c *Conn) String() string {
 }
 
 // Msg represents a p2p message sent between two nodes in the network
+// Msg代表一个p2p message，在network的两个nodes之间发送
 type Msg struct {
 	One      enode.ID `json:"one"`
 	Other    enode.ID `json:"other"`
@@ -862,20 +898,24 @@ func ConnLabel(source, target enode.ID) string {
 
 // Snapshot represents the state of a network at a single point in time and can
 // be used to restore the state of a network
+// Snapshot代表在某个时间点network的状态并且可以用于恢复一个network的state
 type Snapshot struct {
 	Nodes []NodeSnapshot `json:"nodes,omitempty"`
 	Conns []Conn         `json:"conns,omitempty"`
 }
 
 // NodeSnapshot represents the state of a node in the network
+// NodeSnapshot代表network中一个node的state
 type NodeSnapshot struct {
 	Node Node `json:"node,omitempty"`
 
 	// Snapshots is arbitrary data gathered from calling node.Snapshots()
+	// Snapshots是调用node.Snapshots()生成的随机的数据
 	Snapshots map[string][]byte `json:"snapshots,omitempty"`
 }
 
 // Snapshot creates a network snapshot
+// Snapshot创建一个network snapshot
 func (net *Network) Snapshot() (*Snapshot, error) {
 	return net.snapshot(nil, nil)
 }
@@ -890,6 +930,7 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 	snap := &Snapshot{
 		Nodes: make([]NodeSnapshot, len(net.Nodes)),
 	}
+	// 遍历net中的Nodes
 	for i, node := range net.Nodes {
 		snap.Nodes[i] = NodeSnapshot{Node: *node.copy()}
 		if !node.Up() {
@@ -899,9 +940,11 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 		if err != nil {
 			return nil, err
 		}
+		// 设置Nodes的snapshot
 		snap.Nodes[i].Snapshots = snapshots
 		for _, addSvc := range addServices {
 			haveSvc := false
+			// 添加services
 			for _, svc := range snap.Nodes[i].Node.Config.Lifecycles {
 				if svc == addSvc {
 					haveSvc = true
@@ -922,10 +965,12 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 						break
 					}
 				}
+				// 去除已经移除的services
 				if !haveSvc {
 					cleanedServices = append(cleanedServices, svc)
 				}
 			}
+			// 配置cleaned services
 			snap.Nodes[i].Node.Config.Lifecycles = cleanedServices
 		}
 	}
@@ -938,11 +983,14 @@ func (net *Network) snapshot(addServices []string, removeServices []string) (*Sn
 }
 
 // longrunning tests may need a longer timeout
+// 长期运行的测试可能需要一个更长的超时
 var snapshotLoadTimeout = 900 * time.Second
 
 // Load loads a network snapshot
+// Load加载一个netowrk snapshot
 func (net *Network) Load(snap *Snapshot) error {
 	// Start nodes.
+	// 启动nodes
 	for _, n := range snap.Nodes {
 		if _, err := net.NewNodeWithConfig(n.Node.Config); err != nil {
 			return err
@@ -956,21 +1004,27 @@ func (net *Network) Load(snap *Snapshot) error {
 	}
 
 	// Prepare connection events counter.
-	allConnected := make(chan struct{}) // closed when all connections are established
-	done := make(chan struct{})         // ensures that the event loop goroutine is terminated
+	// 准备connection events counter
+	allConnected := make(chan struct{}) // closed when all connections are established // 当所有连接建立之后关闭
+	// 确保event loop goroutine被终结
+	done := make(chan struct{}) // ensures that the event loop goroutine is terminated
 	defer close(done)
 
 	// Subscribe to event channel.
+	// 订阅event channel
 	// It needs to be done outside of the event loop goroutine (created below)
 	// to ensure that the event channel is blocking before connect calls are made.
+	// 它需要再event loop goroutine之外完成，来确保event channel是阻塞的，在connect调用创建之前
 	events := make(chan *Event)
 	sub := net.Events().Subscribe(events)
 	defer sub.Unsubscribe()
 
 	go func() {
 		// Expected number of connections.
+		// 期望数目的连接
 		total := len(snap.Conns)
 		// Set of all established connections from the snapshot, not other connections.
+		// 一系列从snapshot创建的连接，没有其他的连接
 		// Key array element 0 is the connection One field value, and element 1 connection Other field.
 		connections := make(map[[2]enode.ID]struct{}, total)
 
@@ -979,10 +1033,12 @@ func (net *Network) Load(snap *Snapshot) error {
 			case e := <-events:
 				// Ignore control events as they do not represent
 				// connect or disconnect (Up) state change.
+				// 忽略control events，因为它们不代表connect或者disconnect的state change
 				if e.Control {
 					continue
 				}
 				// Detect only connection events.
+				// 只检测connection events
 				if e.Type != EventTypeConn {
 					continue
 				}
@@ -996,6 +1052,7 @@ func (net *Network) Load(snap *Snapshot) error {
 					continue
 				}
 				// Check that the connection is from the snapshot.
+				// 检查connection来自snapshot
 				for _, conn := range snap.Conns {
 					if conn.One == e.Conn.One && conn.Other == e.Conn.Other {
 						// Add the connection to the set of established connections.
@@ -1017,6 +1074,7 @@ func (net *Network) Load(snap *Snapshot) error {
 	}()
 
 	// Start connecting.
+	// 开始connecting
 	for _, conn := range snap.Conns {
 		if !net.GetNode(conn.One).Up() || !net.GetNode(conn.Other).Up() {
 			//in this case, at least one of the nodes of a connection is not up,
@@ -1030,8 +1088,10 @@ func (net *Network) Load(snap *Snapshot) error {
 
 	select {
 	// Wait until all connections from the snapshot are established.
+	// 等待来自snapshot的所有连接都建立
 	case <-allConnected:
 	// Make sure that we do not wait forever.
+	// 确保我们不会永远等待
 	case <-time.After(snapshotLoadTimeout):
 		return errors.New("snapshot connections not established")
 	}

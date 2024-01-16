@@ -47,11 +47,13 @@ import (
 func init() {
 	// Register a reexec function to start a simulation node when the current binary is
 	// executed as "p2p-node" (rather than whatever the main() function would normally do).
+	// 注册一个reexec函数，启动一个simulation node，当当前的binary以"p2p-node"执行（而不是一般的main()函数）
 	reexec.Register("p2p-node", execP2PNode)
 }
 
 // ExecAdapter is a NodeAdapter which runs simulation nodes by executing the current binary
 // as a child process.
+// ExecAdapter是一个NodeAdapter，运行simulation nodes，通过执行当前的binary，作为一个child process
 type ExecAdapter struct {
 	// BaseDir is the directory under which the data directories for each
 	// simulation node are created.
@@ -75,6 +77,7 @@ func (e *ExecAdapter) Name() string {
 }
 
 // NewNode returns a new ExecNode using the given config
+// NewNode使用给定配置返回一个新的ExecNode
 func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 	if len(config.Lifecycles) == 0 {
 		return nil, errors.New("node must have at least one service lifecycle")
@@ -98,6 +101,7 @@ func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 	}
 
 	// generate the config
+	// 生成config
 	conf := &execNodeConfig{
 		Stack: node.DefaultConfig,
 		Node:  config,
@@ -109,6 +113,7 @@ func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 	}
 
 	// these parameters are crucial for execadapter node to run correctly
+	// 这些参数对于execadapter node正确运行非常重要
 	conf.Stack.WSHost = "127.0.0.1"
 	conf.Stack.WSPort = 0
 	conf.Stack.WSOrigins = []string{"*"}
@@ -119,6 +124,7 @@ func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 
 	// Listen on a localhost port, which we set when we
 	// initialise NodeConfig (usually a random port)
+	// 监听localhost端口，当我们初始化NodeConfig的时候配置（通常是一个随机端口）
 	conf.Stack.P2P.ListenAddr = fmt.Sprintf(":%d", config.Port)
 
 	node := &ExecNode{
@@ -134,6 +140,7 @@ func (e *ExecAdapter) NewNode(config *NodeConfig) (Node, error) {
 
 // ExecNode starts a simulation node by exec'ing the current binary and
 // running the configured services
+// ExecNode启动一个simulation node，通过exec当前的binary并且运行配置的services
 type ExecNode struct {
 	ID     enode.ID
 	Dir    string
@@ -163,6 +170,7 @@ func (n *ExecNode) Client() (*rpc.Client, error) {
 
 // Start exec's the node passing the ID and service as command line arguments
 // and the node config encoded as JSON in an environment variable.
+// Start exec node，通过传入ID和service作为命令行参数，以及node config json编码后，作为环境变量传入
 func (n *ExecNode) Start(snapshots map[string][]byte) (err error) {
 	if n.Cmd != nil {
 		return errors.New("already started")
@@ -174,6 +182,7 @@ func (n *ExecNode) Start(snapshots map[string][]byte) (err error) {
 	}()
 
 	// encode a copy of the config containing the snapshot
+	// 编码一份配置的拷贝，包含snapshot
 	confCopy := *n.Config
 	confCopy.Snapshots = snapshots
 	confCopy.PeerAddrs = make(map[string]string)
@@ -272,6 +281,8 @@ func (n *ExecNode) waitForStartupJSON(ctx context.Context) (string, chan nodeSta
 // execCommand returns a command which runs the node locally by exec'ing
 // the current binary but setting argv[0] to "p2p-node" so that the child
 // runs execP2PNode
+// execCommand返回一个命令行，在本地运行node，通过执行当前的二进制，但是设置argv[0]为"p2p-node"
+// 这样，child运行execP2PNode
 func (n *ExecNode) execCommand() *exec.Cmd {
 	return &exec.Cmd{
 		Path: reexec.Self(),
@@ -281,6 +292,7 @@ func (n *ExecNode) execCommand() *exec.Cmd {
 
 // Stop stops the node by first sending SIGTERM and then SIGKILL if the node
 // doesn't stop within 5s
+// Stop停止node，首先通过发送SIGTERM并且之后SIGKILL，如果node没有在5s内停止
 func (n *ExecNode) Stop() error {
 	if n.Cmd == nil {
 		return nil
@@ -357,6 +369,7 @@ func wsCopy(wg *sync.WaitGroup, src, dst *websocket.Conn) {
 
 // Snapshots creates snapshots of the services by calling the
 // simulation_snapshot RPC method
+// Snapshots创建services的snapshots，通过调用simulation_snapshot RPC方法
 func (n *ExecNode) Snapshots() (map[string][]byte, error) {
 	if n.client == nil {
 		return nil, errors.New("RPC not started")
@@ -367,6 +380,7 @@ func (n *ExecNode) Snapshots() (map[string][]byte, error) {
 
 // execNodeConfig is used to serialize the node configuration so it can be
 // passed to the child process as a JSON encoded environment variable
+// execNodeConfig用于序列化node配置，这与它可以传递给child process，作为一个JSON encoded环境变量
 type execNodeConfig struct {
 	Stack     node.Config       `json:"stack"`
 	Node      *NodeConfig       `json:"node"`

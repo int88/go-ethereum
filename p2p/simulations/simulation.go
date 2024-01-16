@@ -25,11 +25,13 @@ import (
 
 // Simulation provides a framework for running actions in a simulated network
 // and then waiting for expectations to be met
+// Simulation提供一个framework，用于在一个模拟的network运行actions并且等待expectations被满足
 type Simulation struct {
 	network *Network
 }
 
 // NewSimulation returns a new simulation which runs in the given network
+// NewSimulation返回一个新的simulation，它会运行给定的network
 func NewSimulation(network *Network) *Simulation {
 	return &Simulation{
 		network: network,
@@ -38,6 +40,7 @@ func NewSimulation(network *Network) *Simulation {
 
 // Run performs a step of the simulation by performing the step's action and
 // then waiting for the step's expectation to be met
+// Run执行simulation中的一个step，通过执行step的action并且等待step的expectation被满足
 func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 	result = newStepResult()
 
@@ -45,16 +48,19 @@ func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 	defer func() { result.FinishedAt = time.Now() }()
 
 	// watch network events for the duration of the step
+	// 在step期间等待network events
 	stop := s.watchNetwork(result)
 	defer stop()
 
 	// perform the action
+	// 执行action
 	if err := step.Action(ctx); err != nil {
 		result.Error = err
 		return
 	}
 
 	// wait for all node expectations to either pass, error or timeout
+	// 等待所有node的expectations要么通过，错误或者超时
 	nodes := make(map[enode.ID]struct{}, len(step.Expect.Nodes))
 	for _, id := range step.Expect.Nodes {
 		nodes[id] = struct{}{}
@@ -63,16 +69,19 @@ func (s *Simulation) Run(ctx context.Context, step *Step) (result *StepResult) {
 		select {
 		case id := <-step.Trigger:
 			// skip if we aren't checking the node
+			// 跳过，如果我们没有检查这个node
 			if _, ok := nodes[id]; !ok {
 				continue
 			}
 
 			// skip if the node has already passed
+			// 跳过如果node已经通过了
 			if _, ok := result.Passes[id]; ok {
 				continue
 			}
 
 			// run the node expectation check
+			// 执行node expectation check
 			pass, err := step.Expect.Check(ctx, id)
 			if err != nil {
 				result.Error = err
@@ -94,6 +103,7 @@ func (s *Simulation) watchNetwork(result *StepResult) func() {
 	stop := make(chan struct{})
 	done := make(chan struct{})
 	events := make(chan *Event)
+	// 监听network events
 	sub := s.network.Events().Subscribe(events)
 	go func() {
 		defer close(done)
@@ -115,21 +125,26 @@ func (s *Simulation) watchNetwork(result *StepResult) func() {
 
 type Step struct {
 	// Action is the action to perform for this step
+	// Action是这个step执行的动作
 	Action func(context.Context) error
 
 	// Trigger is a channel which receives node ids and triggers an
 	// expectation check for that node
+	// Trigger是一个channel，接收node ids并且触发一个期望的expection check，对于这个node
 	Trigger chan enode.ID
 
 	// Expect is the expectation to wait for when performing this step
+	// Expect是执行这个step时等待的expectation
 	Expect *Expectation
 }
 
 type Expectation struct {
 	// Nodes is a list of nodes to check
+	// Nodes是一系列检查的nodes
 	Nodes []enode.ID
 
 	// Check checks whether a given node meets the expectation
+	// Check检查是否给定的node满足期望
 	Check func(context.Context, enode.ID) (bool, error)
 }
 
@@ -153,5 +168,6 @@ type StepResult struct {
 	Passes map[enode.ID]time.Time
 
 	// NetworkEvents are the network events which occurred during the step
+	// NetworkEvents是在这个step期间发生的network events
 	NetworkEvents []*Event
 }
