@@ -64,6 +64,7 @@ import (
 type Config = ethconfig.Config
 
 // Ethereum implements the Ethereum full node service.
+// Ethereum实现了Ethereum完整的node service
 type Ethereum struct {
 	config *ethconfig.Config
 
@@ -278,6 +279,7 @@ func New(stack *node.Node, config *ethconfig.Config) (*Ethereum, error) {
 	eth.netRPCService = ethapi.NewNetAPI(eth.p2pServer, networkID)
 
 	// Register the backend on the node
+	// 在node上注册backend
 	stack.RegisterAPIs(eth.APIs())
 	stack.RegisterProtocols(eth.Protocols())
 	stack.RegisterLifecycle(eth)
@@ -495,9 +497,11 @@ func (s *Ethereum) SyncMode() downloader.SyncMode {
 
 // Protocols returns all the currently configured
 // network protocols to start.
+// Protocols返回所有当前配置的network protocols，来启动
 func (s *Ethereum) Protocols() []p2p.Protocol {
 	protos := eth.MakeProtocols((*ethHandler)(s.handler), s.networkID, s.ethDialCandidates)
 	if s.config.SnapshotCache > 0 {
+		// 构建snap protocol
 		protos = append(protos, snap.MakeProtocols((*snapHandler)(s.handler), s.snapDialCandidates)...)
 	}
 	return protos

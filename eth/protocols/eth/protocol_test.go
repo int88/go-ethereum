@@ -27,8 +27,10 @@ import (
 )
 
 // Tests that the custom union field encoder and decoder works correctly.
+// 测试custom union field的encoder和decoder正常运行
 func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 	// Create a "random" hash for testing
+	// 创建一个随机的hash用于测试
 	var hash common.Hash
 	for i := range hash {
 		hash[i] = byte(i)
@@ -39,17 +41,21 @@ func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 		fail   bool
 	}{
 		// Providing the origin as either a hash or a number should both work
+		// 提供一个hash或者一个number都应该work
 		{fail: false, packet: &GetBlockHeadersRequest{Origin: HashOrNumber{Number: 314}}},
 		{fail: false, packet: &GetBlockHeadersRequest{Origin: HashOrNumber{Hash: hash}}},
 
 		// Providing arbitrary query field should also work
+		// 提供任意的query字段也应该work
 		{fail: false, packet: &GetBlockHeadersRequest{Origin: HashOrNumber{Number: 314}, Amount: 314, Skip: 1, Reverse: true}},
 		{fail: false, packet: &GetBlockHeadersRequest{Origin: HashOrNumber{Hash: hash}, Amount: 314, Skip: 1, Reverse: true}},
 
 		// Providing both the origin hash and origin number must fail
+		// 同时提供origin hash和origin number都必须失败
 		{fail: true, packet: &GetBlockHeadersRequest{Origin: HashOrNumber{Hash: hash, Number: 314}}},
 	}
 	// Iterate over each of the tests and try to encode and then decode
+	// 遍历每个tests并且试着先encode再decode
 	for i, tt := range tests {
 		bytes, err := rlp.EncodeToBytes(tt.packet)
 		if err != nil && !tt.fail {
@@ -71,6 +77,7 @@ func TestGetBlockHeadersDataEncodeDecode(t *testing.T) {
 }
 
 // TestEmptyMessages tests encoding of empty messages.
+// TestEmptyMessages测试对empty messages进行encoding
 func TestEmptyMessages(t *testing.T) {
 	// All empty messages encodes to the same format
 	want := common.FromHex("c4820457c0")
@@ -112,6 +119,7 @@ func TestEmptyMessages(t *testing.T) {
 }
 
 // TestMessages tests the encoding of all messages.
+// TestMessages测试对于所有messages的encoding
 func TestMessages(t *testing.T) {
 	// Some basic structs used during testing
 	var (
@@ -135,6 +143,7 @@ func TestMessages(t *testing.T) {
 		Extra:      []byte{0x77, 0x88},
 	}
 	// Init the transactions, taken from a different test
+	// 初始tx，从一个不同的测试获取
 	{
 		for _, hexrlp := range []string{
 			"f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10",
@@ -150,6 +159,7 @@ func TestMessages(t *testing.T) {
 		}
 	}
 	// init the block body data, both object and rlp form
+	// 初始化block body data，同时以object和rlp形式
 	blockBody = &BlockBody{
 		Transactions: txs,
 		Uncles:       []*types.Header{header},
@@ -164,6 +174,7 @@ func TestMessages(t *testing.T) {
 		common.HexToHash("feedbeef"),
 	}
 	// init the receipts
+	// 初始化receipts
 	{
 		receipts = []*types.Receipt{
 			{

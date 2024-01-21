@@ -42,6 +42,7 @@ func (d *Downloader) syncState(root common.Hash) *stateSync {
 
 // stateFetcher manages the active state sync and accepts requests
 // on its behalf.
+// stateFetcher管理active state sync并且代表自己接收请求
 func (d *Downloader) stateFetcher() {
 	for {
 		select {

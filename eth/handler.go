@@ -83,12 +83,14 @@ type txPool interface {
 
 // handlerConfig is the collection of initialization parameters to create a full
 // node network handler.
+// handlerConfig是一系列的初始化参数用来创建一个完整node的network handler
 type handlerConfig struct {
-	Database       ethdb.Database         // Database for direct sync insertions
-	Chain          *core.BlockChain       // Blockchain to serve data from
-	TxPool         txPool                 // Transaction pool to propagate from
-	Merger         *consensus.Merger      // The manager for eth1/2 transition
-	Network        uint64                 // Network identifier to advertise
+	Database ethdb.Database    // Database for direct sync insertions
+	Chain    *core.BlockChain  // Blockchain to serve data from
+	TxPool   txPool            // Transaction pool to propagate from
+	Merger   *consensus.Merger // The manager for eth1/2 transition
+	Network  uint64            // Network identifier to advertise
+	// snap sync或者full sync
 	Sync           downloader.SyncMode    // Whether to snap or full sync
 	BloomCache     uint64                 // Megabytes to alloc for snap sync bloom
 	EventMux       *event.TypeMux         // Legacy event mux, deprecate for `feed`
@@ -121,6 +123,7 @@ type handler struct {
 	requiredBlocks map[uint64]common.Hash
 
 	// channels for fetcher, syncer, txsyncLoop
+	// cahnnels用于fetcher，syncer以及txsyncLoop
 	quitSync chan struct{}
 
 	chainSync *chainSyncer
@@ -131,8 +134,10 @@ type handler struct {
 }
 
 // newHandler returns a handler for all Ethereum chain management protocol.
+// newHandler返回一个handler，对于所有Eth chain的管理协议
 func newHandler(config *handlerConfig) (*handler, error) {
 	// Create the protocol manager with the base fields
+	// 用base字段创建protocol manager
 	if config.EventMux == nil {
 		config.EventMux = new(event.TypeMux) // Nicety initialization for tests
 	}
@@ -171,18 +176,22 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		head := h.chain.CurrentBlock()
 		if head.Number.Uint64() > 0 && h.chain.HasState(head.Root) {
 			// Print warning log if database is not empty to run snap sync.
+			// 打印warning，如果db不是空的，在运行snap sync的时候
 			log.Warn("Switch sync mode from snap sync to full sync", "reason", "snap sync complete")
 		} else {
 			// If snap sync was requested and our database is empty, grant it
+			// 如果请求了snap sync并且我们的db为空，授予它
 			h.snapSync.Store(true)
 			log.Info("Enabled snap sync", "head", head.Number, "hash", head.Hash())
 		}
 	}
 	// If snap sync is requested but snapshots are disabled, fail loudly
+	// 如果请求了snap sync，但是snapshots被禁止了，大声失败
 	if h.snapSync.Load() && config.Chain.Snapshots() == nil {
 		return nil, errors.New("snap sync not supported with snapshots disabled")
 	}
 	// Construct the downloader (long sync)
+	// 构建downloader（长期同步）
 	h.downloader = downloader.New(config.Database, h.eventMux, h.chain, nil, h.removePeer, h.enableSyncedFeatures)
 	if ttd := h.chain.Config().TerminalTotalDifficulty; ttd != nil {
 		if h.chain.Config().TerminalTotalDifficultyPassed {
@@ -190,8 +199,10 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		} else {
 			head := h.chain.CurrentBlock()
 			if td := h.chain.GetTd(head.Hash(), head.Number.Uint64()); td.Cmp(ttd) >= 0 {
+				// TTD之后，通过beacon client同步
 				log.Info("Chain post-TTD, sync via beacon client")
 			} else {
+				// pre-merge，通过PoW同步（确保beacon client处于ready）
 				log.Warn("Chain pre-merge, sync via PoW (ensure beacon client is ready)")
 			}
 		}
@@ -199,6 +210,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		log.Error("Chain configured post-merge, but without TTD. Are you debugging sync?")
 	}
 	// Construct the fetcher (short sync)
+	// 构建fetcher（短期同步）
 	validator := func(header *types.Header) error {
 		// All the block fetcher activities should be disabled
 		// after the transition. Print the warning log.
@@ -269,6 +281,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		}
 		return h.chain.InsertChain(blocks)
 	}
+	// 构建block fetcher
 	h.blockFetcher = fetcher.NewBlockFetcher(false, nil, h.chain.GetBlockByHash, validator, h.BroadcastBlock, heighter, nil, inserter, h.removePeer)
 
 	fetchTx := func(peer string, hashes []common.Hash) error {
@@ -281,6 +294,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 	addTxs := func(txs []*types.Transaction) []error {
 		return h.txpool.Add(txs, false, false)
 	}
+	// 构建tx fetcher
 	h.txFetcher = fetcher.NewTxFetcher(h.txpool.Has, addTxs, fetchTx, h.removePeer)
 	h.chainSync = newChainSyncer(h)
 	return h, nil
@@ -324,6 +338,7 @@ func (h *handler) decHandlers() {
 
 // runEthPeer registers an eth peer into the joint eth/snap peerset, adds it to
 // various subsystems and starts handling messages.
+// runEthPeer注册一个eth peer到联合的eth/snap peerset，添加到各种子系统并且开始处理messages
 func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	if !h.incHandlers() {
 		return p2p.DiscQuitting
@@ -332,6 +347,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 
 	// If the peer has a `snap` extension, wait for it to connect so we can have
 	// a uniform initialization/teardown mechanism
+	// 如果peer有一个`snap`扩展，等待它连接，这样我们有一个一致的初始/关闭机制
 	snap, err := h.peers.waitSnapExtension(peer)
 	if err != nil {
 		peer.Log().Error("Snapshot extension barrier failed", "err", err)
@@ -339,6 +355,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	}
 
 	// Execute the Ethereum handshake
+	// 执行Ethereum握手
 	var (
 		genesis = h.chain.Genesis()
 		head    = h.chain.CurrentHeader()
@@ -347,6 +364,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		td      = h.chain.GetTd(hash, number)
 	)
 	forkID := forkid.NewID(h.chain.Config(), genesis, number, head.Time)
+	// 执行握手
 	if err := peer.Handshake(h.networkID, td, hash, genesis.Hash(), forkID, h.forkFilter); err != nil {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
@@ -363,6 +381,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}
 	}
 	// Ignore maxPeers if this is a trusted peer
+	// 忽略maxPeers，如果这是一个trusted peer
 	if !peer.Peer.Info().Network.Trusted {
 		if reject || h.peers.len() >= h.maxPeers {
 			return p2p.DiscTooManyPeers
@@ -371,6 +390,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 	peer.Log().Debug("Ethereum peer connected", "name", peer.Name())
 
 	// Register the peer locally
+	// 注册peer
 	if err := h.peers.registerPeer(peer, snap); err != nil {
 		peer.Log().Error("Ethereum peer registration failed", "err", err)
 		return err
@@ -382,30 +402,37 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		return errors.New("peer dropped during handling")
 	}
 	// Register the peer in the downloader. If the downloader considers it banned, we disconnect
+	// 注册peer到downloader，如果downloader被认为是bannned，我们断开连接
 	if err := h.downloader.RegisterPeer(peer.ID(), peer.Version(), peer); err != nil {
 		peer.Log().Error("Failed to register peer in eth syncer", "err", err)
 		return err
 	}
 	if snap != nil {
+		// 在downloader注册SnapSyncer
 		if err := h.downloader.SnapSyncer.Register(snap); err != nil {
 			peer.Log().Error("Failed to register peer in snap syncer", "err", err)
 			return err
 		}
 	}
+	// 处理peer event
 	h.chainSync.handlePeerEvent()
 
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
+	// 传播已经存在的txs，之后新出现的txs会通过广播发送
 	h.syncTransactions(peer)
 
 	// Create a notification channel for pending requests if the peer goes down
+	// 创建notification channel，对于pending requests，如果peer gose down
 	dead := make(chan struct{})
 	defer close(dead)
 
 	// If we have any explicit peer required block hashes, request them
+	// 如果我们有显式的peer需要block hashes，请求他们
 	for number, hash := range h.requiredBlocks {
 		resCh := make(chan *eth.Response)
 
+		// 请求header
 		req, err := peer.RequestHeadersByNumber(number, 1, 0, false, resCh)
 		if err != nil {
 			return err
@@ -445,6 +472,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}(number, hash, req)
 	}
 	// Handle incoming messages until the connection is torn down
+	// 处理到来的Messages，直到connection被关闭
 	return handler(peer)
 }
 

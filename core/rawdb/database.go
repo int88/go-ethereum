@@ -300,6 +300,8 @@ func NewDatabaseWithFreezer(db ethdb.KeyValueStore, ancient string, namespace st
 
 // NewMemoryDatabase creates an ephemeral in-memory key-value database without a
 // freezer moving immutable chain segments into cold storage.
+// NewMemoryDatabase创建一个临时的内存中的kv数据库，没有一个freezer将不变的chain segments移动到
+// cold storage
 func NewMemoryDatabase() ethdb.Database {
 	return NewDatabase(memorydb.New())
 }

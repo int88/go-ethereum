@@ -48,11 +48,14 @@ const (
 	// maxQueuedBlocks is the maximum number of block propagations to queue up before
 	// dropping broadcasts. There's not much point in queueing stale blocks, so a few
 	// that might cover uncles should be enough.
+	// maxQueuedBlocks是排队传播的block的最大数目，在丢弃广播之前，没有意义将stale blocks排队，
+	// 因此有的可能覆盖uncles就足够了
 	maxQueuedBlocks = 4
 
 	// maxQueuedBlockAnns is the maximum number of block announcements to queue up before
 	// dropping broadcasts. Similarly to block propagations, there's no point to queue
 	// above some healthy uncle limit, so use that.
+	// 和block propagations类似，没有意义将一些healthy uncle limit排队
 	maxQueuedBlockAnns = 4
 )
 
@@ -65,35 +68,50 @@ func max(a, b int) int {
 }
 
 // Peer is a collection of relevant information we have about a `eth` peer.
+// Peer是一系列的相关信息，我们有的关于一个`eth` peer
 type Peer struct {
 	id string // Unique ID for the peer, cached
 
+	// 内置的P2P packet peeer
 	*p2p.Peer                   // The embedded P2P package peer
 	rw        p2p.MsgReadWriter // Input/output streams for snap
 	version   uint              // Protocol version negotiated
 
+	// 最新收到的head block hash
 	head common.Hash // Latest advertised head block hash
 	td   *big.Int    // Latest advertised head block total difficulty
 
-	knownBlocks     *knownCache            // Set of block hashes known to be known by this peer
-	queuedBlocks    chan *blockPropagation // Queue of blocks to broadcast to the peer
-	queuedBlockAnns chan *types.Block      // Queue of blocks to announce to the peer
+	// 一系列已知被这个peer知道的block hashes
+	knownBlocks *knownCache // Set of block hashes known to be known by this peer
+	// 广播到这个peer的blocks的队列
+	queuedBlocks chan *blockPropagation // Queue of blocks to broadcast to the peer
+	// 通知到peer的blocks的队列
+	queuedBlockAnns chan *types.Block // Queue of blocks to announce to the peer
 
-	txpool      TxPool             // Transaction pool used by the broadcasters for liveness checks
-	knownTxs    *knownCache        // Set of transaction hashes known to be known by this peer
+	// Tx pool被broadcasters会用，用于liveness check
+	txpool TxPool // Transaction pool used by the broadcasters for liveness checks
+	// 一系列的txs已知被peer知道
+	knownTxs *knownCache // Set of transaction hashes known to be known by this peer
+	// channel用于排队tx propagation请求
 	txBroadcast chan []common.Hash // Channel used to queue transaction propagation requests
-	txAnnounce  chan []common.Hash // Channel used to queue transaction announcement requests
+	// channel用于排队tx announcement请求
+	txAnnounce chan []common.Hash // Channel used to queue transaction announcement requests
 
-	reqDispatch chan *request  // Dispatch channel to send requests and track then until fulfillment
-	reqCancel   chan *cancel   // Dispatch channel to cancel pending requests and untrack them
+	// Dispatch channel用于发送requests并且追踪，直到被填充
+	reqDispatch chan *request // Dispatch channel to send requests and track then until fulfillment
+	// Dispatch channel用于取消pending requests并且untrack他们
+	reqCancel chan *cancel // Dispatch channel to cancel pending requests and untrack them
+	// Dispatch channel来填充pending requests并且untrack他们
 	resDispatch chan *response // Dispatch channel to fulfil pending requests and untrack them
 
+	// termination channle用来停止广播
 	term chan struct{} // Termination channel to stop the broadcasters
 	lock sync.RWMutex  // Mutex protecting the internal fields
 }
 
 // NewPeer create a wrapper for a network connection and negotiated  protocol
 // version.
+// NewPeer创建一个wrapper，用于network连接并且协商protocol版本
 func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Peer {
 	peer := &Peer{
 		id:              p.ID().String(),
@@ -113,6 +131,7 @@ func NewPeer(version uint, p *p2p.Peer, rw p2p.MsgReadWriter, txpool TxPool) *Pe
 		term:            make(chan struct{}),
 	}
 	// Start up all the broadcasters
+	// 开始所有的broadcasters
 	go peer.broadcastBlocks()
 	go peer.broadcastTransactions()
 	go peer.announceTransactions()
@@ -168,8 +187,10 @@ func (p *Peer) KnownTransaction(hash common.Hash) bool {
 
 // markBlock marks a block as known for the peer, ensuring that the block will
 // never be propagated to this particular peer.
+// markBlock将一个block标记为已知，确保block用于不会被传播给这个特定的peer
 func (p *Peer) markBlock(hash common.Hash) {
 	// If we reached the memory allowance, drop a previously known block hash
+	// 如果我们已经达到了memory allowance，丢弃之前已知的block hash
 	p.knownBlocks.Add(hash)
 }
 
@@ -182,15 +203,19 @@ func (p *Peer) markTransaction(hash common.Hash) {
 
 // SendTransactions sends transactions to the peer and includes the hashes
 // in its transaction hash set for future reference.
+// SendTransactions发送txs到peer并且包含hashes在它的tx hash set，用于未来引用
 //
 // This method is a helper used by the async transaction sender. Don't call it
 // directly as the queueing (memory) and transmission (bandwidth) costs should
 // not be managed directly.
+// 这是async tx sender使用的helper，不要直接调用，因为queueing（memory）以及transmission（bandwidth）
+// 消耗不能直接管理
 //
 // The reasons this is public is to allow packages using this protocol to write
 // tests that directly send messages without having to do the async queueing.
 func (p *Peer) SendTransactions(txs types.Transactions) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
+	// 将所有的txs标记为已知，但是确保我们不会超过limits
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
@@ -212,6 +237,7 @@ func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
 
 // sendPooledTransactionHashes66 sends transaction hashes to the peer and includes
 // them in its transaction hash set for future reference.
+// sendPooledTransactionHashes66发送tx hashes到peer并且将他们包含在tx hash set用于未来引用
 //
 // This method is a helper used by the async transaction announcer. Don't call it
 // directly as the queueing (memory) and transmission (bandwidth) costs should
@@ -238,6 +264,7 @@ func (p *Peer) sendPooledTransactionHashes68(hashes []common.Hash, types []byte,
 // AsyncSendPooledTransactionHashes queues a list of transactions hashes to eventually
 // announce to a remote peer.  The number of pending sends are capped (new ones
 // will force old sends to be dropped)
+// AsyncSendPooledTransactionHashes将一系列的txs hashes排队，最终通知到一个remote peer，发送的pendings数目是被限制的
 func (p *Peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
@@ -262,6 +289,7 @@ func (p *Peer) ReplyPooledTransactionsRLP(id uint64, hashes []common.Hash, txs [
 
 // SendNewBlockHashes announces the availability of a number of blocks through
 // a hash notification.
+// SendNewBlockHashes声明一些blocks可用，通过hash notification
 func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
 	// Mark all the block hashes as known, but ensure we don't overflow our limits
 	p.knownBlocks.Add(hashes...)
@@ -288,8 +316,10 @@ func (p *Peer) AsyncSendNewBlockHash(block *types.Block) {
 }
 
 // SendNewBlock propagates an entire block to a remote peer.
+// SendNewBlock传播一整个block到一个remote peer
 func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 	// Mark all the block hash as known, but ensure we don't overflow our limits
+	// 标记所有的block hash是已知的，但是确保我们没有超过limits
 	p.knownBlocks.Add(block.Hash())
 	return p2p.Send(p.rw, NewBlockMsg, &NewBlockPacket{
 		Block: block,
@@ -310,6 +340,7 @@ func (p *Peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
 }
 
 // ReplyBlockHeadersRLP is the response to GetBlockHeaders.
+// ReplyBlockHeadersRLP是对于GetBlockHeaders的response
 func (p *Peer) ReplyBlockHeadersRLP(id uint64, headers []rlp.RawValue) error {
 	return p2p.Send(p.rw, BlockHeadersMsg, &BlockHeadersRLPPacket{
 		RequestId:               id,
@@ -318,8 +349,10 @@ func (p *Peer) ReplyBlockHeadersRLP(id uint64, headers []rlp.RawValue) error {
 }
 
 // ReplyBlockBodiesRLP is the response to GetBlockBodies.
+// ReplyBlockBodiesRLP是对于GetBlockBodies的response
 func (p *Peer) ReplyBlockBodiesRLP(id uint64, bodies []rlp.RawValue) error {
 	// Not packed into BlockBodiesResponse to avoid RLP decoding
+	// 不要封装进BlockBodiesResponse，避免RLP decoding
 	return p2p.Send(p.rw, BlockBodiesMsg, &BlockBodiesRLPPacket{
 		RequestId:              id,
 		BlockBodiesRLPResponse: bodies,
@@ -390,6 +423,7 @@ func (p *Peer) RequestHeadersByHash(origin common.Hash, amount int, skip int, re
 
 // RequestHeadersByNumber fetches a batch of blocks' headers corresponding to the
 // specified header query, based on the number of an origin block.
+// RequestHeadersByNumber请求一系列的blocks的headers，对应特定的header query，基于一个origin block的number
 func (p *Peer) RequestHeadersByNumber(origin uint64, amount int, skip int, reverse bool, sink chan *Response) (*Request, error) {
 	p.Log().Debug("Fetching batch of headers", "count", amount, "fromnum", origin, "skip", skip, "reverse", reverse)
 	id := rand.Uint64()
@@ -471,12 +505,14 @@ func (p *Peer) RequestTxs(hashes []common.Hash) error {
 }
 
 // knownCache is a cache for known hashes.
+// knownCache是一个cache，用于
 type knownCache struct {
 	hashes mapset.Set[common.Hash]
 	max    int
 }
 
 // newKnownCache creates a new knownCache with a max capacity.
+// newKnownCache创建一个新的knownCache，有着最大的capacity
 func newKnownCache(max int) *knownCache {
 	return &knownCache{
 		max:    max,

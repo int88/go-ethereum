@@ -31,17 +31,20 @@ import (
 
 // ethHandler implements the eth.Backend interface to handle the various network
 // packets that are sent as replies or broadcasts.
+// ethHandler实现了eth.Backend接口，处理各种network packets，作为replies或者广播发送
 type ethHandler handler
 
 func (h *ethHandler) Chain() *core.BlockChain { return h.chain }
 func (h *ethHandler) TxPool() eth.TxPool      { return h.txpool }
 
 // RunPeer is invoked when a peer joins on the `eth` protocol.
+// RunPeer被调用，当一个peer加入`eth`协议
 func (h *ethHandler) RunPeer(peer *eth.Peer, hand eth.Handler) error {
 	return (*handler)(h).runEthPeer(peer, hand)
 }
 
 // PeerInfo retrieves all known `eth` information about a peer.
+// PeerInfo获取一个peer关于`eth`的所有信息
 func (h *ethHandler) PeerInfo(id enode.ID) interface{} {
 	if p := h.peers.peer(id.String()); p != nil {
 		return p.info()
@@ -57,14 +60,18 @@ func (h *ethHandler) AcceptTxs() bool {
 
 // Handle is invoked from a peer's message handler when it receives a new remote
 // message that the handler couldn't consume and serve itself.
+// Handle被调用，从一个peer的message handler，当它接收一个新的remote message，handler不能自己处理
 func (h *ethHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 	// Consume any broadcasts and announces, forwarding the rest to the downloader
+	// 消费任何的广播以及announces，转发剩余的到downloader
 	switch packet := packet.(type) {
 	case *eth.NewBlockHashesPacket:
 		hashes, numbers := packet.Unpack()
+		// 处理block announces
 		return h.handleBlockAnnounces(peer, hashes, numbers)
 
 	case *eth.NewBlockPacket:
+		// 处理block广播
 		return h.handleBlockBroadcast(peer, packet.Block, packet.TD)
 
 	case *eth.NewPooledTransactionHashesPacket67:

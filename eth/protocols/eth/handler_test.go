@@ -59,15 +59,18 @@ type testBackend struct {
 }
 
 // newTestBackend creates an empty chain and wraps it into a mock backend.
+// newTestBackend创建一个空的chain并且封装它到一个mock backend
 func newTestBackend(blocks int) *testBackend {
 	return newTestBackendWithGenerator(blocks, false, nil)
 }
 
 // newTestBackend creates a chain with a number of explicitly defined blocks and
 // wraps it into a mock backend.
+// newTestBackend创建一个chain，有显式定义的blocks数目并且将它封装进一个mock backend
 func newTestBackendWithGenerator(blocks int, shanghai bool, generator func(int, *core.BlockGen)) *testBackend {
 	var (
 		// Create a database pre-initialize with a genesis block
+		// 创建一个db，有用genesis block提前初始化
 		db                      = rawdb.NewMemoryDatabase()
 		config                  = params.TestChainConfig
 		engine consensus.Engine = ethash.NewFaker()
@@ -150,6 +153,7 @@ func (b *testBackend) Handle(*Peer, Packet) error {
 }
 
 // Tests that block headers can be retrieved from a remote chain based on user queries.
+// 测试block headers可以从一个remote chain获取，基于user queries
 func TestGetBlockHeaders67(t *testing.T) { testGetBlockHeaders(t, ETH67) }
 func TestGetBlockHeaders68(t *testing.T) { testGetBlockHeaders(t, ETH68) }
 
@@ -163,6 +167,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 	defer peer.close()
 
 	// Create a "random" unknown hash for testing
+	// 创建一个随机的未知hash用于测试
 	var unknown common.Hash
 	for i := range unknown {
 		unknown[i] = byte(i)
@@ -174,22 +179,28 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 		return hashes
 	}
 	// Create a batch of tests for various scenarios
+	// 创建一系列的测试，用于各种场景
 	limit := uint64(maxHeadersServe)
 	tests := []struct {
-		query  *GetBlockHeadersRequest // The query to execute for header retrieval
-		expect []common.Hash           // The hashes of the block whose headers are expected
+		// query永远执行header retrievals
+		query *GetBlockHeadersRequest // The query to execute for header retrieval
+		// block的hashes，期待它的headers
+		expect []common.Hash // The hashes of the block whose headers are expected
 	}{
 		// A single random block should be retrievable by hash
+		// 通过hash应该获取一个随机的block
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Hash: backend.chain.GetBlockByNumber(limit / 2).Hash()}, Amount: 1},
 			[]common.Hash{backend.chain.GetBlockByNumber(limit / 2).Hash()},
 		},
 		// A single random block should be retrievable by number
+		// 通过number获取一个随机的block
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: limit / 2}, Amount: 1},
 			[]common.Hash{backend.chain.GetBlockByNumber(limit / 2).Hash()},
 		},
 		// Multiple headers should be retrievable in both directions
+		// 多个headers应该在两个方向都能获取
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: limit / 2}, Amount: 3},
 			[]common.Hash{
@@ -206,6 +217,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Multiple headers with skip lists should be retrievable
+		// 多个headers，有skip lists的，也应该能获取
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: limit / 2}, Skip: 3, Amount: 3},
 			[]common.Hash{
@@ -222,6 +234,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// The chain endpoints should be retrievable
+		// chain endpoints应该能获取
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: 0}, Amount: 1},
 			[]common.Hash{backend.chain.GetBlockByNumber(0).Hash()},
@@ -231,15 +244,18 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			[]common.Hash{backend.chain.CurrentBlock().Hash()},
 		},
 		{ // If the peer requests a bit into the future, we deliver what we have
+			// 如果peer请求未来，我们传输我们有的
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().Number.Uint64()}, Amount: 10},
 			[]common.Hash{backend.chain.CurrentBlock().Hash()},
 		},
 		// Ensure protocol limits are honored
+		// 确保我们尊重protocol limits
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().Number.Uint64() - 1}, Amount: limit + 10, Reverse: true},
 			getHashes(backend.chain.CurrentBlock().Number.Uint64(), limit),
 		},
 		// Check that requesting more than available is handled gracefully
+		// 检查请求超过所有的，能被正确处理
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().Number.Uint64() - 4}, Skip: 3, Amount: 3},
 			[]common.Hash{
@@ -254,6 +270,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check that requesting more than available is handled gracefully, even if mid skip
+		// 检查请求超过所有的，也能被优雅处理，即使mid skip
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: backend.chain.CurrentBlock().Number.Uint64() - 4}, Skip: 2, Amount: 3},
 			[]common.Hash{
@@ -268,6 +285,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check a corner case where requesting more can iterate past the endpoints
+		// 检查corner case，请求超过endpoints
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Number: 2}, Amount: 5, Reverse: true},
 			[]common.Hash{
@@ -277,6 +295,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check a corner case where skipping overflow loops back into the chain start
+		// 检查corner case，当skipping overflow到chain start
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Hash: backend.chain.GetBlockByNumber(3).Hash()}, Amount: 2, Reverse: false, Skip: math.MaxUint64 - 1},
 			[]common.Hash{
@@ -284,6 +303,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check a corner case where skipping overflow loops back to the same header
+		// 检查一个corner case，当skipping overflow回到了同一个header
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Hash: backend.chain.GetBlockByNumber(1).Hash()}, Amount: 2, Reverse: false, Skip: math.MaxUint64},
 			[]common.Hash{
@@ -291,6 +311,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			},
 		},
 		// Check that non existing headers aren't returned
+		// 检查不存在的headers不会返回
 		{
 			&GetBlockHeadersRequest{Origin: HashOrNumber{Hash: unknown}, Amount: 1},
 			[]common.Hash{},
@@ -300,13 +321,16 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 		},
 	}
 	// Run each of the tests and verify the results against the chain
+	// 运行每个测试并且对着chain校验结果
 	for i, tt := range tests {
 		// Collect the headers to expect in the response
+		// 收集response中期望的headers
 		var headers []*types.Header
 		for _, hash := range tt.expect {
 			headers = append(headers, backend.chain.GetBlockByHash(hash).Header())
 		}
 		// Send the hash request and verify the response
+		// 发送hash请求并且校验response
 		p2p.Send(peer.app, GetBlockHeadersMsg, &GetBlockHeadersPacket{
 			RequestId:              123,
 			GetBlockHeadersRequest: tt.query,
@@ -318,6 +342,7 @@ func testGetBlockHeaders(t *testing.T, protocol uint) {
 			t.Errorf("test %d: headers mismatch: %v", i, err)
 		}
 		// If the test used number origins, repeat with hashes as the too
+		// 如果测试使用number origins，重复hashes
 		if tt.query.Origin.Hash == (common.Hash{}) {
 			if origin := backend.chain.GetBlockByNumber(tt.query.Origin.Number); origin != nil {
 				tt.query.Origin.Hash, tt.query.Origin.Number = origin.Hash(), 0

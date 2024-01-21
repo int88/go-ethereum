@@ -213,6 +213,7 @@ func serviceContiguousBlockHeaderQuery(chain *core.BlockChain, query *GetBlockHe
 
 func handleGetBlockBodies(backend Backend, msg Decoder, peer *Peer) error {
 	// Decode the block body retrieval message
+	// 解码block body的reterival message
 	var query GetBlockBodiesPacket
 	if err := msg.Decode(&query); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
@@ -223,8 +224,10 @@ func handleGetBlockBodies(backend Backend, msg Decoder, peer *Peer) error {
 
 // ServiceGetBlockBodiesQuery assembles the response to a body query. It is
 // exposed to allow external packages to test protocol behavior.
+// ServiceGetBlockBodiesQuery组装对于一个body query的response，它被暴露从而允许外部的packages测试协议的行为
 func ServiceGetBlockBodiesQuery(chain *core.BlockChain, query GetBlockBodiesRequest) []rlp.RawValue {
 	// Gather blocks until the fetch or network limits is reached
+	// 获取blocks，直到到达fetch或者network limits
 	var (
 		bytes  int
 		bodies []rlp.RawValue
@@ -234,6 +237,7 @@ func ServiceGetBlockBodiesQuery(chain *core.BlockChain, query GetBlockBodiesRequ
 			lookups >= 2*maxBodiesServe {
 			break
 		}
+		// 获取的data
 		if data := chain.GetBodyRLP(hash); len(data) != 0 {
 			bodies = append(bodies, data)
 			bytes += len(data)
@@ -285,20 +289,24 @@ func ServiceGetReceiptsQuery(chain *core.BlockChain, query GetReceiptsRequest) [
 
 func handleNewBlockhashes(backend Backend, msg Decoder, peer *Peer) error {
 	// A batch of new block announcements just arrived
+	// 一批新的block announcements刚刚到达
 	ann := new(NewBlockHashesPacket)
 	if err := msg.Decode(ann); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 	// Mark the hashes as present at the remote node
+	// 标记hashes在remote node出现
 	for _, block := range *ann {
 		peer.markBlock(block.Hash)
 	}
 	// Deliver them all to the backend for queuing
+	// 发送他们到backend排队
 	return backend.Handle(peer, ann)
 }
 
 func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 	// Retrieve and decode the propagated block
+	// 获取并且解码propagated block
 	ann := new(NewBlockPacket)
 	if err := msg.Decode(ann); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
@@ -325,6 +333,7 @@ func handleNewBlock(backend Backend, msg Decoder, peer *Peer) error {
 
 func handleBlockHeaders(backend Backend, msg Decoder, peer *Peer) error {
 	// A batch of headers arrived to one of our previous requests
+	// 一系列的header到达，对于我们之前的某个请求
 	res := new(BlockHeadersPacket)
 	if err := msg.Decode(res); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
@@ -424,6 +433,7 @@ func handleNewPooledTransactionHashes68(backend Backend, msg Decoder, peer *Peer
 		return fmt.Errorf("%w: message %v: invalid len of fields: %v %v %v", errDecode, msg, len(ann.Hashes), len(ann.Types), len(ann.Sizes))
 	}
 	// Schedule all the unknown hashes for retrieval
+	// 调度所有的unknown hashes用于retrieval
 	for _, hash := range ann.Hashes {
 		peer.markTransaction(hash)
 	}
@@ -470,16 +480,19 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsReq
 
 func handleTransactions(backend Backend, msg Decoder, peer *Peer) error {
 	// Transactions arrived, make sure we have a valid and fresh chain to handle them
+	// Tx到达，确保我们有一个合法并且fresh chain来处理他们
 	if !backend.AcceptTxs() {
 		return nil
 	}
 	// Transactions can be processed, parse all of them and deliver to the pool
+	// Tx可以被处理，解析他们并且传送到pool
 	var txs TransactionsPacket
 	if err := msg.Decode(&txs); err != nil {
 		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
 	}
 	for i, tx := range txs {
 		// Validate and mark the remote transaction
+		// 校验并且标记remote tx
 		if tx == nil {
 			return fmt.Errorf("%w: transaction %d is nil", errDecode, i)
 		}

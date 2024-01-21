@@ -26,6 +26,7 @@ import (
 )
 
 // Constants to match up protocol versions and messages
+// 常量来匹配protocol version和messages
 const (
 	SNAP1 = 1
 )

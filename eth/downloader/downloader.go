@@ -99,9 +99,10 @@ type Downloader struct {
 	mode atomic.Uint32  // Synchronisation mode defining the strategy used (per sync cycle), use d.getMode() to get the SyncMode
 	mux  *event.TypeMux // Event multiplexer to announce sync operation events
 
-	genesis uint64   // Genesis block number to limit sync to (e.g. light client CHT)
-	queue   *queue   // Scheduler for selecting the hashes to download
-	peers   *peerSet // Set of active peers from which download can proceed
+	genesis uint64 // Genesis block number to limit sync to (e.g. light client CHT)
+	queue   *queue // Scheduler for selecting the hashes to download
+	// 一系列的active peers，可以从中下载
+	peers *peerSet // Set of active peers from which download can proceed
 
 	stateDB ethdb.Database // Database to state sync into (and deduplicate via)
 
@@ -159,6 +160,7 @@ type Downloader struct {
 }
 
 // LightChain encapsulates functions required to synchronise a light chain.
+// LightChain封装了从一个light chain同步所需的功能
 type LightChain interface {
 	// HasHeader verifies a header's presence in the local chain.
 	HasHeader(common.Hash, uint64) bool
@@ -180,6 +182,7 @@ type LightChain interface {
 }
 
 // BlockChain encapsulates functions required to sync a (full or snap) blockchain.
+// BlockChain封装了同步（full或者snap）blockchain所需的功能
 type BlockChain interface {
 	LightChain
 
@@ -205,9 +208,11 @@ type BlockChain interface {
 	InsertChain(types.Blocks) (int, error)
 
 	// InsertReceiptChain inserts a batch of receipts into the local chain.
+	// InsertReceiptChain插入一系列的receipts到local chain
 	InsertReceiptChain(types.Blocks, []types.Receipts, uint64) (int, error)
 
 	// Snapshots returns the blockchain snapshot tree to paused it during sync.
+	// Snapshots返回blockchain snapshot tree来停止它，在同步过程中
 	Snapshots() *snapshot.Tree
 
 	// TrieDB retrieves the low level trie database used for interacting
@@ -216,6 +221,7 @@ type BlockChain interface {
 }
 
 // New creates a new downloader to fetch hashes and blocks from remote peers.
+// New创建一个新的downloader来获取hashes和blocks，从remote peers
 func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchain LightChain, dropPeer peerDropFn, success func()) *Downloader {
 	if lightchain == nil {
 		lightchain = chain
@@ -235,6 +241,7 @@ func New(stateDb ethdb.Database, mux *event.TypeMux, chain BlockChain, lightchai
 		syncStartBlock: chain.CurrentSnapBlock().Number.Uint64(),
 	}
 	// Create the post-merge skeleton syncer and start the process
+	// 创建post-merge skeleton syncer并且开始进程
 	dl.skeleton = newSkeleton(stateDb, dl.peers, dropPeer, newBeaconBackfiller(dl, success))
 
 	go dl.stateFetcher()
@@ -288,6 +295,7 @@ func (d *Downloader) Progress() ethereum.SyncProgress {
 
 // RegisterPeer injects a new download peer into the set of block source to be
 // used for fetching hashes and blocks from.
+// RegisterPeer注入一个新的download peer到一系列的block source，用于抓取hashes和blocks
 func (d *Downloader) RegisterPeer(id string, version uint, peer Peer) error {
 	var logger log.Logger
 	if len(id) < 16 {

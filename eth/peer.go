@@ -28,6 +28,7 @@ type ethPeerInfo struct {
 }
 
 // ethPeer is a wrapper around eth.Peer to maintain a few extra metadata.
+// ethPeer是对于eth.Peer的封装，维护一些额外的元数据
 type ethPeer struct {
 	*eth.Peer
 	snapExt *snapPeer // Satellite `snap` connection
@@ -47,6 +48,7 @@ type snapPeerInfo struct {
 }
 
 // snapPeer is a wrapper around snap.Peer to maintain a few extra metadata.
+// snapPeer是对于snap.Peer的一个wrapper，用于维护额外的元数据
 type snapPeer struct {
 	*snap.Peer
 }

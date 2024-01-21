@@ -29,6 +29,7 @@ import (
 )
 
 // Constants to match up protocol versions and messages
+// Constants用来匹配protoco版本和messages
 const (
 	ETH67 = 67
 	ETH68 = 68
@@ -83,6 +84,7 @@ type Packet interface {
 }
 
 // StatusPacket is the network packet for the status message.
+// StatusPacket是network packet用于status message
 type StatusPacket struct {
 	ProtocolVersion uint32
 	NetworkID       uint64
@@ -93,9 +95,12 @@ type StatusPacket struct {
 }
 
 // NewBlockHashesPacket is the network packet for the block announcements.
+// NewBlockHashesPacket是network packet用于block announcements
 type NewBlockHashesPacket []struct {
-	Hash   common.Hash // Hash of one particular block being announced
-	Number uint64      // Number of one particular block being announced
+	// 一个特定的，被announced的block的hash
+	Hash common.Hash // Hash of one particular block being announced
+	// announced的block的number
+	Number uint64 // Number of one particular block being announced
 }
 
 // Unpack retrieves the block hashes and numbers from the announcement packet
@@ -194,6 +199,7 @@ type BlockHeadersRLPPacket struct {
 }
 
 // NewBlockPacket is the network packet for the block propagation message.
+// NewBlockPacket是network packet用于block的传播message
 type NewBlockPacket struct {
 	Block *types.Block
 	TD    *big.Int
@@ -217,12 +223,14 @@ func (request *NewBlockPacket) sanityCheck() error {
 type GetBlockBodiesRequest []common.Hash
 
 // GetBlockBodiesPacket represents a block body query with request ID wrapping.
+// GetBlockBodiesPacket代表一个block body query，用request ID封装
 type GetBlockBodiesPacket struct {
 	RequestId uint64
 	GetBlockBodiesRequest
 }
 
 // BlockBodiesResponse is the network packet for block content distribution.
+// BlockBodiesResponse是network packet，用于block content的分发
 type BlockBodiesResponse []*BlockBody
 
 // BlockBodiesPacket is the network packet for block content distribution with
@@ -238,6 +246,7 @@ type BlockBodiesPacket struct {
 type BlockBodiesRLPResponse []rlp.RawValue
 
 // BlockBodiesRLPPacket is the BlockBodiesRLPResponse with request ID wrapping.
+// BlockBodiesRLPPacket是BlockBodiesRLPResponse，有封装一个request ID
 type BlockBodiesRLPPacket struct {
 	RequestId uint64
 	BlockBodiesRLPResponse
@@ -266,6 +275,7 @@ func (p *BlockBodiesResponse) Unpack() ([][]*types.Transaction, [][]*types.Heade
 }
 
 // GetReceiptsRequest represents a block receipts query.
+// GetReceiptsRequest代表一个block receipts query
 type GetReceiptsRequest []common.Hash
 
 // GetReceiptsPacket represents a block receipts query with request ID wrapping.
@@ -306,6 +316,7 @@ type NewPooledTransactionHashesPacket68 struct {
 }
 
 // GetPooledTransactionsRequest represents a transaction query.
+// GetPooledTransactionsRequest代表一个transaction query
 type GetPooledTransactionsRequest []common.Hash
 
 // GetPooledTransactionsPacket represents a transaction query with request ID wrapping.

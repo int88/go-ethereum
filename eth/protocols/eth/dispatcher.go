@@ -40,6 +40,7 @@ var (
 
 // Request is a pending request to allow tracking it and delivering a response
 // back to the requester on their chosen channel.
+// Request是一个pending request，允许追踪他并且发送一个response回requester，在他们选择的channel
 type Request struct {
 	peer *Peer  // Peer to which this request belongs for untracking
 	id   uint64 // Request ID to match up replies to
@@ -80,6 +81,7 @@ func (r *Request) Close() error {
 
 // request is a wrapper around a client Request that has an error channel to
 // signal on if sending the request already failed on a network level.
+// request是对于client Request的wrapper，有一个error channel，如果发送的请求已经在network级别失败了
 type request struct {
 	req  *Request
 	fail chan error
@@ -87,6 +89,7 @@ type request struct {
 
 // cancel is a maintenance type on the dispatcher to stop tracking a pending
 // request.
+// cancel是一个maintenance类型，在dispatcher之上，追踪一个pending request
 type cancel struct {
 	id   uint64 // Request ID to stop tracking
 	fail chan error
@@ -109,6 +112,7 @@ type Response struct {
 
 // response is a wrapper around a remote Response that has an error channel to
 // signal on if processing the response failed.
+// response是对一个remote Response的wrapper，有一个error channel来通知，如果处理reseponse失败
 type response struct {
 	res  *Response
 	fail chan error
@@ -116,9 +120,11 @@ type response struct {
 
 // dispatchRequest schedules the request to the dispatcher for tracking and
 // network serialization, blocking until it's successfully sent.
+// dispatchRequest调度请求到dispatcher，用于追踪以及network序列化，阻塞直到它成功发送
 //
 // The returned Request must either be closed before discarding it, or the reply
 // must be waited for and the Response's Done channel signalled.
+// 返回的Request必须在丢弃之前关闭，或者reply必须等待，并且Response的Done channel被通知
 func (p *Peer) dispatchRequest(req *Request) error {
 	reqOp := &request{
 		req:  req,
@@ -138,6 +144,7 @@ func (p *Peer) dispatchRequest(req *Request) error {
 
 // dispatchRequest fulfils a pending request and delivers it to the requested
 // sink.
+// dispatchRequest填充一个pending request并且发送它到请求的sink
 func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) error {
 	resOp := &response{
 		res:  res,
@@ -149,6 +156,7 @@ func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) erro
 	select {
 	case p.resDispatch <- resOp:
 		// Ensure the response is accepted by the dispatcher
+		// 确保response已经被dispatcher接受
 		if err := <-resOp.fail; err != nil {
 			return nil
 		}
@@ -185,6 +193,8 @@ func (p *Peer) dispatchResponse(res *Response, metadata func() interface{}) erro
 // dispatcher is a loop that accepts requests from higher layer packages, pushes
 // it to the network and tracks and dispatches the responses back to the original
 // requester.
+// dispatcher是一个loop，从更高层的包接收请求，将它推送到network，追踪并且分发最初的responses到
+// 原始的requester
 func (p *Peer) dispatcher() {
 	pending := make(map[uint64]*Request)
 
@@ -195,27 +205,32 @@ func (p *Peer) dispatcher() {
 			req.Sent = time.Now()
 
 			requestTracker.Track(p.id, p.version, req.code, req.want, req.id)
+			// 发送p2p
 			err := p2p.Send(p.rw, req.code, req.data)
 			reqOp.fail <- err
 
 			if err == nil {
+				// 添加一个pending request
 				pending[req.id] = req
 			}
 
 		case cancelOp := <-p.reqCancel:
 			// Retrieve the pending request to cancel and short circuit if it
 			// has already been serviced and is not available anymore
+			// 获取pending request来cancel并且短路，如果它已经被服务并且不再可用
 			req := pending[cancelOp.id]
 			if req == nil {
 				cancelOp.fail <- nil
 				continue
 			}
 			// Stop tracking the request
+			// 停止追踪req
 			delete(pending, cancelOp.id)
 			cancelOp.fail <- nil
 
 		case resOp := <-p.resDispatch:
 			res := resOp.res
+			// 获取pending request
 			res.Req = pending[res.id]
 
 			// Independent if the request exists or not, track this packet
@@ -226,6 +241,8 @@ func (p *Peer) dispatcher() {
 				// Response arrived with an untracked ID. Since even cancelled
 				// requests are tracked until fulfillment, a dangling response
 				// means the remote peer implements the protocol badly.
+				// Response达到，有一个untracked ID，因为及时被取消，requests也被追踪
+				// 直到填充，一个dangling response意味着remote peer实现了一个bad protocol
 				resOp.fail <- errDanglingResponse
 
 			case res.Req.want != res.code:

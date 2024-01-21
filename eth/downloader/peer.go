@@ -42,6 +42,7 @@ var (
 )
 
 // peerConnection represents an active peer from which hashes and blocks are retrieved.
+// peerConnection代表一个active peer，可以获取hashes和blocks
 type peerConnection struct {
 	id string // Unique identifier of the peer
 
@@ -66,6 +67,7 @@ type Peer interface {
 }
 
 // newPeerConnection creates a new downloader peer.
+// newPeerConnection创建一个新的downloader peer
 func newPeerConnection(id string, version uint, peer Peer, logger log.Logger) *peerConnection {
 	return &peerConnection{
 		id:      id,

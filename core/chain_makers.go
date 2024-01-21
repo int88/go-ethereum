@@ -404,6 +404,8 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 // GenerateChainWithGenesis is a wrapper of GenerateChain which will initialize
 // genesis block to database first according to the provided genesis specification
 // then generate chain on top.
+// GenerateChainWithGenesis是一个GenerateChain的wrapper，会初始化genesis block到db，根据提供的genesis
+// 之后再在上面生成chain
 func GenerateChainWithGenesis(genesis *Genesis, engine consensus.Engine, n int, gen func(int, *BlockGen)) (ethdb.Database, []*types.Block, []types.Receipts) {
 	db := rawdb.NewMemoryDatabase()
 	triedb := trie.NewDatabase(db, trie.HashDefaults)

@@ -26,6 +26,7 @@ import (
 const (
 	// This is the target size for the packs of transactions or announcements. A
 	// pack can get larger than this if a single transactions exceeds this size.
+	// 这是packs of txs或者announcements的target size，一个pack可以大于它，如果单个tx超过了这个大小
 	maxTxPacketSize = 100 * 1024
 )
 
@@ -39,6 +40,8 @@ type blockPropagation struct {
 // broadcastBlocks is a write loop that multiplexes blocks and block announcements
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// broadcastBlocks是一个write loop，多路复用blocks以及block announcements到remote peer
+// 目标是一个async writer，不锁住node，同时对queued data限速
 func (p *Peer) broadcastBlocks() {
 	for {
 		select {
@@ -63,8 +66,11 @@ func (p *Peer) broadcastBlocks() {
 // broadcastTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// broadcastTransactions是一个write loop，调度tx广播到remote peer，目标是有一个异步的writer，不锁住node
+// 同时对queued data限速
 func (p *Peer) broadcastTransactions() {
 	var (
+		// hashes队列，用于作为full txs广播
 		queue  []common.Hash         // Queue of hashes to broadcast as full transactions
 		done   chan struct{}         // Non-nil if background broadcaster is running
 		fail   = make(chan error, 1) // Channel used to receive network error
@@ -72,14 +78,17 @@ func (p *Peer) broadcastTransactions() {
 	)
 	for {
 		// If there's no in-flight broadcast running, check if a new one is needed
+		// 如果没有in-flight broadcast在运行，检查是否需要一个新的
 		if done == nil && len(queue) > 0 {
 			// Pile transaction until we reach our allowed network limit
+			// 堆积tx直到我们到达允许的network limit
 			var (
 				hashesCount uint64
 				txs         []*types.Transaction
 				size        common.StorageSize
 			)
 			for i := 0; i < len(queue) && size < maxTxPacketSize; i++ {
+				// 从pool中获取tx
 				if tx := p.txpool.Get(queue[i]); tx != nil {
 					txs = append(txs, tx)
 					size += common.StorageSize(tx.Size())
@@ -89,6 +98,7 @@ func (p *Peer) broadcastTransactions() {
 			queue = queue[:copy(queue, queue[hashesCount:])]
 
 			// If there's anything available to transfer, fire up an async writer
+			// 如果可以transfer，触发一个async writer
 			if len(txs) > 0 {
 				done = make(chan struct{})
 				go func() {
@@ -102,13 +112,16 @@ func (p *Peer) broadcastTransactions() {
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
+		// Transfer goroutine可能也可能没有启动，监听events
 		select {
 		case hashes := <-p.txBroadcast:
 			// If the connection failed, discard all transaction events
+			// 如果连接失败，丢弃所有的tx事件
 			if failed {
 				continue
 			}
 			// New batch of transactions to be broadcast, queue them (with cap)
+			// 新一批的txs要被广播，将他们排队
 			queue = append(queue, hashes...)
 			if len(queue) > maxQueuedTxs {
 				// Fancy copy and resize to ensure buffer doesn't grow indefinitely
@@ -130,6 +143,7 @@ func (p *Peer) broadcastTransactions() {
 // announceTransactions is a write loop that schedules transaction broadcasts
 // to the remote peer. The goal is to have an async writer that does not lock up
 // node internals and at the same time rate limits queued data.
+// announceTransactions是一个write loop，调度tx广播到remote peer
 func (p *Peer) announceTransactions() {
 	var (
 		queue  []common.Hash         // Queue of hashes to announce as transaction stubs
@@ -150,6 +164,7 @@ func (p *Peer) announceTransactions() {
 			)
 			for count = 0; count < len(queue) && size < maxTxPacketSize; count++ {
 				if tx := p.txpool.Get(queue[count]); tx != nil {
+					// 插入hashes
 					pending = append(pending, queue[count])
 					pendingTypes = append(pendingTypes, tx.Type())
 					pendingSizes = append(pendingSizes, uint32(tx.Size()))

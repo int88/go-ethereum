@@ -81,6 +81,7 @@ func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // Tests that peers are correctly accepted (or rejected) based on the advertised
 // fork IDs in the protocol handshake.
+// 测试peers正确的接收（或者拒绝）基于建议的fork IDs，在协议握手过程中
 func TestForkIDSplit67(t *testing.T) { testForkIDSplit(t, eth.ETH67) }
 func TestForkIDSplit68(t *testing.T) { testForkIDSplit(t, eth.ETH68) }
 
@@ -90,6 +91,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 	var (
 		engine = ethash.NewFaker()
 
+		// 构建chain config
 		configNoFork  = &params.ChainConfig{HomesteadBlock: big.NewInt(1)}
 		configProFork = &params.ChainConfig{
 			HomesteadBlock: big.NewInt(1),
@@ -98,18 +100,23 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			EIP158Block:    big.NewInt(2),
 			ByzantiumBlock: big.NewInt(3),
 		}
+		// 构建db
 		dbNoFork  = rawdb.NewMemoryDatabase()
 		dbProFork = rawdb.NewMemoryDatabase()
 
+		// 构建genesis
 		gspecNoFork  = &core.Genesis{Config: configNoFork}
 		gspecProFork = &core.Genesis{Config: configProFork}
 
+		// 构建两个chain
 		chainNoFork, _  = core.NewBlockChain(dbNoFork, nil, gspecNoFork, nil, engine, vm.Config{}, nil, nil)
 		chainProFork, _ = core.NewBlockChain(dbProFork, nil, gspecProFork, nil, engine, vm.Config{}, nil, nil)
 
+		// 用genesis创建chain
 		_, blocksNoFork, _  = core.GenerateChainWithGenesis(gspecNoFork, engine, 2, nil)
 		_, blocksProFork, _ = core.GenerateChainWithGenesis(gspecProFork, engine, 2, nil)
 
+		// 生成新的handler
 		ethNoFork, _ = newHandler(&handlerConfig{
 			Database:   dbNoFork,
 			Chain:      chainNoFork,

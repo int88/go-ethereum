@@ -42,6 +42,7 @@ var errShortTypedReceipt = errors.New("typed receipt too short")
 
 const (
 	// ReceiptStatusFailed is the status code of a transaction if execution failed.
+	// ReceiptStatusFailed是一个tx的状态码，如果执行失败
 	ReceiptStatusFailed = uint64(0)
 
 	// ReceiptStatusSuccessful is the status code of a transaction if execution succeeded.
@@ -49,6 +50,7 @@ const (
 )
 
 // Receipt represents the results of a transaction.
+// Receipt代表一个tx的结果
 type Receipt struct {
 	// Consensus fields: These fields are defined by the Yellow Paper
 	Type              uint8  `json:"type,omitempty"`

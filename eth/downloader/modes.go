@@ -19,13 +19,17 @@ package downloader
 import "fmt"
 
 // SyncMode represents the synchronisation mode of the downloader.
+// SyncMode代表downloader的同步模式
 // It is a uint32 as it is used with atomic operations.
 type SyncMode uint32
 
 const (
-	FullSync  SyncMode = iota // Synchronise the entire blockchain history from full blocks
-	SnapSync                  // Download the chain and the state via compact snapshots
-	LightSync                 // Download only the headers and terminate afterwards
+	// 从full blocks同步整个block chain
+	FullSync SyncMode = iota // Synchronise the entire blockchain history from full blocks
+	// 同步chain以及state，通过compact snapshots
+	SnapSync // Download the chain and the state via compact snapshots
+	// 只下载headers并且后续终止
+	LightSync // Download only the headers and terminate afterwards
 )
 
 func (mode SyncMode) IsValid() bool {

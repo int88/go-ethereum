@@ -35,6 +35,7 @@ var (
 
 	// errPeerAlreadyRegistered is returned if a peer is attempted to be added
 	// to the peer set, but one with the same id already exists.
+	// errPeerAlreadyRegistered被返回，如果一个peer试着加入Peer set，但是有同样ID的已经存在了
 	errPeerAlreadyRegistered = errors.New("peer already registered")
 
 	// errPeerNotRegistered is returned if a peer is attempted to be removed from
@@ -48,12 +49,16 @@ var (
 
 // peerSet represents the collection of active peers currently participating in
 // the `eth` protocol, with or without the `snap` extension.
+// peerSet代表一系列的active peers，当前参与到`eth`协议，有或者没有`snap`扩展
 type peerSet struct {
-	peers     map[string]*ethPeer // Peers connected on the `eth` protocol
-	snapPeers int                 // Number of `snap` compatible peers for connection prioritization
+	peers map[string]*ethPeer // Peers connected on the `eth` protocol
+	// `snap`兼容的peers的数目，连接优先
+	snapPeers int // Number of `snap` compatible peers for connection prioritization
 
+	// 连接到`eth`的Peers，等待他们的snap extension
 	snapWait map[string]chan *snap.Peer // Peers connected on `eth` waiting for their snap extension
-	snapPend map[string]*snap.Peer      // Peers connected on the `snap` protocol, but not yet on `eth`
+	// 连接到`snap`协议的peers，但是没有在`eth`
+	snapPend map[string]*snap.Peer // Peers connected on the `snap` protocol, but not yet on `eth`
 
 	lock   sync.RWMutex
 	closed bool
@@ -100,8 +105,10 @@ func (ps *peerSet) registerSnapExtension(peer *snap.Peer) error {
 
 // waitExtensions blocks until all satellite protocols are connected and tracked
 // by the peerset.
+// waitExtensions阻塞直到所有的satellite protocols已经连接并且在peerset追踪
 func (ps *peerSet) waitSnapExtension(peer *eth.Peer) (*snap.Peer, error) {
 	// If the peer does not support a compatible `snap`, don't wait
+	// 如果peer不支持一个兼容的`snap`，不要等待
 	if !peer.RunningCap(snap.ProtocolName, snap.ProtocolVersions) {
 		return nil, nil
 	}
@@ -118,6 +125,7 @@ func (ps *peerSet) waitSnapExtension(peer *eth.Peer) (*snap.Peer, error) {
 		return nil, errPeerAlreadyRegistered // avoid connections with the same id as pending ones
 	}
 	// If `snap` already connected, retrieve the peer from the pending set
+	// 如果`snap`已经连接，从pending set获取peer
 	if snap, ok := ps.snapPend[id]; ok {
 		delete(ps.snapPend, id)
 
@@ -125,6 +133,7 @@ func (ps *peerSet) waitSnapExtension(peer *eth.Peer) (*snap.Peer, error) {
 		return snap, nil
 	}
 	// Otherwise wait for `snap` to connect concurrently
+	// 否则等待`snap`并行连接
 	wait := make(chan *snap.Peer)
 	ps.snapWait[id] = wait
 	ps.lock.Unlock()
@@ -134,8 +143,10 @@ func (ps *peerSet) waitSnapExtension(peer *eth.Peer) (*snap.Peer, error) {
 
 // registerPeer injects a new `eth` peer into the working set, or returns an error
 // if the peer is already known.
+// registerPeer注入一个新的`eth` peer到working set，或者返回一个error，如果peer已经知道
 func (ps *peerSet) registerPeer(peer *eth.Peer, ext *snap.Peer) error {
 	// Start tracking the new peer
+	// 开始追踪新的peer
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 

@@ -47,6 +47,8 @@ var (
 // testTxPool is a mock transaction pool that blindly accepts all transactions.
 // Its goal is to get around setting up a valid statedb for the balance and nonce
 // checks.
+// testTxPool是一个mock的tx pool，盲目接收所有的txs，它的目标是为了设置一个合理的statedb，
+// 对于balance和nonce checks
 type testTxPool struct {
 	pool map[common.Hash]*types.Transaction // Hash map of collected transactions
 
@@ -55,6 +57,7 @@ type testTxPool struct {
 }
 
 // newTestTxPool creates a mock transaction pool.
+// newTestTxPool创建一个mock tx pool
 func newTestTxPool() *testTxPool {
 	return &testTxPool{
 		pool: make(map[common.Hash]*types.Transaction),
@@ -130,6 +133,8 @@ func (p *testTxPool) SubscribeTransactions(ch chan<- core.NewTxsEvent, reorgs bo
 // testHandler is a live implementation of the Ethereum protocol handler, just
 // preinitialized with some sane testing defaults and the transaction pool mocked
 // out.
+// testHandler是Ethereum protocol handler的live implementation，只是提前初始化了一些
+// 合理的默认值以及mock的transaction pool
 type testHandler struct {
 	db      ethdb.Database
 	chain   *core.BlockChain
@@ -138,14 +143,17 @@ type testHandler struct {
 }
 
 // newTestHandler creates a new handler for testing purposes with no blocks.
+// newTestHandler创建一个新的handler，用于测试目的，没有blocks
 func newTestHandler() *testHandler {
 	return newTestHandlerWithBlocks(0)
 }
 
 // newTestHandlerWithBlocks creates a new handler for testing purposes, with a
 // given number of initial blocks.
+// newTestHandlerWithBlocks创建一个新的handler用于测试，有一定数目的初始blocks
 func newTestHandlerWithBlocks(blocks int) *testHandler {
 	// Create a database pre-initialize with a genesis block
+	// 创建一个db，用一个genesis block提前初始化
 	db := rawdb.NewMemoryDatabase()
 	gspec := &core.Genesis{
 		Config: params.TestChainConfig,
@@ -154,17 +162,19 @@ func newTestHandlerWithBlocks(blocks int) *testHandler {
 	chain, _ := core.NewBlockChain(db, nil, gspec, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 
 	_, bs, _ := core.GenerateChainWithGenesis(gspec, ethash.NewFaker(), blocks, nil)
+	// 插入到chain中
 	if _, err := chain.InsertChain(bs); err != nil {
 		panic(err)
 	}
 	txpool := newTestTxPool()
 
 	handler, _ := newHandler(&handlerConfig{
-		Database:   db,
-		Chain:      chain,
-		TxPool:     txpool,
-		Merger:     consensus.NewMerger(rawdb.NewMemoryDatabase()),
-		Network:    1,
+		Database: db,
+		Chain:    chain,
+		TxPool:   txpool,
+		Merger:   consensus.NewMerger(rawdb.NewMemoryDatabase()),
+		Network:  1,
+		// 指定为snap sync
 		Sync:       downloader.SnapSync,
 		BloomCache: 1,
 	})

@@ -46,6 +46,7 @@ const (
 )
 
 // RPC request structures
+// RPC请求结构
 type (
 	Ping struct {
 		Version    uint
@@ -81,6 +82,7 @@ type (
 	}
 
 	// Neighbors is the reply to findnode.
+	// Neighbors是对findnode的reply
 	Neighbors struct {
 		Nodes      []Node
 		Expiration uint64
@@ -89,6 +91,7 @@ type (
 	}
 
 	// ENRRequest queries for the remote node's record.
+	// ENRRequest访问remote node的record
 	ENRRequest struct {
 		Expiration uint64
 		// Ignore additional fields (for forward compatibility).
@@ -96,6 +99,7 @@ type (
 	}
 
 	// ENRResponse is the reply to ENRRequest.
+	// ENRResponse是对ENRRequest的reply
 	ENRResponse struct {
 		ReplyTok []byte // Hash of the ENRRequest packet.
 		Record   enr.Record
@@ -105,6 +109,7 @@ type (
 )
 
 // MaxNeighbors is the maximum number of neighbor nodes in a Neighbors packet.
+// MaxNeighbors是一个Neighbors packet中最大的neighbor nodes数目
 const MaxNeighbors = 12
 
 // This code computes the MaxNeighbors constant value.
@@ -211,6 +216,7 @@ var (
 var headSpace = make([]byte, headSize)
 
 // Decode reads a discovery v4 packet.
+// Decode读取一个discovery v4 packet
 func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	if len(input) < headSize+1 {
 		return nil, Pubkey{}, nil, ErrPacketTooSmall
@@ -244,6 +250,7 @@ func Decode(input []byte) (Packet, Pubkey, []byte, error) {
 	}
 	// Here we use NewStream to allow for additional data after the first
 	// RLP object (forward-compatibility).
+	// 这里我们使用NewStream，允许额外的data，在第一个RLP对象之后（前向兼容）
 	s := rlp.NewStream(bytes.NewReader(sigdata[1:]), 0)
 	err = s.Decode(req)
 	return req, fromKey, hash, err

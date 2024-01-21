@@ -145,14 +145,20 @@ type txDrop struct {
 }
 
 // TxFetcher is responsible for retrieving new transaction based on announcements.
+// TxFetcher负责基于announcements获取新的tx
 //
 // The fetcher operates in 3 stages:
+// fetcher的操作分为三个阶段：
 //   - Transactions that are newly discovered are moved into a wait list.
+//   - 新被发现的Txs被移动到一个wait list
 //   - After ~500ms passes, transactions from the wait list that have not been
 //     broadcast to us in whole are moved into a queueing area.
+//   - 在大概500ms后，wait list中的txs还没有广播到我们，则被移到一个queueing area
 //   - When a connected peer doesn't have in-flight retrieval requests, any
 //     transaction queued up (and announced by the peer) are allocated to the
 //     peer and moved into a fetching status until it's fulfilled or fails.
+//   - 当一个连接的peer没有in-flight retrieval requests，任何排队的tx（并且被peer announce）
+//     会被分配到peer并且变为fetchins status，直到被填充或者失败
 //
 // The invariants of the fetcher are:
 //   - Each tracked transaction (hash) must only be present in one of the
@@ -200,6 +206,7 @@ type TxFetcher struct {
 
 // NewTxFetcher creates a transaction fetcher to retrieve transaction
 // based on hash announcements.
+// NewTxFetcher创建一个tx fetcher来获取tx，基于hash announcements
 func NewTxFetcher(hasTx func(common.Hash) bool, addTxs func([]*types.Transaction) []error, fetchTxs func(string, []common.Hash) error, dropPeer func(string)) *TxFetcher {
 	return NewTxFetcherForTests(hasTx, addTxs, fetchTxs, dropPeer, mclock.System{}, nil)
 }

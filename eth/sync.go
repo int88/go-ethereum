@@ -34,6 +34,7 @@ const (
 )
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
+// syncTransactions开始发送所有当前的pending txs到给定的peer
 func (h *handler) syncTransactions(p *eth.Peer) {
 	var hashes []common.Hash
 	for _, batch := range h.txpool.Pending(false) {
@@ -48,6 +49,7 @@ func (h *handler) syncTransactions(p *eth.Peer) {
 }
 
 // chainSyncer coordinates blockchain sync components.
+// chainSyncer和blockchain sync组件合作
 type chainSyncer struct {
 	handler     *handler
 	force       *time.Timer
@@ -76,6 +78,8 @@ func newChainSyncer(handler *handler) *chainSyncer {
 // handlePeerEvent notifies the syncer about a change in the peer set.
 // This is called for new peers and every time a peer announces a new
 // chain head.
+// handlePeerEvent通知syncer，关于peer set中的变更，这对于新的peers会被调用并且每次
+// 一个peer声称一个新的chain head
 func (cs *chainSyncer) handlePeerEvent() bool {
 	select {
 	case cs.peerEventCh <- struct{}{}:

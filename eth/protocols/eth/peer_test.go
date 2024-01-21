@@ -37,11 +37,14 @@ type testPeer struct {
 }
 
 // newTestPeer creates a new peer registered at the given data backend.
+// newTestPeer创建一个新的peer，用给定的data backend
 func newTestPeer(name string, version uint, backend Backend) (*testPeer, <-chan error) {
 	// Create a message pipe to communicate through
+	// 创建一个message pipe来交互
 	app, net := p2p.MsgPipe()
 
 	// Start the peer on a new thread
+	// 在一个新的thread启动peer
 	var id enode.ID
 	rand.Read(id[:])
 
