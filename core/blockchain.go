@@ -203,7 +203,8 @@ type BlockChain struct {
 	chainConfig *params.ChainConfig // Chain & network configuration
 	cacheConfig *CacheConfig        // Cache configuration for pruning
 
-	db            ethdb.Database                   // Low level persistent database to store final content in
+	db ethdb.Database // Low level persistent database to store final content in
+	// Snapshot树，用于快速的trie leaf access
 	snaps         *snapshot.Tree                   // Snapshot tree for fast trie leaf access
 	triegc        *prque.Prque[int64, common.Hash] // Priority queue mapping block numbers to tries to gc
 	gcproc        time.Duration                    // Accumulates canonical block processing for trie dumping
@@ -214,9 +215,13 @@ type BlockChain struct {
 
 	// txLookupLimit is the maximum number of blocks from head whose tx indices
 	// are reserved:
+	// txLookupLimit是从head开始最大的blocks的数目，他的tx indices会被保留
 	//  * 0:   means no limit and regenerate any missing indexes
+	//  * 0:   意味着没有限制并且重新生成任何的missing indexes
 	//  * N:   means N block limit [HEAD-N+1, HEAD] and delete extra indexes
+	//  * N:   意味着N个block的限制[HEAD-N+1, HEAD]并且删除额外的索引
 	//  * nil: disable tx reindexer/deleter, but still index new blocks
+	//  * nil: 禁止tx的reindexer/deleter，但是依然索引新的blocks
 	txLookupLimit uint64
 
 	hc            *HeaderChain
@@ -247,10 +252,11 @@ type BlockChain struct {
 	// future blocks are blocks added for later processing
 	futureBlocks *lru.Cache[common.Hash, *types.Block]
 
-	wg            sync.WaitGroup //
-	quit          chan struct{}  // shutdown signal, closed in Stop.
-	stopping      atomic.Bool    // false if chain is running, true when stopped
-	procInterrupt atomic.Bool    // interrupt signaler for block processing
+	wg       sync.WaitGroup //
+	quit     chan struct{}  // shutdown signal, closed in Stop.
+	stopping atomic.Bool    // false if chain is running, true when stopped
+	// block处理的interrupt signaler
+	procInterrupt atomic.Bool // interrupt signaler for block processing
 
 	engine     consensus.Engine
 	validator  Validator // Block and state validator interface
@@ -978,10 +984,12 @@ func (bc *BlockChain) stopWithoutSaving() {
 
 // Stop stops the blockchain service. If any imports are currently in progress
 // it will abort them using the procInterrupt.
+// Stop停止blockchain服务，如果任何的imports正在进行，他会使用procInterrupt强制停止
 func (bc *BlockChain) Stop() {
 	bc.stopWithoutSaving()
 
 	// Ensure that the entirety of the state snapshot is journaled to disk.
+	// 确保整个的state snapshot会记录到磁盘
 	var snapBase common.Hash
 	if bc.snaps != nil {
 		var err error
@@ -1029,6 +1037,7 @@ func (bc *BlockChain) Stop() {
 		}
 	}
 	// Close the trie database, release all the held resources as the last step.
+	// 关闭trie db，在最后一步释放所有锁住的资源
 	if err := bc.triedb.Close(); err != nil {
 		log.Error("Failed to close trie database", "err", err)
 	}
@@ -1038,6 +1047,8 @@ func (bc *BlockChain) Stop() {
 // StopInsert interrupts all insertion methods, causing them to return
 // errInsertionInterrupted as soon as possible. Insertion is permanently disabled after
 // calling this method.
+// StopInsert中断所有的插入方法，导致他们尽快返回errInsertionInterrupted
+// 插入被永远停止，在调用这个方法之后
 func (bc *BlockChain) StopInsert() {
 	bc.procInterrupt.Store(true)
 }

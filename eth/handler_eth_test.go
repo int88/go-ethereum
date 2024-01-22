@@ -40,6 +40,8 @@ import (
 
 // testEthHandler is a mock event handler to listen for inbound network requests
 // on the `eth` protocol and convert them into a more easily testable form.
+// testEthHandler是一个mock event handler，来监听inbound network请求，在`eth`协议
+// 并且将他们转换为更容易测试的形式
 type testEthHandler struct {
 	blockBroadcasts event.Feed
 	txAnnounces     event.Feed
@@ -136,10 +138,13 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			BloomCache: 1,
 		})
 	)
+	// 启动ethNoFork
 	ethNoFork.Start(1000)
+	// 启动ethProFork
 	ethProFork.Start(1000)
 
 	// Clean up everything after ourselves
+	// 我们自己清理所有
 	defer chainNoFork.Stop()
 	defer chainProFork.Stop()
 
@@ -147,10 +152,12 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 	defer ethProFork.Stop()
 
 	// Both nodes should allow the other to connect (same genesis, next fork is the same)
+	// 两个nodes都允许其他人连接（同样的genesis，下一个fork也相同）
 	p2pNoFork, p2pProFork := p2p.MsgPipe()
 	defer p2pNoFork.Close()
 	defer p2pProFork.Close()
 
+	// 构建新的peer
 	peerNoFork := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pNoFork), p2pNoFork, nil)
 	peerProFork := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pProFork), p2pProFork, nil)
 	defer peerNoFork.Close()
@@ -175,6 +182,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 		}
 	}
 	// Progress into Homestead. Fork's match, so we don't care what the future holds
+	// 进入Homestead，Fork匹配，这样我们不关心future是什么
 	chainNoFork.InsertChain(blocksNoFork[:1])
 	chainProFork.InsertChain(blocksProFork[:1])
 
@@ -233,6 +241,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			if err == nil {
 				successes++
 				if successes == 2 { // Only one side disconnects
+					// fork ID的rejection没有发生
 					t.Fatalf("fork ID rejection didn't happen")
 				}
 			}
@@ -243,6 +252,7 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 }
 
 // Tests that received transactions are added to the local pool.
+// 测试接收到的txs被加入到local pool
 func TestRecvTransactions67(t *testing.T) { testRecvTransactions(t, eth.ETH67) }
 func TestRecvTransactions68(t *testing.T) { testRecvTransactions(t, eth.ETH68) }
 
@@ -250,9 +260,11 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Create a message handler, configure it to accept transactions and watch them
+	// 创建一个message handler，配置它接收txs并且监听他们
 	handler := newTestHandler()
 	defer handler.close()
 
+	// 标记为synced来接收txs
 	handler.handler.synced.Store(true) // mark synced to accept transactions
 
 	txs := make(chan core.NewTxsEvent)
@@ -260,6 +272,7 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 	defer sub.Unsubscribe()
 
 	// Create a source peer to send messages through and a sink handler to receive them
+	// 创建一个source peer来发送messages以及一个sink handler来接收他们
 	p2pSrc, p2pSink := p2p.MsgPipe()
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
@@ -273,6 +286,7 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 		return eth.Handle((*ethHandler)(handler.handler), peer)
 	})
 	// Run the handshake locally to avoid spinning up a source handler
+	// 本地运行握手，避免生成一个source handler
 	var (
 		genesis = handler.chain.Genesis()
 		head    = handler.chain.CurrentBlock()
@@ -282,6 +296,7 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 		t.Fatalf("failed to run protocol handshake")
 	}
 	// Send the transaction to the sink and verify that it's added to the tx pool
+	// 发送tx到sink并且校验它被加入到tx pool
 	tx := types.NewTransaction(0, common.Address{}, big.NewInt(0), 100000, big.NewInt(0), nil)
 	tx, _ = types.SignTx(tx, types.HomesteadSigner{}, testKey)
 
@@ -296,11 +311,13 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 			t.Errorf("added wrong tx hash: got %v, want %v", event.Txs[0].Hash(), tx.Hash())
 		}
 	case <-time.After(2 * time.Second):
+		// 两秒都没有接受到NewTxsEvent
 		t.Errorf("no NewTxsEvent received within 2 seconds")
 	}
 }
 
 // This test checks that pending transactions are sent.
+// 测试pending txs被发送
 func TestSendTransactions67(t *testing.T) { testSendTransactions(t, eth.ETH67) }
 func TestSendTransactions68(t *testing.T) { testSendTransactions(t, eth.ETH68) }
 
@@ -308,6 +325,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
 
 	// Create a message handler and fill the pool with big transactions
+	// 创建一个message handler并且用big txs填充pool
 	handler := newTestHandler()
 	defer handler.close()
 
@@ -317,10 +335,12 @@ func testSendTransactions(t *testing.T, protocol uint) {
 		tx, _ = types.SignTx(tx, types.HomesteadSigner{}, testKey)
 		insert[nonce] = tx
 	}
+	// 需要一个新的goroutine，从而不阻塞feed
 	go handler.txpool.Add(insert, false, false) // Need goroutine to not block on feed
 	time.Sleep(250 * time.Millisecond)          // Wait until tx events get out of the system (can't use events, tx broadcaster races with peer join)
 
 	// Create a source handler to send messages through and a sink peer to receive them
+	// 创建一个source handler来发送messages以及一个sink peer来接收他们
 	p2pSrc, p2pSink := p2p.MsgPipe()
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
@@ -344,6 +364,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	}
 	// After the handshake completes, the source handler should stream the sink
 	// the transactions, subscribe to all inbound network events
+	// 在握手完成之后，source handler应该用txs对sink形成stream，订阅所有inbound network events
 	backend := new(testEthHandler)
 
 	anns := make(chan []common.Hash)
@@ -357,6 +378,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	go eth.Handle(backend, sink)
 
 	// Make sure we get all the transactions on the correct channels
+	// 确保我们获取所有的txs，在正确的channels
 	seen := make(map[common.Hash]struct{})
 	for len(seen) < len(insert) {
 		switch protocol {
@@ -370,6 +392,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 					seen[hash] = struct{}{}
 				}
 			case <-bcasts:
+				// 在eth/66接收到初始的tx广播
 				t.Errorf("initial tx broadcast received on post eth/66")
 			}
 
@@ -378,6 +401,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 		}
 	}
 	for _, tx := range insert {
+		// 确认插入的tx都能看到
 		if _, ok := seen[tx.Hash()]; !ok {
 			t.Errorf("missing transaction: %x", tx.Hash())
 		}
@@ -386,6 +410,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 // Tests that transactions get propagated to all attached peers, either via direct
 // broadcasts or via announcements/retrievals.
+// 测试txs被广播到所有连接的peers，通过直接的广播或者announcements/retrievals
 func TestTransactionPropagation67(t *testing.T) { testTransactionPropagation(t, eth.ETH67) }
 func TestTransactionPropagation68(t *testing.T) { testTransactionPropagation(t, eth.ETH68) }
 
@@ -395,7 +420,10 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 	// Create a source handler to send transactions from and a number of sinks
 	// to receive them. We need multiple sinks since a one-to-one peering would
 	// broadcast all transactions without announcement.
+	// 创建一个source handler发送tx以及一系列的sinks来接收他们，我们需要多个sinks，因为一个one-to-one
+	// 的peering会广播所有的txs，没有任何的anncouncement
 	source := newTestHandler()
+	// 避免使用snap，否则有的会丢弃
 	source.handler.snapSync.Store(false) // Avoid requiring snap, otherwise some will be dropped below
 	defer source.close()
 
@@ -404,9 +432,11 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		sinks[i] = newTestHandler()
 		defer sinks[i].close()
 
+		// 标记用于接收txs
 		sinks[i].handler.synced.Store(true) // mark synced to accept transactions
 	}
 	// Interconnect all the sink handlers with the source handler
+	// 将所有的sink handlers和source handler连接
 	for i, sink := range sinks {
 		sink := sink // Closure for gorotuine below
 
@@ -427,6 +457,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		})
 	}
 	// Subscribe to all the transaction pools
+	// 订阅所有的tx pools
 	txChs := make([]chan core.NewTxsEvent, len(sinks))
 	for i := 0; i < len(sinks); i++ {
 		txChs[i] = make(chan core.NewTxsEvent, 1024)
@@ -435,6 +466,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		defer sub.Unsubscribe()
 	}
 	// Fill the source pool with transactions and wait for them at the sinks
+	// 用txs填充source pool并且在sinks等待他们
 	txs := make([]*types.Transaction, 1024)
 	for nonce := range txs {
 		tx := types.NewTransaction(uint64(nonce), common.Address{}, big.NewInt(0), 100000, big.NewInt(0), nil)
@@ -444,6 +476,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 	source.txpool.Add(txs, false, false)
 
 	// Iterate through all the sinks and ensure they all got the transactions
+	// 遍历所有的sinks并且确保他们都获取txs
 	for i := range sinks {
 		for arrived, timeout := 0, false; arrived < len(txs) && !timeout; {
 			select {
@@ -458,6 +491,7 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 }
 
 // Tests that blocks are broadcast to a sqrt number of peers only.
+// 测试blocks只被广播到平方根数目的Peers
 func TestBroadcastBlock1Peer(t *testing.T)    { testBroadcastBlock(t, 1, 1) }
 func TestBroadcastBlock2Peers(t *testing.T)   { testBroadcastBlock(t, 2, 1) }
 func TestBroadcastBlock3Peers(t *testing.T)   { testBroadcastBlock(t, 3, 1) }

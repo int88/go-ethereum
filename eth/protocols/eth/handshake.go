@@ -39,11 +39,13 @@ const (
 // Handshake执行eth协议握手，协商version number，network IDs，difficulties，head以及genesis blocks
 func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis common.Hash, forkID forkid.ID, forkFilter forkid.Filter) error {
 	// Send out own handshake in a new thread
+	// 在一个新的thread发送我们的握手
 	errc := make(chan error, 2)
 
 	var status StatusPacket // safe to read after two values have been received from errc
 
 	go func() {
+		// 发送StatusPacket
 		errc <- p2p.Send(p.rw, StatusMsg, &StatusPacket{
 			ProtocolVersion: uint32(p.version),
 			NetworkID:       network,
@@ -54,6 +56,7 @@ func (p *Peer) Handshake(network uint64, td *big.Int, head common.Hash, genesis 
 		})
 	}()
 	go func() {
+		// 读取Status
 		errc <- p.readStatus(network, &status, genesis, forkFilter)
 	}()
 	timeout := time.NewTimer(handshakeTimeout)

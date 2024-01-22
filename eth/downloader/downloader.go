@@ -315,8 +315,11 @@ func (d *Downloader) RegisterPeer(id string, version uint, peer Peer) error {
 // UnregisterPeer remove a peer from the known list, preventing any action from
 // the specified peer. An effort is also made to return any pending fetches into
 // the queue.
+// UnregisterPeer从一个已知的list移除一个peer，防止指定peer的任何动作，一个作用也是防止任何的
+// pending fetches进入到队列
 func (d *Downloader) UnregisterPeer(id string) error {
 	// Unregister the peer from the active peer set and revoke any fetch tasks
+	// 从active peer set解注册peer并且撤销任何的fetch tasks
 	var logger log.Logger
 	if len(id) < 16 {
 		// Tests use short IDs, don't choke on them
@@ -708,7 +711,9 @@ func (d *Downloader) Cancel() {
 }
 
 // Terminate interrupts the downloader, canceling all pending operations.
+// Terminate终止downloader，调用所有的pending操作
 // The downloader cannot be reused after calling Terminate.
+// downloader在调用Terminate之后不能再重用
 func (d *Downloader) Terminate() {
 	// Close the termination channel (make sure double close is allowed)
 	d.quitLock.Lock()

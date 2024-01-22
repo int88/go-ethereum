@@ -73,9 +73,10 @@ type Peer struct {
 	id string // Unique ID for the peer, cached
 
 	// 内置的P2P packet peeer
-	*p2p.Peer                   // The embedded P2P package peer
-	rw        p2p.MsgReadWriter // Input/output streams for snap
-	version   uint              // Protocol version negotiated
+	*p2p.Peer // The embedded P2P package peer
+	// snap的输入/输出流
+	rw      p2p.MsgReadWriter // Input/output streams for snap
+	version uint              // Protocol version negotiated
 
 	// 最新收到的head block hash
 	head common.Hash // Latest advertised head block hash
@@ -158,6 +159,7 @@ func (p *Peer) Version() uint {
 }
 
 // Head retrieves the current head hash and total difficulty of the peer.
+// Head获取peer当前的head hash以及td
 func (p *Peer) Head() (hash common.Hash, td *big.Int) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
@@ -225,10 +227,13 @@ func (p *Peer) SendTransactions(txs types.Transactions) error {
 // AsyncSendTransactions queues a list of transactions (by hash) to eventually
 // propagate to a remote peer. The number of pending sends are capped (new ones
 // will force old sends to be dropped)
+// AsyncSendTransactions将一系列的txs（通过hash）排队，最终发往一个remote peer，pending sends的数目
+// 有限度（新的会导致老的被丢弃）
 func (p *Peer) AsyncSendTransactions(hashes []common.Hash) {
 	select {
 	case p.txBroadcast <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		// 将所有的txs标记为已知，但是确保我们不会超过limits
 		p.knownTxs.Add(hashes...)
 	case <-p.term:
 		p.Log().Debug("Dropping transaction propagation", "count", len(hashes))
@@ -269,6 +274,7 @@ func (p *Peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		// 将所有的txs标记为已知，但是确保我们不吹超过limits
 		p.knownTxs.Add(hashes...)
 	case <-p.term:
 		p.Log().Debug("Dropping transaction announcement", "count", len(hashes))
@@ -292,6 +298,7 @@ func (p *Peer) ReplyPooledTransactionsRLP(id uint64, hashes []common.Hash, txs [
 // SendNewBlockHashes声明一些blocks可用，通过hash notification
 func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error {
 	// Mark all the block hashes as known, but ensure we don't overflow our limits
+	// 将所有的block hashes标记为已知，但是确保我们不悔超过limits
 	p.knownBlocks.Add(hashes...)
 
 	request := make(NewBlockHashesPacket, len(hashes))
@@ -299,6 +306,7 @@ func (p *Peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 		request[i].Hash = hashes[i]
 		request[i].Number = numbers[i]
 	}
+	// 发送给p2p
 	return p2p.Send(p.rw, NewBlockHashesMsg, request)
 }
 
@@ -329,10 +337,13 @@ func (p *Peer) SendNewBlock(block *types.Block, td *big.Int) error {
 
 // AsyncSendNewBlock queues an entire block for propagation to a remote peer. If
 // the peer's broadcast queue is full, the event is silently dropped.
+// AsyncSendNewBlock将整个block排队，用于传播到另一个Peer，如果peer的广播队列已经满了
+// 则事件会被默默丢弃
 func (p *Peer) AsyncSendNewBlock(block *types.Block, td *big.Int) {
 	select {
 	case p.queuedBlocks <- &blockPropagation{block: block, td: td}:
 		// Mark all the block hash as known, but ensure we don't overflow our limits
+		// 将block标记为已知，但是确保我们不会溢出我们的limits
 		p.knownBlocks.Add(block.Hash())
 	default:
 		p.Log().Debug("Dropping block propagation", "number", block.NumberU64(), "hash", block.Hash())
@@ -521,6 +532,7 @@ func newKnownCache(max int) *knownCache {
 }
 
 // Add adds a list of elements to the set.
+// Add添加一系列的元素到set
 func (k *knownCache) Add(hashes ...common.Hash) {
 	for k.hashes.Cardinality() > max(0, k.max-len(hashes)) {
 		k.hashes.Pop()
@@ -536,6 +548,7 @@ func (k *knownCache) Contains(hash common.Hash) bool {
 }
 
 // Cardinality returns the number of elements in the set.
+// Cardinality返回set中元素的数目
 func (k *knownCache) Cardinality() int {
 	return k.hashes.Cardinality()
 }

@@ -400,6 +400,9 @@ type SyncPeer interface {
 // the  snap protocol. It's purpose is to download all the accounts and storage
 // slots from remote peers and reassemble chunks of the state trie, on top of
 // which a state sync can be run to fix any gaps / overlaps.
+// Syncer是一个Eth account以及storage trie syncer基于snapshots以及snap协议，他的目的是
+// 下载所有的accounts以及storage slots，从remote peers并且重新组装chunks of the state trie
+// 在它之上一个state sync可以运行来修复任何的gaps/overlaps
 //
 // Every network request has a variety of failure events:
 //   - The peer disconnects after task assignment, failing to send the request
@@ -509,6 +512,7 @@ func NewSyncer(db ethdb.KeyValueStore, scheme string) *Syncer {
 }
 
 // Register injects a new data source into the syncer's peerset.
+// stateSync插入一个新的data source到syncer的peerset
 func (s *Syncer) Register(peer SyncPeer) error {
 	// Make sure the peer is not registered yet
 	id := peer.ID()

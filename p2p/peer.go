@@ -152,8 +152,10 @@ func NewPeer(id enode.ID, name string, caps []Cap) *Peer {
 }
 
 // NewPeerPipe creates a peer for testing purposes.
+// NewPeerPipe创建一个peer用于测试
 // The message pipe given as the last parameter is closed when
 // Disconnect is called on the peer.
+// 作为最后一个参数的message pipe会被关闭，当peer调用Disconnect
 func NewPeerPipe(id enode.ID, name string, caps []Cap, pipe *MsgPipeRW) *Peer {
 	p := NewPeer(id, name, caps)
 	p.testPipe = pipe

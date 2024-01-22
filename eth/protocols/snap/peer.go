@@ -23,12 +23,16 @@ import (
 )
 
 // Peer is a collection of relevant information we have about a `snap` peer.
+// Peer是一系列相关的信息，我们有的，关于一个`snap` peer
 type Peer struct {
 	id string // Unique ID for the peer, cached
 
-	*p2p.Peer                   // The embedded P2P package peer
-	rw        p2p.MsgReadWriter // Input/output streams for snap
-	version   uint              // Protocol version negotiated
+	// 内置的P2P包的peer
+	*p2p.Peer // The embedded P2P package peer
+	// snap的输出输出streams
+	rw p2p.MsgReadWriter // Input/output streams for snap
+	// 协商的协议版本
+	version uint // Protocol version negotiated
 
 	logger log.Logger // Contextual logger with the peer id injected
 }

@@ -62,13 +62,16 @@ type Handler func(peer *Peer) error
 // Backend定义了data retrieval方法，用来服务remote requests并且在remote deliveries的时候调用callback
 type Backend interface {
 	// Chain retrieves the blockchain object to serve data.
+	// Chain获取blockchain对象来服务数据
 	Chain() *core.BlockChain
 
 	// TxPool retrieves the transaction pool object to serve data.
+	// TxPool获取tx pool对象来服务数据
 	TxPool() TxPool
 
 	// AcceptTxs retrieves whether transaction processing is enabled on the node
 	// or if inbound transactions should simply be dropped.
+	// AcceptTxs获取node是否使能tx处理，或者是否inbound tx应该简单被丢弃
 	AcceptTxs() bool
 
 	// RunPeer is invoked when a peer joins on the `eth` protocol. The handler

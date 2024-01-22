@@ -83,6 +83,7 @@ func (p *testTxPool) Get(hash common.Hash) *types.Transaction {
 
 // Add appends a batch of transactions to the pool, and notifies any
 // listeners if the addition channel is non nil
+// Add扩展一系列的txs到pool，并且通知任何的listeners，如果addition channel为non nil
 func (p *testTxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
@@ -90,6 +91,7 @@ func (p *testTxPool) Add(txs []*types.Transaction, local bool, sync bool) []erro
 	for _, tx := range txs {
 		p.pool[tx.Hash()] = tx
 	}
+	// 发送tx事件
 	p.txFeed.Send(core.NewTxsEvent{Txs: txs})
 	return make([]error, len(txs))
 }

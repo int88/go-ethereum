@@ -32,6 +32,7 @@ const (
 
 // blockPropagation is a block propagation event, waiting for its turn in the
 // broadcast queue.
+// blockPropagation是一个block广播事件，在广播队列等待机会
 type blockPropagation struct {
 	block *types.Block
 	td    *big.Int
@@ -46,12 +47,14 @@ func (p *Peer) broadcastBlocks() {
 	for {
 		select {
 		case prop := <-p.queuedBlocks:
+			// 从queued blocks拿到blocks，进行发送
 			if err := p.SendNewBlock(prop.block, prop.td); err != nil {
 				return
 			}
 			p.Log().Trace("Propagated block", "number", prop.block.Number(), "hash", prop.block.Hash(), "td", prop.td)
 
 		case block := <-p.queuedBlockAnns:
+			// 收到block announce进行发送
 			if err := p.SendNewBlockHashes([]common.Hash{block.Hash()}, []uint64{block.NumberU64()}); err != nil {
 				return
 			}
@@ -153,8 +156,10 @@ func (p *Peer) announceTransactions() {
 	)
 	for {
 		// If there's no in-flight announce running, check if a new one is needed
+		// 如果没有正在进行中的announce，检查是否需要一个新的
 		if done == nil && len(queue) > 0 {
 			// Pile transaction hashes until we reach our allowed network limit
+			// 堆积tx hashes，直到我们到达了允许的network limit
 			var (
 				count        int
 				pending      []common.Hash
@@ -175,6 +180,7 @@ func (p *Peer) announceTransactions() {
 			queue = queue[:copy(queue, queue[count:])]
 
 			// If there's anything available to transfer, fire up an async writer
+			// 如果有任何可用的来传输，触发一个async writer
 			if len(pending) > 0 {
 				done = make(chan struct{})
 				go func() {
@@ -195,6 +201,7 @@ func (p *Peer) announceTransactions() {
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
+		// Transfer goroutine可能或者可能没有开始，监听事件
 		select {
 		case hashes := <-p.txAnnounce:
 			// If the connection failed, discard all transaction events

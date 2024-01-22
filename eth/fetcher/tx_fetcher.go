@@ -140,6 +140,7 @@ type txDelivery struct {
 }
 
 // txDrop is the notification that a peer has disconnected.
+// txDrop是关于一个peer断开连接的通知
 type txDrop struct {
 	peer string
 }
@@ -383,6 +384,7 @@ func (f *TxFetcher) Enqueue(peer string, txs []*types.Transaction, direct bool) 
 
 // Drop should be called when a peer disconnects. It cleans up all the internal
 // data structures of the given node.
+// Drop在一个peer断开连接的时候被调用，他清理所有内部的数据结构，对于给定的node
 func (f *TxFetcher) Drop(peer string) error {
 	select {
 	case f.drop <- &txDrop{peer: peer}:

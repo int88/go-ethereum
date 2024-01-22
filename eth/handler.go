@@ -59,6 +59,7 @@ var syncChallengeTimeout = 15 * time.Second // Time allowance for a node to repl
 
 // txPool defines the methods needed from a transaction pool implementation to
 // support all the operations needed by the Ethereum chain protocols.
+// txPool定义了tx pool实现所需的方法，来支持eth chain protocols所需的所有操作
 type txPool interface {
 	// Has returns an indicator whether txpool has a transaction
 	// cached with the given hash.
@@ -78,6 +79,7 @@ type txPool interface {
 	// SubscribeTransactions subscribes to new transaction events. The subscriber
 	// can decide whether to receive notifications only for newly seen transactions
 	// or also for reorged out ones.
+	// SubscribeTransactions订阅新的tx events，订阅者可以决定是只接收新看到的txs，或者也接收重组的
 	SubscribeTransactions(ch chan<- core.NewTxsEvent, reorgs bool) event.Subscription
 }
 
@@ -101,8 +103,10 @@ type handler struct {
 	networkID  uint64
 	forkFilter forkid.Filter // Fork ID filter, constant across the lifetime of the node
 
+	// Flag表明snap sync使能（被disabled，如果我们已经有blocks）
 	snapSync atomic.Bool // Flag whether snap sync is enabled (gets disabled if we already have blocks)
-	synced   atomic.Bool // Flag whether we're considered synchronised (enables transaction processing)
+	// Flag表明我们是否被认为在同步（使能tx处理）
+	synced atomic.Bool // Flag whether we're considered synchronised (enables transaction processing)
 
 	database ethdb.Database
 	txpool   txPool
@@ -301,6 +305,7 @@ func newHandler(config *handlerConfig) (*handler, error) {
 }
 
 // protoTracker tracks the number of active protocol handlers.
+// protoTracker追踪活跃的protocol handlers的数目
 func (h *handler) protoTracker() {
 	defer h.wg.Done()
 	var active int
@@ -312,6 +317,7 @@ func (h *handler) protoTracker() {
 			active--
 		case <-h.quitSync:
 			// Wait for all active handlers to finish.
+			// 等待所有的active handlers结束
 			for ; active > 0; active-- {
 				<-h.handlerDoneCh
 			}
@@ -322,6 +328,7 @@ func (h *handler) protoTracker() {
 
 // incHandlers signals to increment the number of active handlers if not
 // quitting.
+// incHandlers通知增加active handlers的数目，如果没有退出
 func (h *handler) incHandlers() bool {
 	select {
 	case h.handlerStartCh <- struct{}{}:
@@ -369,12 +376,14 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		peer.Log().Debug("Ethereum handshake failed", "err", err)
 		return err
 	}
-	reject := false // reserved peer slots
+	reject := false // reserved peer slots // 保留的peer slots
 	if h.snapSync.Load() {
 		if snap == nil {
 			// If we are running snap-sync, we want to reserve roughly half the peer
 			// slots for peers supporting the snap protocol.
+			// 如果我们正在运行snap-sync，我们想要保留大概一半的peer slots，对于支持snap protocol的peers
 			// The logic here is; we only allow up to 5 more non-snap peers than snap-peers.
+			// 逻辑是；我们只允许non-snap peers只比snap-peers多5个
 			if all, snp := h.peers.len(), h.peers.snapLen(); all-snp > snp+5 {
 				reject = true
 			}
@@ -439,6 +448,7 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 		}
 		go func(number uint64, hash common.Hash, req *eth.Request) {
 			// Ensure the request gets cancelled in case of error/drop
+			// 确保request被取消，万一有error或者drop
 			defer req.Close()
 
 			timeout := time.NewTimer(syncChallengeTimeout)
@@ -450,10 +460,12 @@ func (h *handler) runEthPeer(peer *eth.Peer, handler eth.Handler) error {
 				if len(headers) == 0 {
 					// Required blocks are allowed to be missing if the remote
 					// node is not yet synced
+					// 请求的blocks允许有missing，如果remote node没有同步
 					res.Done <- nil
 					return
 				}
 				// Validate the header and either drop the peer or continue
+				// 校验header并且丢弃peer或者继续
 				if len(headers) > 1 {
 					res.Done <- errors.New("too many headers in required block response")
 					return
@@ -509,6 +521,7 @@ func (h *handler) removePeer(id string) {
 }
 
 // unregisterPeer removes a peer from the downloader, fetchers and main peer set.
+// unregisterPeer将一个peer从downloader, fetchers以及main peer set中移除
 func (h *handler) unregisterPeer(id string) {
 	// Create a custom logger to avoid printing the entire id
 	var logger log.Logger
@@ -525,13 +538,16 @@ func (h *handler) unregisterPeer(id string) {
 		return
 	}
 	// Remove the `eth` peer if it exists
+	// 移除`eth` peer如果存在的话
 	logger.Debug("Removing Ethereum peer", "snap", peer.snapExt != nil)
 
 	// Remove the `snap` extension if it exists
+	// 移除`snap`扩展，如果存在的话
 	if peer.snapExt != nil {
 		h.downloader.SnapSyncer.Unregister(id)
 	}
 	h.downloader.UnregisterPeer(id)
+	// 从txFetcher丢弃
 	h.txFetcher.Drop(id)
 
 	if err := h.peers.unregisterPeer(id); err != nil {
@@ -543,21 +559,25 @@ func (h *handler) Start(maxPeers int) {
 	h.maxPeers = maxPeers
 
 	// broadcast and announce transactions (only new ones, not resurrected ones)
+	// 广播并且声明txs（只有新的，而不是复活的）
 	h.wg.Add(1)
 	h.txsCh = make(chan core.NewTxsEvent, txChanSize)
 	h.txsSub = h.txpool.SubscribeTransactions(h.txsCh, false)
 	go h.txBroadcastLoop()
 
 	// broadcast mined blocks
+	// 广播mined blocks
 	h.wg.Add(1)
 	h.minedBlockSub = h.eventMux.Subscribe(core.NewMinedBlockEvent{})
 	go h.minedBroadcastLoop()
 
 	// start sync handlers
+	// 启动sync handlers
 	h.wg.Add(1)
 	go h.chainSync.loop()
 
 	// start peer handler tracker
+	// 启动peer handler tracker
 	h.wg.Add(1)
 	go h.protoTracker()
 }
@@ -582,13 +602,17 @@ func (h *handler) Stop() {
 
 // BroadcastBlock will either propagate a block to a subset of its peers, or
 // will only announce its availability (depending what's requested).
+// BroadcastBlock要么传播一个block到它的peers的子集，或者只声明它的可用性（取决于如何请求）
 func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	// Disable the block propagation if the chain has already entered the PoS
 	// stage. The block propagation is delegated to the consensus layer.
+	// 禁止block传播，如果chain已经进入了PoS stage，block propagation已经被委托到
+	// consensus layer
 	if h.merger.PoSFinalized() {
 		return
 	}
 	// Disable the block propagation if it's the post-merge block.
+	// 禁止block传播，如果它是post-merge block
 	if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
 		if beacon.IsPoSHeader(block.Header()) {
 			return
@@ -598,16 +622,20 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 	peers := h.peers.peersWithoutBlock(hash)
 
 	// If propagation is requested, send to a subset of the peer
+	// 如果请求了传播，发送一个peer的一个子集
 	if propagate {
 		// Calculate the TD of the block (it's not imported yet, so block.Td is not valid)
+		// 计算block的TD
 		var td *big.Int
 		if parent := h.chain.GetBlock(block.ParentHash(), block.NumberU64()-1); parent != nil {
+			// 上一个block的td加上当前block的td
 			td = new(big.Int).Add(block.Difficulty(), h.chain.GetTd(block.ParentHash(), block.NumberU64()-1))
 		} else {
 			log.Error("Propagating dangling block", "number", block.Number(), "hash", hash)
 			return
 		}
 		// Send the block to a subset of our peers
+		// 发送block到peers的一个子集
 		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range transfer {
 			peer.AsyncSendNewBlock(block, td)
@@ -616,6 +644,7 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		return
 	}
 	// Otherwise if the block is indeed in out own chain, announce it
+	// 否则，如果block真在我们的chain，声明它
 	if h.chain.HasBlock(hash, block.NumberU64()) {
 		for _, peer := range peers {
 			peer.AsyncSendNewBlockHash(block)
@@ -625,9 +654,12 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 }
 
 // BroadcastTransactions will propagate a batch of transactions
+// BroadcastTransactions会广播一批txs
 // - To a square root of all peers for non-blob transactions
+// - 对于non-blob txs是所有peers的平方根
 // - And, separately, as announcements to all peers which are not known to
 // already have the given transaction.
+// - 并且，另外，将声明发往所有的peers，他们还不知道给定的tx
 func (h *handler) BroadcastTransactions(txs types.Transactions) {
 	var (
 		blobTxs  int // Number of blob transactions to announce only
@@ -642,6 +674,7 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		annos = make(map[*ethPeer][]common.Hash) // Set peer->hash to announce
 	)
 	// Broadcast transactions to a batch of peers not knowing about it
+	// 广播txs到一系列的peers，还不知道它
 	for _, tx := range txs {
 		peers := h.peers.peersWithoutTransaction(tx.Hash())
 
@@ -652,13 +685,16 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 		case tx.Size() > txMaxBroadcastSize:
 			largeTxs++
 		default:
+			// peers的平方根
 			numDirect = int(math.Sqrt(float64(len(peers))))
 		}
 		// Send the tx unconditionally to a subset of our peers
+		// 无条件发送tx到我们的Peers的子集
 		for _, peer := range peers[:numDirect] {
 			txset[peer] = append(txset[peer], tx.Hash())
 		}
 		// For the remaining peers, send announcement only
+		// 对于剩余的，只发送announcement
 		for _, peer := range peers[numDirect:] {
 			annos[peer] = append(annos[peer], tx.Hash())
 		}
@@ -678,18 +714,22 @@ func (h *handler) BroadcastTransactions(txs types.Transactions) {
 }
 
 // minedBroadcastLoop sends mined blocks to connected peers.
+// minedBroadcastLoop发送mined blocks到connected peers
 func (h *handler) minedBroadcastLoop() {
 	defer h.wg.Done()
 
 	for obj := range h.minedBlockSub.Chan() {
 		if ev, ok := obj.Data.(core.NewMinedBlockEvent); ok {
-			h.BroadcastBlock(ev.Block, true)  // First propagate block to peers
+			// 首先广播block到peers
+			h.BroadcastBlock(ev.Block, true) // First propagate block to peers
+			// 剩余的仅仅announce
 			h.BroadcastBlock(ev.Block, false) // Only then announce to the rest
 		}
 	}
 }
 
 // txBroadcastLoop announces new transactions to connected peers.
+// txBroadcastLoop声明新的txs到connected peers
 func (h *handler) txBroadcastLoop() {
 	defer h.wg.Done()
 	for {

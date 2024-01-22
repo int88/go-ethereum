@@ -77,6 +77,7 @@ func (d *Downloader) runStateSync(s *stateSync) *stateSync {
 
 // stateSync schedules requests for downloading a particular state trie defined
 // by a given state root.
+// stateSync调度请求，对于下载特定的state trie，用给定的state trie定义
 type stateSync struct {
 	d    *Downloader // Downloader instance to access and manage current peerset
 	root common.Hash // State root currently being synced

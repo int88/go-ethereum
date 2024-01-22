@@ -46,6 +46,7 @@ var (
 type peerConnection struct {
 	id string // Unique identifier of the peer
 
+	// 追踪每秒可以获取的items
 	rates   *msgrate.Tracker         // Tracker to hone in on the number of items retrievable per second
 	lacking map[common.Hash]struct{} // Set of hashes not to request (didn't have previously)
 
@@ -57,11 +58,14 @@ type peerConnection struct {
 }
 
 // Peer encapsulates the methods required to synchronise with a remote full peer.
+// Peer封装了从一个remote full peer同步所需的方法
 type Peer interface {
 	Head() (common.Hash, *big.Int)
+	// 通过hash和number请求header
 	RequestHeadersByHash(common.Hash, int, int, bool, chan *eth.Response) (*eth.Request, error)
 	RequestHeadersByNumber(uint64, int, int, bool, chan *eth.Response) (*eth.Request, error)
 
+	// 请求bodies，请求receipts
 	RequestBodies([]common.Hash, chan *eth.Response) (*eth.Request, error)
 	RequestReceipts([]common.Hash, chan *eth.Response) (*eth.Request, error)
 }
@@ -162,6 +166,7 @@ func (p *peerConnection) Lacks(hash common.Hash) bool {
 
 // peeringEvent is sent on the peer event feed when a remote peer connects or
 // disconnects.
+// peeringEvent被发送到一个peer event，当一个remote peer连接或者断开连接
 type peeringEvent struct {
 	peer *peerConnection
 	join bool
@@ -169,10 +174,12 @@ type peeringEvent struct {
 
 // peerSet represents the collection of active peer participating in the chain
 // download procedure.
+// peerSet代表一系列的active peer，参与chain的下载procedure
 type peerSet struct {
-	peers  map[string]*peerConnection
-	rates  *msgrate.Trackers // Set of rate trackers to give the sync a common beat
-	events event.Feed        // Feed to publish peer lifecycle events on
+	peers map[string]*peerConnection
+	rates *msgrate.Trackers // Set of rate trackers to give the sync a common beat
+	// Feed用来发布peer的生命周期事件
+	events event.Feed // Feed to publish peer lifecycle events on
 
 	lock sync.RWMutex
 }
@@ -203,12 +210,16 @@ func (ps *peerSet) Reset() {
 
 // Register injects a new peer into the working set, or returns an error if the
 // peer is already known.
+// Register注册一个新的peer到working set，或者一个error，如果peer已知
 //
 // The method also sets the starting throughput values of the new peer to the
 // average of all existing peers, to give it a realistic chance of being used
 // for data retrievals.
+// 这个方法同时设置新的peer开始的吞吐值到所有已经存在的peers的平均值，给他一个实际的机会
+// 用于数据获取
 func (ps *peerSet) Register(p *peerConnection) error {
 	// Register the new peer with some meaningful defaults
+	// 注册新的peer，用有意义的默认值
 	ps.lock.Lock()
 	if _, ok := ps.peers[p.id]; ok {
 		ps.lock.Unlock()
@@ -228,6 +239,7 @@ func (ps *peerSet) Register(p *peerConnection) error {
 
 // Unregister removes a remote peer from the active set, disabling any further
 // actions to/from that particular entity.
+// Unregister从active set移除一个remote peer，禁止任何对于这个特定对象的actions
 func (ps *peerSet) Unregister(id string) error {
 	ps.lock.Lock()
 	p, ok := ps.peers[id]

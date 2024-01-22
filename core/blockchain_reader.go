@@ -40,12 +40,15 @@ func (bc *BlockChain) CurrentHeader() *types.Header {
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
+// CurrentBlock获取canonical chain当前的head block，block从blockchain的internal cache获取
 func (bc *BlockChain) CurrentBlock() *types.Header {
 	return bc.currentBlock.Load()
 }
 
 // CurrentSnapBlock retrieves the current snap-sync head block of the canonical
 // chain. The block is retrieved from the blockchain's internal cache.
+// CurrentSnapBlock获取当前的snap-sync head block，对于canonical chain，block获取自
+// blockchain的internal cache
 func (bc *BlockChain) CurrentSnapBlock() *types.Header {
 	return bc.currentSnapBlock.Load()
 }
@@ -382,6 +385,7 @@ func (bc *BlockChain) SetTxLookupLimit(limit uint64) {
 
 // TxLookupLimit retrieves the txlookup limit used by blockchain to prune
 // stale transaction indices.
+// TxLookupLimit获取blockchain使用的txlookup limit，来移除老的tx索引
 func (bc *BlockChain) TxLookupLimit() uint64 {
 	return bc.txLookupLimit
 }

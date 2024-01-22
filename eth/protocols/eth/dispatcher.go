@@ -42,9 +42,11 @@ var (
 // back to the requester on their chosen channel.
 // Request是一个pending request，允许追踪他并且发送一个response回requester，在他们选择的channel
 type Request struct {
-	peer *Peer  // Peer to which this request belongs for untracking
-	id   uint64 // Request ID to match up replies to
+	peer *Peer // Peer to which this request belongs for untracking
+	// Request ID用于匹配replies
+	id uint64 // Request ID to match up replies to
 
+	// 用于发送response从channel
 	sink   chan *Response // Channel to deliver the response on
 	cancel chan struct{}  // Channel to cancel requests ahead of time
 
@@ -52,6 +54,7 @@ type Request struct {
 	want uint64      // Message code of the response packet
 	data interface{} // Data content of the request packet
 
+	// 解多路复用，如果跨peer的请求，是批量在一起的
 	Peer string    // Demultiplexer if cross-peer requests are batched together
 	Sent time.Time // Timestamp when the request was sent
 }
